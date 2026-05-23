@@ -1,0 +1,43 @@
+{
+  "WorkspaceRoot": ".",
+  "Agent": {
+    "Name": "EventHorizon",
+    "Description": "A terminal-first coding agent runtime.",
+    "EnableSkills": true,
+    "EnableShell": true,
+    "EnableMcpTools": true,
+    "AdditionalSystemPrompts": []
+  },
+  "Provider": {
+    "Type": "openai",
+    "Model": "gpt-4.1-mini",
+    "ApiKey": null,
+    "Endpoint": null,
+    "Deployment": null,
+    "UseDefaultAzureCredential": true
+  },
+  "Protocol": {
+    "Url": "http://127.0.0.1:8787",
+    "Path": "/agui",
+    "ClientUrl": "http://127.0.0.1:8787/agui"
+  },
+  "Pricing": {
+    "CatalogUrl": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json",
+    "CachePath": null,
+    "RefreshOnStartup": true
+  },
+  "Conversation": {
+    "StoragePath": null,
+    "AutoSave": true,
+    "AutoSaveSessionName": "last-session"
+  },
+  "McpServers": [
+    {
+      "Name": "filesystem",
+      "Command": "npx",
+      "Arguments": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      "Enabled": false
+    }
+  ]
+}
+

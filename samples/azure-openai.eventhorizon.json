@@ -1,0 +1,35 @@
+{
+  "WorkspaceRoot": "/Users/hkh/Documents/Projects/test",
+  "Agent": {
+    "Name": "EventHorizon",
+    "Description": "A terminal-first coding agent runtime.",
+    "EnableSkills": true,
+    "EnableShell": true,
+    "EnableMcpTools": true,
+    "AdditionalSystemPrompts": []
+  },
+  "Provider": {
+    "Type": "azure-openai",
+    "Model": "gpt-4o-mini",
+    "ApiKey": null,
+    "Endpoint": "https://your-azure-openai-endpoint.openai.azure.com/",
+    "Deployment": "your-deployment-name",
+    "UseDefaultAzureCredential": true
+  },
+  "Protocol": {
+    "Url": "http://127.0.0.1:8787",
+    "Path": "/agui",
+    "ClientUrl": "http://127.0.0.1:8787/agui"
+  },
+  "Pricing": {
+    "CatalogUrl": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json",
+    "CachePath": null,
+    "RefreshOnStartup": true
+  },
+  "Conversation": {
+    "StoragePath": null,
+    "AutoSave": true,
+    "AutoSaveSessionName": "azure-last-session"
+  },
+  "McpServers": []
+}
