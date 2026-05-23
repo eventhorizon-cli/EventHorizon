@@ -1,15 +1,24 @@
+using EventHorizon.Configuration;
 using EventHorizon.Context;
 using EventHorizon.Prompting;
 using EventHorizon.Protocols.Mcp;
+using EventHorizon.Providers;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
-namespace EventHorizon.Providers;
+namespace EventHorizon.EntryPoints;
 
-public sealed class EventHorizonRuntimeFactory : IEventHorizonRuntimeFactory
+internal sealed class EventHorizonRuntimeHolder
+{
+    public IEventHorizonRuntime? Runtime { get; set; }
+}
+
+internal sealed class RuntimeInitializationHostedService : IHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ISessionContextBuilder _sessionContextBuilder;
@@ -18,15 +27,19 @@ public sealed class EventHorizonRuntimeFactory : IEventHorizonRuntimeFactory
     private readonly IProviderAgentFactory _providerAgentFactory;
     private readonly IProviderChatClientFactory _providerChatClientFactory;
     private readonly McpToolConnector _mcpToolConnector;
+    private readonly IOptions<AppOptions> _options;
+    private readonly EventHorizonRuntimeHolder _runtimeHolder;
 
-    public EventHorizonRuntimeFactory(
+    public RuntimeInitializationHostedService(
         IServiceScopeFactory scopeFactory,
         ISessionContextBuilder sessionContextBuilder,
         IToolCatalogFactory toolCatalogFactory,
         ISystemPromptFactory systemPromptFactory,
         IProviderAgentFactory providerAgentFactory,
         IProviderChatClientFactory providerChatClientFactory,
-        McpToolConnector mcpToolConnector)
+        McpToolConnector mcpToolConnector,
+        IOptions<AppOptions> options,
+        EventHorizonRuntimeHolder runtimeHolder)
     {
         _scopeFactory = scopeFactory;
         _sessionContextBuilder = sessionContextBuilder;
@@ -35,9 +48,18 @@ public sealed class EventHorizonRuntimeFactory : IEventHorizonRuntimeFactory
         _providerAgentFactory = providerAgentFactory;
         _providerChatClientFactory = providerChatClientFactory;
         _mcpToolConnector = mcpToolConnector;
+        _options = options;
+        _runtimeHolder = runtimeHolder;
     }
 
-    public async Task<IEventHorizonRuntime> CreateAsync(Configuration.AppOptions options, CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        var options = _options.Value;
+
+        _runtimeHolder.Runtime = await CreateLocalRuntimeAsync(options, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<IEventHorizonRuntime> CreateLocalRuntimeAsync(AppOptions options, CancellationToken cancellationToken)
     {
         var scope = _scopeFactory.CreateAsyncScope();
         var services = scope.ServiceProvider;
@@ -70,5 +92,29 @@ public sealed class EventHorizonRuntimeFactory : IEventHorizonRuntimeFactory
         var agent = _providerAgentFactory.CreateAgent(options, instructions, allTools, skillsProvider, services);
         return new EventHorizonRuntime(agent, services, modelName, contextSnapshot, toolCatalog, resources, scope);
     }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
+internal sealed class EventHorizonRuntimeWrapper : IEventHorizonRuntime
+{
+    private readonly EventHorizonRuntimeHolder _holder;
+
+    public EventHorizonRuntimeWrapper(EventHorizonRuntimeHolder holder)
+    {
+        _holder = holder;
+    }
+
+    private IEventHorizonRuntime Runtime => _holder.Runtime ?? throw new InvalidOperationException("Runtime not initialized");
+
+    public AIAgent Agent => Runtime.Agent;
+    public string ModelName => Runtime.ModelName;
+    public IServiceProvider Services => Runtime.Services;
+    public SessionContextSnapshot ContextSnapshot => Runtime.ContextSnapshot;
+    public IReadOnlyList<ToolDescriptor> ToolCatalog => Runtime.ToolCatalog;
+
+    public async ValueTask DisposeAsync()
+    {
+        await Runtime.DisposeAsync().ConfigureAwait(false);
+    }
+}

@@ -1,6 +1,6 @@
-using EventHorizon.EntryPoints.Console;
 using EventHorizon.Terminal.Commands;
 using EventHorizon.Terminal.Surfaces;
+using EventHorizon.Terminal.Session;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EventHorizon.Terminal;
@@ -29,11 +29,7 @@ public static class TerminalServiceCollectionExtensions
         services.AddSingleton<ITerminalCommandHandler, ClearActivityCommandHandler>();
         services.AddSingleton<ITerminalCommandHandler, ResetSessionCommandHandler>();
         services.AddSingleton<ITerminalCommandHandler, ExitCommandHandler>();
-        services.AddSingleton<ISessionUsageTrackerFactory, SessionUsageTrackerFactory>();
-        services.AddSingleton<IQueryEngineFactory, QueryEngineFactory>();
-        services.AddSingleton<ITerminalSessionServiceFactory, TerminalSessionServiceFactory>();
-        services.AddSingleton<ITerminalRuntimeContextFactory, TerminalRuntimeContextFactory>();
-        services.AddSingleton<ITerminalInputControllerFactory, TerminalInputControllerFactory>();
+        services.AddSingleton<ITerminalSessionService, TerminalSessionService>();
         return services;
     }
 }

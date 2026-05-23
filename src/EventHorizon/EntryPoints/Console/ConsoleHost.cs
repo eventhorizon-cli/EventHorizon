@@ -12,18 +12,18 @@ public sealed class ConsoleHost
     private readonly IEventHorizonRuntime _runtime;
     private readonly QueryEngine _queryEngine;
     private readonly ISlashCommandService _slashCommandService;
+    private readonly ISessionUsageTracker _usageTracker;
 
     public ConsoleHost(
         IEventHorizonRuntime runtime,
-        ModelPriceCatalog catalog,
-        ISessionUsageTrackerFactory usageTrackerFactory,
-        IQueryEngineFactory queryEngineFactory,
-        ISlashCommandService slashCommandService)
+        QueryEngine queryEngine,
+        ISlashCommandService slashCommandService,
+        ISessionUsageTracker usageTracker)
     {
         _runtime = runtime;
+        _queryEngine = queryEngine;
         _slashCommandService = slashCommandService;
-        var usageTracker = usageTrackerFactory.Create(catalog, runtime.ModelName);
-        _queryEngine = queryEngineFactory.Create(runtime, usageTracker);
+        _usageTracker = usageTracker;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -33,7 +33,7 @@ public sealed class ConsoleHost
         while (!cancellationToken.IsCancellationRequested)
         {
             System.Console.Write("eventhorizon> ");
-            string? input = System.Console.ReadLine();
+            var input = System.Console.ReadLine();
             if (input is null)
             {
                 System.Console.WriteLine();
@@ -121,7 +121,7 @@ public sealed class ConsoleHost
         var input = usage.InputTokenCount ?? usage.InputTextTokenCount ?? 0;
         var output = usage.OutputTokenCount ?? usage.OutputTextTokenCount ?? 0;
         var total = usage.TotalTokenCount ?? input + output;
-        return costUsd is decimal cost
+        return costUsd is { } cost
             ? $"tokens in/out/total = {input}/{output}/{total} · estimated cost {cost:F6} USD"
             : $"tokens in/out/total = {input}/{output}/{total}";
     }

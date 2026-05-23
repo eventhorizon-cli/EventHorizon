@@ -8,9 +8,9 @@ namespace EventHorizon.Execution;
 public sealed class QueryLoop
 {
     private readonly AIAgent _agent;
-    private readonly SessionUsageTracker _usageTracker;
+    private readonly ISessionUsageTracker _usageTracker;
 
-    public QueryLoop(AIAgent agent, SessionUsageTracker usageTracker)
+    public QueryLoop(AIAgent agent, ISessionUsageTracker usageTracker)
     {
         _agent = agent;
         _usageTracker = usageTracker;
@@ -21,11 +21,11 @@ public sealed class QueryLoop
         _usageTracker.StartTurn();
 
         var assistantText = string.Empty;
-        await foreach (Microsoft.Agents.AI.AgentResponseUpdate update in _agent.RunStreamingAsync([new ChatMessage(ChatRole.User, prompt)], session, cancellationToken: cancellationToken).ConfigureAwait(false))
+        await foreach (var update in _agent.RunStreamingAsync([new ChatMessage(ChatRole.User, prompt)], session, cancellationToken: cancellationToken).ConfigureAwait(false))
         {
             _usageTracker.ObserveUpdate(update);
 
-            foreach (QueryEvent activityEvent in StreamingActivityInspector.Inspect(update))
+            foreach (var activityEvent in StreamingActivityInspector.Inspect(update))
             {
                 yield return activityEvent;
             }

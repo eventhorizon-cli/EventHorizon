@@ -16,7 +16,7 @@ public sealed class TerminalWorkbenchComposer
     public TerminalViewModel Compose(
         AppOptions options,
         TerminalConversationState state,
-        SessionUsageTracker usageTracker,
+        ISessionUsageTracker usageTracker,
         string status,
         bool isStreaming,
         string? assistantPreview = null,

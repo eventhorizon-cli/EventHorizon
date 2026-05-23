@@ -12,8 +12,6 @@ public static class ProvidersServiceCollectionExtensions
         services.AddSingleton<IProviderChatClientFactory, ProviderChatClientFactory>();
         services.AddSingleton<IProviderAgentFactory, ProviderAgentFactory>();
         services.AddSingleton<McpToolConnector>();
-        services.AddSingleton<IEventHorizonRuntimeFactory, EventHorizonRuntimeFactory>();
-        services.AddHttpClient(nameof(EntryPoints.RemoteEventHorizonRuntimeFactory));
         return services;
     }
 }

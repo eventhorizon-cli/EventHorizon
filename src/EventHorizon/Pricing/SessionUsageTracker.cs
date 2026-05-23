@@ -1,17 +1,26 @@
+using EventHorizon.Providers;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 namespace EventHorizon.Pricing;
 
-public sealed class SessionUsageTracker
+public sealed class SessionUsageTracker : ISessionUsageTracker
 {
-    private readonly ModelPriceCatalog _catalog;
-    private readonly string _modelName;
+    private readonly IModelPriceCatalogService _priceCatalogService;
+    private readonly IEventHorizonRuntime _runtime;
 
-    public SessionUsageTracker(ModelPriceCatalog catalog, string modelName)
+    public SessionUsageTracker(
+        IModelPriceCatalogService priceCatalogService,
+        IEventHorizonRuntime runtime)
     {
-        _catalog = catalog;
-        _modelName = modelName;
+        _priceCatalogService = priceCatalogService;
+        _runtime = runtime;
+    }
+
+    private ModelPriceCatalog? GetCatalog()
+    {
+        _priceCatalogService.TryGetCatalog(out var catalog);
+        return catalog;
     }
 
     public UsageDetails TotalUsage { get; private set; } = new();
@@ -47,14 +56,18 @@ public sealed class SessionUsageTracker
 
     public void ObserveUpdate(AgentResponseUpdate update)
     {
-        foreach (UsageContent usageContent in update.Contents.OfType<UsageContent>())
+        foreach (var usageContent in update.Contents.OfType<UsageContent>())
         {
             LastTurnUsage.Add(usageContent.Details);
             TotalUsage.Add(usageContent.Details);
         }
 
-        LastTurnCost = _catalog.EstimateCost(_modelName, LastTurnUsage);
-        TotalCost = _catalog.EstimateCost(_modelName, TotalUsage);
+        var catalog = GetCatalog();
+        if (catalog != null)
+        {
+            LastTurnCost = catalog.EstimateCost(_runtime.ModelName, LastTurnUsage);
+            TotalCost = catalog.EstimateCost(_runtime.ModelName, TotalUsage);
+        }
     }
 }
 

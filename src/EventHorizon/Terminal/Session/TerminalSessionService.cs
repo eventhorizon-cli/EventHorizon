@@ -1,5 +1,6 @@
 using EventHorizon.Configuration;
 using EventHorizon.Conversations;
+using EventHorizon.Providers;
 using Microsoft.Agents.AI;
 
 namespace EventHorizon.Terminal.Session;
@@ -14,13 +15,13 @@ public sealed class TerminalSessionService : ITerminalSessionService
     private AgentSession? _currentSession;
 
     public TerminalSessionService(
-        AIAgent agent,
+        IEventHorizonRuntime runtime,
         AppOptions options,
         IConversationSessionStore sessionStore,
         IConversationSessionSerializer sessionSerializer,
         IConversationSessionMapper sessionMapper)
     {
-        _agent = agent;
+        _agent = runtime.Agent;
         _options = options;
         _sessionStore = sessionStore;
         _sessionSerializer = sessionSerializer;

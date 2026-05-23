@@ -1,11 +1,14 @@
 using System.Text;
 using EventHorizon.Configuration;
+using EventHorizon.Diagnostics;
 using EventHorizon.Execution;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
 using EventHorizon.Terminal;
 using EventHorizon.Terminal.Commands;
+using EventHorizon.Terminal.Session;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 
 namespace EventHorizon.EntryPoints.Console;
 
@@ -13,12 +16,12 @@ public sealed class TerminalWorkbenchHost
 {
     private readonly IEventHorizonRuntime _runtime;
     private readonly AppOptions _options;
-    private readonly SessionUsageTracker _usageTracker;
     private readonly QueryEngine _queryEngine;
     private readonly TerminalRuntimeContext _runtimeContext;
     private readonly TerminalWorkbenchComposer _composer;
     private readonly ITerminalLayoutRenderer _renderer;
     private readonly ITerminalWindowSizeMonitor _windowSizeMonitor;
+    private readonly ISessionUsageTracker _usageTracker;
     private readonly TerminalCommandDispatcher _commandDispatcher;
     private readonly TerminalInputController _inputController;
     private string _status = "Ready. Describe a change, ask for a review, or use /help.";
@@ -28,23 +31,22 @@ public sealed class TerminalWorkbenchHost
 
     public TerminalWorkbenchHost(
         IEventHorizonRuntime runtime,
-        AppOptions options,
-        ModelPriceCatalog catalog,
-        ISessionUsageTrackerFactory usageTrackerFactory,
-        IQueryEngineFactory queryEngineFactory,
-        ITerminalRuntimeContextFactory runtimeContextFactory,
-        ITerminalInputControllerFactory inputControllerFactory,
+        IOptions<AppOptions> options,
+        QueryEngine queryEngine,
+        ISessionUsageTracker usageTracker,
+        ITerminalSessionService sessionService,
+        IRunErrorLogWriter errorLogWriter,
         TerminalWorkbenchComposer composer,
         ITerminalLayoutRenderer renderer,
         ITerminalWindowSizeMonitor windowSizeMonitor,
         TerminalCommandDispatcher commandDispatcher)
     {
         _runtime = runtime;
-        _options = options;
-        _usageTracker = usageTrackerFactory.Create(catalog, runtime.ModelName);
-        _queryEngine = queryEngineFactory.Create(runtime, _usageTracker);
-        _runtimeContext = runtimeContextFactory.Create(runtime, options, _usageTracker);
-        _inputController = inputControllerFactory.Create(options.WorkspaceRoot);
+        _options = options.Value;
+        _queryEngine = queryEngine;
+        _usageTracker = usageTracker;
+        _runtimeContext = new TerminalRuntimeContext(_options, usageTracker, sessionService, errorLogWriter);
+        _inputController = new TerminalInputController(_options.WorkspaceRoot);
         _composer = composer;
         _renderer = renderer;
         _windowSizeMonitor = windowSizeMonitor;

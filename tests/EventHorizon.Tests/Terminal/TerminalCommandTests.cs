@@ -1,10 +1,13 @@
 using EventHorizon.Configuration;
 using EventHorizon.Conversations;
+using EventHorizon.Context;
 using EventHorizon.Diagnostics;
 using EventHorizon.Pricing;
+using EventHorizon.Providers;
 using EventHorizon.Terminal;
 using EventHorizon.Terminal.Commands;
 using EventHorizon.Terminal.Session;
+using EventHorizon.Tools;
 using Microsoft.Agents.AI;
 
 namespace EventHorizon.Tests.Terminal;
@@ -12,6 +15,8 @@ namespace EventHorizon.Tests.Terminal;
 public sealed class TerminalCommandTests : IDisposable
 {
     private readonly string _root;
+
+    private static readonly IEventHorizonRuntime FakeRuntime = new FakeRuntimeForCommandTests();
 
     public TerminalCommandTests()
     {
@@ -36,7 +41,7 @@ public sealed class TerminalCommandTests : IDisposable
     {
         TerminalRuntimeContext runtime = new(
             new AppOptions { WorkspaceRoot = _root },
-            new SessionUsageTracker(new ModelPriceCatalog([]), "missing"),
+            new SessionUsageTracker(new ModelPriceCatalogService(new ModelPriceCatalog([])), FakeRuntime),
             new FakeTerminalSessionService(),
             new FakeErrorLogWriter());
         FocusCommandHandler handler = new();
@@ -53,7 +58,7 @@ public sealed class TerminalCommandTests : IDisposable
     {
         TerminalRuntimeContext runtime = new(
             new AppOptions { WorkspaceRoot = _root },
-            new SessionUsageTracker(new ModelPriceCatalog([]), "missing"),
+            new SessionUsageTracker(new ModelPriceCatalogService(new ModelPriceCatalog([])), FakeRuntime),
             new FakeTerminalSessionService(),
             new FakeErrorLogWriter());
         SidebarCommandHandler handler = new();
@@ -100,6 +105,21 @@ public sealed class TerminalCommandTests : IDisposable
         public void Write(string category, Exception exception, IReadOnlyDictionary<string, string?>? metadata = null)
         {
         }
+    }
+
+    private sealed class FakeRuntimeForCommandTests : IEventHorizonRuntime
+    {
+        public AIAgent Agent => null!;
+        public string ModelName => "missing";
+        public IServiceProvider Services => null!;
+        public SessionContextSnapshot ContextSnapshot => new(
+            CurrentDate: "Today's date is 2026-05-21.",
+            WorkspaceRoot: "/tmp/workspace",
+            WorkspaceSummary: "summary",
+            GitStatus: "clean",
+            ProjectInstructions: "instructions");
+        public IReadOnlyList<ToolDescriptor> ToolCatalog => [];
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }
 

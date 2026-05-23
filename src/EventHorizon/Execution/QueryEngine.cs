@@ -13,7 +13,7 @@ public sealed class QueryEngine
     private readonly List<ConversationEntry> _history = [];
     private AgentSession? _session;
 
-    public QueryEngine(IEventHorizonRuntime runtime, SessionUsageTracker usageTracker)
+    public QueryEngine(IEventHorizonRuntime runtime, ISessionUsageTracker usageTracker)
     {
         _agent = runtime.Agent;
         _turnLoop = new QueryLoop(runtime.Agent, usageTracker);

@@ -7,7 +7,7 @@ namespace EventHorizon.Terminal;
 
 public sealed class TerminalRuntimeContext
 {
-    public TerminalRuntimeContext(AppOptions options, SessionUsageTracker usageTracker, ITerminalSessionService sessionService, IRunErrorLogWriter errorLogWriter)
+    public TerminalRuntimeContext(AppOptions options, ISessionUsageTracker usageTracker, ITerminalSessionService sessionService, IRunErrorLogWriter errorLogWriter)
     {
         Options = options;
         UsageTracker = usageTracker;
@@ -17,7 +17,7 @@ public sealed class TerminalRuntimeContext
 
     public AppOptions Options { get; }
 
-    public SessionUsageTracker UsageTracker { get; }
+    public ISessionUsageTracker UsageTracker { get; }
 
     public ITerminalSessionService SessionService { get; }
 

@@ -34,7 +34,6 @@ The main runtime lives in `src/EventHorizon/` and is now organized around these 
 - `serve` — host the AGUI endpoint
 - `client` — connect to a remote AGUI endpoint
 - `mcp-server` — expose the runtime as an MCP tool over stdio
-- `prices-refresh` — refresh the cached pricing catalog
 
 If no command is specified and the input begins with options, the CLI defaults to `tui`.
 If the first token is not a known command, the CLI treats the input as a `run` prompt.
@@ -93,7 +92,7 @@ EventHorizon supports the following provider types:
   "Pricing": {
     "CatalogUrl": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json",
     "CachePath": null,
-    "RefreshOnStartup": true
+    "RefreshOnStartup": false
   },
   "Conversation": {
     "StoragePath": null,
@@ -119,12 +118,6 @@ Build:
 
 ```zsh
 dotnet build EventHorizon.slnx
-```
-
-Refresh the pricing catalog:
-
-```zsh
-dotnet run --project src/EventHorizon -- prices-refresh
 ```
 
 **Recommended:** Run interactive TUI mode (multi-panel workbench):
@@ -157,32 +150,4 @@ Run a single prompt with a config:
 
 ```zsh
 dotnet run --project src/EventHorizon -- run --config samples/openai-compatible.eventhorizon.json "Summarize the workspace architecture"
-```
-
-Start AGUI server mode:
-
-```zsh
-dotnet run --project src/EventHorizon -- serve --url http://127.0.0.1:8787
-```
-
-Connect to a remote AGUI endpoint:
-
-```zsh
-dotnet run --project src/EventHorizon -- client --url http://127.0.0.1:8787/agui
-```
-
-Expose the runtime over MCP stdio:
-
-```zsh
-dotnet run --project src/EventHorizon -- mcp-server
-```
-
-## Verified commands
-
-The following commands were verified during this rewrite:
-
-```zsh
-dotnet build EventHorizon.slnx
-dotnet test EventHorizon.slnx
-dotnet run --project src/EventHorizon -- prices-refresh
 ```

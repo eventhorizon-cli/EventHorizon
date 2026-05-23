@@ -13,7 +13,7 @@ public sealed class QueryEngineTests
     [Fact]
     public void LoadConversationState_Replaces_History()
     {
-        Execution.QueryEngine engine = new(new FakeRuntime(), new SessionUsageTracker(new ModelPriceCatalog([]), "missing-model"));
+        Execution.QueryEngine engine = new(new FakeRuntime(), new SessionUsageTracker(new ModelPriceCatalogService(new ModelPriceCatalog([])), new FakeRuntime()));
 
         engine.LoadConversationState(
             session: null,

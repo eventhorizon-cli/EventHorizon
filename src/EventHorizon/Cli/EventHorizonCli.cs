@@ -17,10 +17,6 @@ public sealed class EventHorizonCli : ICommandOptionsParser
         "chat",
         "tui",
         "run",
-        "serve",
-        "client",
-        "mcp-server",
-        "prices-refresh",
     ];
 
     public EffectiveCommandOptions Parse(string[] args)
@@ -37,7 +33,7 @@ public sealed class EventHorizonCli : ICommandOptionsParser
     }
 
     public string GetHelpText()
-        => "Commands: chat|tui, run, serve, client, mcp-server, prices-refresh";
+        => "Commands: tui, run, serve, client, mcp-server";
 
     private static ParserConfiguration CreateParserConfiguration()
         => new()

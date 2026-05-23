@@ -2,8 +2,7 @@ namespace EventHorizon.Pricing;
 
 public interface IModelPriceCatalogService
 {
-    Task<ModelPriceCatalog> GetCatalogAsync(CancellationToken cancellationToken);
-
-    Task<int> RefreshAsync(CancellationToken cancellationToken);
+    bool TryGetCatalog(out ModelPriceCatalog? catalog);
+    Task RefreshIfNeededAsync(CancellationToken cancellationToken);
 }
 
