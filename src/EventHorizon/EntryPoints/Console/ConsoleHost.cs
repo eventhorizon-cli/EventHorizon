@@ -12,18 +12,15 @@ public sealed class ConsoleHost
     private readonly IEventHorizonRuntime _runtime;
     private readonly QueryEngine _queryEngine;
     private readonly ISlashCommandService _slashCommandService;
-    private readonly ISessionUsageTracker _usageTracker;
 
     public ConsoleHost(
         IEventHorizonRuntime runtime,
         QueryEngine queryEngine,
-        ISlashCommandService slashCommandService,
-        ISessionUsageTracker usageTracker)
+        ISlashCommandService slashCommandService)
     {
         _runtime = runtime;
         _queryEngine = queryEngine;
         _slashCommandService = slashCommandService;
-        _usageTracker = usageTracker;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -54,8 +51,16 @@ public sealed class ConsoleHost
         }
     }
 
-    public Task RunSingleAsync(string prompt, CancellationToken cancellationToken)
-        => RunPromptAsync(prompt, cancellationToken);
+    public async Task RunSingleAsync(string? prompt, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            await System.Console.Error.WriteAsync("No prompt provided. Exiting.");
+            return;
+        }
+
+        await RunPromptAsync(prompt, cancellationToken);
+    }
 
     private async Task<bool> TryHandleSlashCommandAsync(string input, CancellationToken cancellationToken)
     {
@@ -126,5 +131,3 @@ public sealed class ConsoleHost
             : $"tokens in/out/total = {input}/{output}/{total}";
     }
 }
-
-

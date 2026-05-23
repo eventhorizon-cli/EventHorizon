@@ -8,8 +8,6 @@ public sealed class AppOptions
 
     public ProviderOptions Provider { get; set; } = new();
 
-    public ProtocolOptions Protocol { get; set; } = new();
-
     public PricingOptions Pricing { get; set; } = new();
 
     public ConversationOptions Conversation { get; set; } = new();

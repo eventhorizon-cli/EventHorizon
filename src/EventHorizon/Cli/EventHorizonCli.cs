@@ -33,7 +33,7 @@ public sealed class EventHorizonCli : ICommandOptionsParser
     }
 
     public string GetHelpText()
-        => "Commands: tui, run, serve, client, mcp-server";
+        => "Commands: chat, tui, run";
 
     private static ParserConfiguration CreateParserConfiguration()
         => new()
@@ -45,12 +45,24 @@ public sealed class EventHorizonCli : ICommandOptionsParser
     {
         if (args.Length == 0 || args[0].StartsWith("-", StringComparison.Ordinal))
         {
+            if (string.Equals(args[0], "--tui", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "-tui", StringComparison.OrdinalIgnoreCase))
+            {
+                return ["tui", .. args[1..]];
+            }
+
+            if (string.Equals(args[0], "--chat", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "-chat", StringComparison.OrdinalIgnoreCase))
+            {
+                return ["chat", .. args[1..]];
+            }
+
             return ["chat", .. args];
         }
 
         if (string.Equals(args[0], "tui", StringComparison.OrdinalIgnoreCase))
         {
-            return ["chat", .. args[1..]];
+            return ["tui", .. args[1..]];
         }
 
         if (KnownCommands.Contains(args[0]))
@@ -69,12 +81,11 @@ public sealed class EventHorizonCli : ICommandOptionsParser
         Option<string?> modelOption = new("--model", ["-m"]) { Description = "Model or deployment name." };
         Option<string?> urlOption = new("--url", []) { Description = "Server or client URL, depending on the selected command." };
 
-        Command command = new(commandName, $"EventHorizon {commandName} command");
-        command.Add(configOption);
-        command.Add(workspaceOption);
-        command.Add(providerOption);
-        command.Add(modelOption);
-        command.Add(urlOption);
+        Command command = new(commandName, $"EventHorizon {commandName} command")
+        {
+            configOption, workspaceOption, providerOption, modelOption,
+            urlOption
+        };
 
         Argument<string[]>? promptArgument = null;
         Option<string?>? promptTextOption = null;
@@ -115,7 +126,6 @@ public sealed class EventHorizonCli : ICommandOptionsParser
                 WorkspaceRoot = result.GetValue(WorkspaceOption),
                 ProviderType = result.GetValue(ProviderOption),
                 Model = result.GetValue(ModelOption),
-                Url = result.GetValue(UrlOption),
                 Prompt = !string.IsNullOrWhiteSpace(promptText)
                     ? promptText
                     : (promptTokens.Length == 0 ? null : string.Join(' ', promptTokens)),

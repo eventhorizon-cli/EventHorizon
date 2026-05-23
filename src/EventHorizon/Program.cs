@@ -1,14 +1,16 @@
 using EventHorizon.Cli;
 using EventHorizon.Configuration;
-using EventHorizon.Diagnostics;
 using EventHorizon.EntryPoints;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace EventHorizon;
 
 public static class Program
 {
+    private sealed class StartupLogger { }
+
     public static Task<int> Main(string[] args)
         => RunAsync(args);
 
@@ -38,8 +40,10 @@ public static class Program
             var command = parser.Parse(args);
             host = EventHorizonHost.Create(args, command);
             await host.StartAsync(cancellationToken).ConfigureAwait(false);
-            return await host.Services.GetRequiredService<IEventHorizonApplication>().RunAsync(cancellationToken)
+            await host.Services.GetRequiredService<IEventHorizonApplication>().RunAsync(cancellationToken)
                 .ConfigureAwait(false);
+
+            return 0;
         }
         catch (OperationCanceledException)
         {
@@ -49,11 +53,10 @@ public static class Program
         }
         catch (Exception ex)
         {
-            IRunErrorLogWriter errorLogWriter =
-                host?.Services.GetService<IRunErrorLogWriter>() ?? CreateFallbackErrorLogWriter();
-            errorLogWriter.Write("startup", ex, new Dictionary<string, string?> { ["args"] = string.Join(' ', args), });
+            var logger = host?.Services.GetService<ILogger<StartupLogger>>();
+            logger?.LogError(ex, "Startup failed. Args: {Args}", string.Join(' ', args));
 
-            Console.Error.WriteLine($"Startup failed. See log: {errorLogWriter.LogFilePath}");
+            Console.Error.WriteLine($"Startup failed. See logs for details.");
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
@@ -70,9 +73,6 @@ public static class Program
 
     internal static EffectiveCommandOptions ParseArguments(string[] args)
         => new EventHorizonCli().Parse(args);
-
-    private static IRunErrorLogWriter CreateFallbackErrorLogWriter()
-        => new RunErrorLogWriter(new PathEnvironment());
 
     private static async Task StopHostAsync(IHost host)
     {

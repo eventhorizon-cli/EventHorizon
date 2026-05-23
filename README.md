@@ -31,9 +31,6 @@ The main runtime lives in `src/EventHorizon/` and is now organized around these 
 - `tui` — interactive multi-panel workbench (recommended)
 - `chat` — alias for `tui`
 - `run <prompt...>` — single prompt execution
-- `serve` — host the AGUI endpoint
-- `client` — connect to a remote AGUI endpoint
-- `mcp-server` — expose the runtime as an MCP tool over stdio
 
 If no command is specified and the input begins with options, the CLI defaults to `tui`.
 If the first token is not a known command, the CLI treats the input as a `run` prompt.

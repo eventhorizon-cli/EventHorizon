@@ -41,7 +41,7 @@ public class ProgramEntryTests
     public async Task RunAsync_Help_Returns_Zero_And_Writes_Help_Text()
     {
         StringWriter writer = new();
-        TextWriter originalOut = Console.Out;
+        var originalOut = Console.Out;
         Console.SetOut(writer);
 
         try

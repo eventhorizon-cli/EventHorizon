@@ -1,18 +1,18 @@
 using EventHorizon.Configuration;
-using EventHorizon.Diagnostics;
 using EventHorizon.Pricing;
 using EventHorizon.Terminal.Session;
+using Microsoft.Extensions.Logging;
 
 namespace EventHorizon.Terminal;
 
 public sealed class TerminalRuntimeContext
 {
-    public TerminalRuntimeContext(AppOptions options, ISessionUsageTracker usageTracker, ITerminalSessionService sessionService, IRunErrorLogWriter errorLogWriter)
+    public TerminalRuntimeContext(AppOptions options, ISessionUsageTracker usageTracker, ITerminalSessionService sessionService, ILogger logger)
     {
         Options = options;
         UsageTracker = usageTracker;
         SessionService = sessionService;
-        ErrorLogWriter = errorLogWriter;
+        Logger = logger;
     }
 
     public AppOptions Options { get; }
@@ -21,7 +21,7 @@ public sealed class TerminalRuntimeContext
 
     public ITerminalSessionService SessionService { get; }
 
-    public IRunErrorLogWriter ErrorLogWriter { get; }
+    public ILogger Logger { get; }
 
     public TerminalConversationState State { get; private set; } = new();
 
@@ -31,15 +31,10 @@ public sealed class TerminalRuntimeContext
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        ErrorLogWriter.Write("tui", exception, new Dictionary<string, string?>
-        {
-            ["workspace"] = Options.WorkspaceRoot,
-            ["sessionId"] = State.SessionId,
-            ["title"] = title,
-        });
+        Logger.LogError(exception, "[{Title}] {Detail}", title, detail);
 
         string message = string.IsNullOrWhiteSpace(detail) ? exception.Message : $"{detail} {exception.Message}";
-        State.AddError(title, message.Trim(), exception.GetType().Name, ErrorLogWriter.LogFilePath);
+        State.AddError(title, message.Trim(), exception.GetType().Name, null);
         State.AddActivity("error", title, message.Trim());
         if (switchToErrors)
         {

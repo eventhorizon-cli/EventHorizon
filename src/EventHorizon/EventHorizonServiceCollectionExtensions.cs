@@ -2,7 +2,6 @@ using EventHorizon.Commands;
 using EventHorizon.Configuration;
 using EventHorizon.Context;
 using EventHorizon.Conversations;
-using EventHorizon.Diagnostics;
 using EventHorizon.EntryPoints;
 using EventHorizon.Execution;
 using EventHorizon.Pricing;
@@ -20,7 +19,6 @@ public static class EventHorizonServiceCollectionExtensions
     {
         services
             .AddEventHorizonConfiguration(commandOptions, pathEnvironment)
-            .AddEventHorizonDiagnostics()
             .AddEventHorizonWorkspace()
             .AddEventHorizonContext()
             .AddEventHorizonConversations()

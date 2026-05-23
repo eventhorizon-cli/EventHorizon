@@ -1,6 +1,5 @@
 using System.Text;
 using EventHorizon.Configuration;
-using EventHorizon.Diagnostics;
 using EventHorizon.Execution;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
@@ -8,6 +7,7 @@ using EventHorizon.Terminal;
 using EventHorizon.Terminal.Commands;
 using EventHorizon.Terminal.Session;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace EventHorizon.EntryPoints.Console;
@@ -35,7 +35,7 @@ public sealed class TerminalWorkbenchHost
         QueryEngine queryEngine,
         ISessionUsageTracker usageTracker,
         ITerminalSessionService sessionService,
-        IRunErrorLogWriter errorLogWriter,
+        ILogger<TerminalWorkbenchHost> logger,
         TerminalWorkbenchComposer composer,
         ITerminalLayoutRenderer renderer,
         ITerminalWindowSizeMonitor windowSizeMonitor,
@@ -45,7 +45,7 @@ public sealed class TerminalWorkbenchHost
         _options = options.Value;
         _queryEngine = queryEngine;
         _usageTracker = usageTracker;
-        _runtimeContext = new TerminalRuntimeContext(_options, usageTracker, sessionService, errorLogWriter);
+        _runtimeContext = new TerminalRuntimeContext(_options, usageTracker, sessionService, logger);
         _inputController = new TerminalInputController(_options.WorkspaceRoot);
         _composer = composer;
         _renderer = renderer;

@@ -2,5 +2,5 @@ namespace EventHorizon.EntryPoints;
 
 public interface IEventHorizonApplication
 {
-    Task<int> RunAsync(CancellationToken cancellationToken);
+    Task RunAsync(CancellationToken cancellationToken);
 }

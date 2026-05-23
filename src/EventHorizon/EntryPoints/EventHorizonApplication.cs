@@ -32,29 +32,18 @@ internal sealed class EventHorizonApplication : IEventHorizonApplication
         _terminalWorkbenchHost = terminalWorkbenchHost;
     }
 
-    public async Task<int> RunAsync(CancellationToken cancellationToken)
+    public async Task RunAsync(CancellationToken cancellationToken)
     {
-        return _command.Command switch
+        _ = LoadPricingInBackgroundAsync(_terminalWorkbenchHost, cancellationToken);
+
+        var task = _command.Command switch
         {
-            "run" => await RunLocalAsync(_command.Prompt, cancellationToken).ConfigureAwait(false),
-            _ => await RunLocalAsync(prompt: null, cancellationToken).ConfigureAwait(false),
+            "run" => _consoleHost.RunSingleAsync(_command.Prompt, cancellationToken).ConfigureAwait(false),
+            "chat" => _consoleHost.RunAsync(cancellationToken).ConfigureAwait(false),
+            _ => _terminalWorkbenchHost.RunAsync(cancellationToken).ConfigureAwait(false),
         };
-    }
 
-    private async Task<int> RunLocalAsync(string? prompt, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(prompt))
-        {
-            _ = LoadPricingInBackgroundAsync(_terminalWorkbenchHost, cancellationToken);
-
-            await _terminalWorkbenchHost.RunAsync(cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            await _consoleHost.RunSingleAsync(prompt, cancellationToken).ConfigureAwait(false);
-        }
-
-        return 0;
+        await task;
     }
 
     private async Task LoadPricingInBackgroundAsync(TerminalWorkbenchHost host, CancellationToken cancellationToken)
@@ -73,4 +62,3 @@ internal sealed class EventHorizonApplication : IEventHorizonApplication
         }
     }
 }
-

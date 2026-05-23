@@ -102,28 +102,12 @@ internal sealed class AppOptionsPostConfigure : IPostConfigureOptions<AppOptions
                 options.Provider.Deployment = _commandOptions.Model;
             }
         }
-
-        if (!string.IsNullOrWhiteSpace(_commandOptions.Url))
-        {
-            if (string.Equals(_commandOptions.Command, "client", StringComparison.OrdinalIgnoreCase))
-            {
-                options.Protocol.ClientUrl = _commandOptions.Url;
-            }
-            else
-            {
-                options.Protocol.Url = _commandOptions.Url;
-            }
-        }
     }
 
     private void Normalize(AppOptions options)
     {
         options.WorkspaceRoot = Path.GetFullPath(string.IsNullOrWhiteSpace(options.WorkspaceRoot) ? _pathEnvironment.CurrentDirectory : options.WorkspaceRoot);
         options.Provider.Type = options.Provider.Type.Trim().ToLowerInvariant();
-        options.Protocol.Path = string.IsNullOrWhiteSpace(options.Protocol.Path) ? "/agui" : options.Protocol.Path;
-        options.Protocol.ClientUrl = string.IsNullOrWhiteSpace(options.Protocol.ClientUrl)
-            ? options.Protocol.Url.TrimEnd('/') + options.Protocol.Path
-            : options.Protocol.ClientUrl;
         options.Pricing.CachePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "model_prices_and_context_window.json");
         options.Conversation.StoragePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "sessions");
 

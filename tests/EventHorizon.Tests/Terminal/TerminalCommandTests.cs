@@ -1,7 +1,6 @@
 using EventHorizon.Configuration;
 using EventHorizon.Conversations;
 using EventHorizon.Context;
-using EventHorizon.Diagnostics;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
 using EventHorizon.Terminal;
@@ -9,6 +8,8 @@ using EventHorizon.Terminal.Commands;
 using EventHorizon.Terminal.Session;
 using EventHorizon.Tools;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace EventHorizon.Tests.Terminal;
 
@@ -43,7 +44,7 @@ public sealed class TerminalCommandTests : IDisposable
             new AppOptions { WorkspaceRoot = _root },
             new SessionUsageTracker(new ModelPriceCatalogService(new ModelPriceCatalog([])), FakeRuntime),
             new FakeTerminalSessionService(),
-            new FakeErrorLogWriter());
+            NullLogger<TerminalRuntimeContext>.Instance);
         FocusCommandHandler handler = new();
         TerminalCommandContext context = new(runtime, TerminalCommand.Parse("/focus src/Program.cs"), CancellationToken.None);
 
@@ -60,7 +61,7 @@ public sealed class TerminalCommandTests : IDisposable
             new AppOptions { WorkspaceRoot = _root },
             new SessionUsageTracker(new ModelPriceCatalogService(new ModelPriceCatalog([])), FakeRuntime),
             new FakeTerminalSessionService(),
-            new FakeErrorLogWriter());
+            NullLogger<TerminalRuntimeContext>.Instance);
         SidebarCommandHandler handler = new();
         TerminalCommandContext context = new(runtime, TerminalCommand.Parse("/sidebar sessions"), CancellationToken.None);
 
@@ -96,15 +97,6 @@ public sealed class TerminalCommandTests : IDisposable
 
         public Task SaveAsync(string sessionName, TerminalConversationState state, CancellationToken cancellationToken)
             => throw new NotSupportedException();
-    }
-
-    private sealed class FakeErrorLogWriter : IRunErrorLogWriter
-    {
-        public string LogFilePath => string.Empty;
-
-        public void Write(string category, Exception exception, IReadOnlyDictionary<string, string?>? metadata = null)
-        {
-        }
     }
 
     private sealed class FakeRuntimeForCommandTests : IEventHorizonRuntime
