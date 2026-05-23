@@ -1,6 +1,6 @@
 using EventHorizon.Execution;
-using EventHorizon.Providers;
 using EventHorizon.Pricing;
+using EventHorizon.Providers;
 
 namespace EventHorizon.EntryPoints.Console;
 

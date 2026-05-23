@@ -1,7 +1,7 @@
 using EventHorizon.Configuration;
+using EventHorizon.Pricing;
 using EventHorizon.Providers;
 using EventHorizon.Terminal;
-using EventHorizon.Pricing;
 
 namespace EventHorizon.EntryPoints.Console;
 

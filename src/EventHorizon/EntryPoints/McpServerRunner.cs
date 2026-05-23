@@ -2,8 +2,8 @@ using EventHorizon.Providers;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using ModelContextProtocol.Server;
 using ModelContextProtocol.AspNetCore;
+using ModelContextProtocol.Server;
 
 namespace EventHorizon.EntryPoints;
 
