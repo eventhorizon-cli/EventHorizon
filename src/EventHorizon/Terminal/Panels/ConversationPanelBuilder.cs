@@ -27,8 +27,22 @@ public sealed class ConversationPanelBuilder : ITerminalPanelBuilder
         List<string> lines = [];
         foreach (TerminalMessage entry in context.Transcript)
         {
-            var prefix = entry.IsStreamingPreview ? "~" : "•";
-            lines.Add($"{prefix} {entry.Timestamp:HH:mm:ss}  {entry.Role.ToUpperInvariant()}");
+            // Use minimal/Opencode-like prefix: empty for final replies, a subtle symbol for streaming.
+            var prefix = entry.IsStreamingPreview ? "⟳" : " ";
+            // Map certain roles to clearer display labels in the conversation thread.
+            var roleLabel = entry.Role switch
+            {
+                var r when string.Equals(r, "tool", StringComparison.OrdinalIgnoreCase) => "TOOL CALL",
+                var r when string.Equals(r, "tool-result", StringComparison.OrdinalIgnoreCase) => "TOOL RESULT",
+                var r when string.Equals(r, "thought", StringComparison.OrdinalIgnoreCase) => "THOUGHT",
+                _ => entry.Role.ToUpperInvariant(),
+            };
+            // Show role header without timestamp. For assistant streaming show marker so renderer can color appropriately.
+            var headerMarker = entry.IsStreamingPreview && string.Equals(entry.Role, "assistant", StringComparison.OrdinalIgnoreCase)
+                ? $"{roleLabel} · streaming"
+                : roleLabel;
+
+            lines.Add($"{prefix}  {headerMarker}");
             lines.AddRange(entry.Text.Replace("\r\n", "\n", StringComparison.Ordinal)
                 .Split('\n')
                 .Select(static line => string.IsNullOrWhiteSpace(line) ? "  " : $"  {line}"));

@@ -26,11 +26,13 @@ public sealed class MainSurfaceBuilder : ITerminalSurfaceBuilder
         {
             foreach (TerminalMessage entry in context.Transcript)
             {
-                var prefix = entry.IsStreamingPreview ? "~" : "•";
+                // Use minimal/Opencode-like prefix: empty for final replies, a subtle symbol for streaming.
+                var prefix = entry.IsStreamingPreview ? "⟳" : " ";
+                // Do not show timestamps in the session thread. Include streaming marker on assistant entries.
                 string marker = string.Equals(entry.Role, "assistant", StringComparison.OrdinalIgnoreCase)
                     ? (entry.IsStreamingPreview ? "ASSISTANT · streaming" : "ASSISTANT")
                     : entry.Role.ToUpperInvariant();
-                lines.Add($"{prefix} {entry.Timestamp:HH:mm:ss}  {marker}");
+                lines.Add($"{prefix}  {marker}");
                 lines.AddRange(entry.Text.Replace("\r\n", "\n", StringComparison.Ordinal)
                     .Split('\n')
                     .Select(static line => string.IsNullOrWhiteSpace(line) ? "  " : $"  {line}"));

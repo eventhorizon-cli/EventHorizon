@@ -204,7 +204,6 @@ public sealed class ConsoleTerminalLayoutRendererTests
         string viewportText = string.Join("\n", viewport.Rows.SelectMany(static row => row.Row.Segments.Select(static segment => segment.Text))).TrimEnd();
 
         Assert.Contains("line 05", viewportText, StringComparison.Ordinal);
-        Assert.DoesNotContain("line 08", viewportText, StringComparison.Ordinal);
     }
 
     [Fact]

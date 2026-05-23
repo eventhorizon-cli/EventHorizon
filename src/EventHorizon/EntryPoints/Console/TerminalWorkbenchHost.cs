@@ -160,6 +160,10 @@ public sealed class TerminalWorkbenchHost
 
         var assistantBuffer = new StringBuilder();
         var firstAssistantDeltaReceived = false;
+        // Track when we last appended a "thought" snapshot to the transcript so
+        // we can emit periodic snapshots showing the assistant's evolving thoughts.
+        int lastThoughtSnapshotLength = 0;
+        const int ThoughtSnapshotThreshold = 128; // emit a snapshot every N chars
         await foreach (var evt in _queryEngine.SubmitAsync(prompt, cancellationToken).ConfigureAwait(false))
         {
             switch (evt.Kind)
@@ -168,11 +172,18 @@ public sealed class TerminalWorkbenchHost
                     break;
                 case QueryEventKind.ToolCall:
                     _runtimeContext.State.AddActivity("tool", "Tool call", evt.Text);
+                    // Also add the tool call to the conversation transcript so it appears
+                    // inline in the session thread (e.g. "Read src/..."), matching the
+                    // user's request to see tool invocation traces in the thread.
+                    _runtimeContext.State.AddMessage("tool", evt.Text);
                     _runtimeContext.State.SetActivePanel(TerminalPanelCatalog.Activity);
                     Render(isStreaming: true, assistantPreview: assistantBuffer.ToString());
                     break;
                 case QueryEventKind.ToolResult:
                     _runtimeContext.State.AddActivity("tool-result", "Tool result", evt.Text);
+                    // Append the tool result to the conversation transcript as well so
+                    // the result shows up in the session thread next to the call.
+                    _runtimeContext.State.AddMessage("tool-result", evt.Text);
                     _runtimeContext.State.SetActivePanel(TerminalPanelCatalog.Activity);
                     Render(isStreaming: true, assistantPreview: assistantBuffer.ToString());
                     break;
@@ -181,9 +192,28 @@ public sealed class TerminalWorkbenchHost
                     {
                         firstAssistantDeltaReceived = true;
                         _runtimeContext.State.AddActivity("response", "First tokens received");
+                        // Initial thought snapshot (capture first tokens)
+                        var initialSnapshot = Summarize(evt.Text, 256);
+                        if (!string.IsNullOrWhiteSpace(initialSnapshot))
+                        {
+                            _runtimeContext.State.AddMessage("thought", initialSnapshot);
+                            lastThoughtSnapshotLength = assistantBuffer.Length + initialSnapshot.Length;
+                        }
                     }
 
                     assistantBuffer.Append(evt.Text);
+
+                    // Emit periodic thought snapshots as the assistant preview grows
+                    if (assistantBuffer.Length - lastThoughtSnapshotLength >= ThoughtSnapshotThreshold)
+                    {
+                        var snapshot = Summarize(assistantBuffer.ToString(), 512);
+                        if (!string.IsNullOrWhiteSpace(snapshot))
+                        {
+                            _runtimeContext.State.AddMessage("thought", snapshot);
+                        }
+                        lastThoughtSnapshotLength = assistantBuffer.Length;
+                    }
+
                     _runtimeContext.State.SetAssistantPreview(assistantBuffer.ToString());
                     _status = BuildStreamingStatus(assistantBuffer.Length);
                     Render(isStreaming: true, assistantPreview: assistantBuffer.ToString());
@@ -421,4 +451,3 @@ public sealed class TerminalWorkbenchHost
         return compact.Length <= maxLength ? compact : compact[..(maxLength - 1)] + "…";
     }
 }
-

@@ -93,8 +93,8 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
         int bodyHeight = Math.Max(minimumBodyHeight, height - headerHeight - statusHeight - inputRegionHeight);
 
         FrameBuilder builder = new(width);
-        builder.AddUniformLine("header:title", BuildTitleLine(viewModel, width), viewModel.IsStreaming ? ConsoleColor.Yellow : ConsoleColor.Cyan);
-        builder.AddUniformLine("header:context", Summarize(viewModel.HeaderContext, width).PadRight(width), ConsoleColor.Gray);
+        builder.AddUniformLine("header:title", BuildTitleLine(viewModel, width), viewModel.IsStreaming ? ConsoleColor.Yellow : ConsoleColor.DarkBlue);
+        builder.AddUniformLine("header:context", Summarize(viewModel.HeaderContext, width).PadRight(width), ConsoleColor.DarkGray);
         builder.AddUniformLine("header:summary", BuildWorkbenchSummaryLine(viewModel, width), ConsoleColor.DarkGray);
 
         AppendPanelStrip(
@@ -103,13 +103,13 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
             [width],
             bodyHeight);
 
-        builder.AddUniformLine("footer:status:primary", viewModel.StatusBar.PrimaryText.PadRight(width), viewModel.IsStreaming ? ConsoleColor.Yellow : ConsoleColor.Green);
+        builder.AddUniformLine("footer:status:primary", viewModel.StatusBar.PrimaryText.PadRight(width), viewModel.IsStreaming ? ConsoleColor.Yellow : ConsoleColor.DarkBlue);
         builder.AddUniformLine("footer:status:secondary", Summarize(viewModel.StatusBar.SecondaryText, width).PadRight(width), ConsoleColor.DarkGray);
-        (int cursorLeft, int cursorTop) = builder.AddInputBox(viewModel.Composer, inputViewportHeight);
-        if (viewModel.Overlay.IsOpen)
-        {
-            AppendOverlay(builder, viewModel.Overlay, width, height - inputRegionHeight - statusHeight);
-        }
+            (int cursorLeft, int cursorTop) = builder.AddInputBox(viewModel.Composer, inputViewportHeight);
+            if (viewModel.Overlay.IsOpen)
+            {
+                AppendOverlay(builder, viewModel.Overlay, width, height - inputRegionHeight - statusHeight);
+            }
 
         return builder.Build(cursorLeft, cursorTop, cursorVisible: false);
     }
@@ -125,9 +125,9 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
         int panelHeight = Math.Max(minimumPanelHeight, height - headerHeight - statusHeight - inputRegionHeight);
 
         FrameBuilder builder = new(width);
-        builder.AddUniformLine("header:title", BuildTitleLine(viewModel, width), ConsoleColor.Cyan);
-        builder.AddUniformLine("header:context", Summarize(viewModel.HeaderContext, width).PadRight(width), ConsoleColor.Gray);
-        builder.AddUniformLine("header:badges", BuildBadgeLine(viewModel, width), ConsoleColor.DarkGray);
+        builder.AddUniformLine("header:title", BuildTitleLine(viewModel, width), ConsoleColor.DarkBlue);
+        builder.AddUniformLine("header:context", Summarize(viewModel.HeaderContext, width).PadRight(width), ConsoleColor.DarkGray);
+        builder.AddUniformLine("header:badges", BuildBadgeLine(viewModel, width), ConsoleColor.DarkBlue);
         builder.AddUniformLine("header:tabs", BuildTabsLine(viewModel, width), ConsoleColor.White);
         builder.AddUniformLine("header:breadcrumbs", BuildBreadcrumbLine(viewModel, width), ConsoleColor.DarkGray);
         builder.AddUniformLine("header:navigation", new string('─', width), ConsoleColor.DarkGray);
@@ -268,7 +268,7 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
         RenderRow subtitle = RenderRow.Create(modalWidth,
         [
             new StyledSegment("║", ConsoleColor.Magenta),
-            new StyledSegment(Summarize($" {overlay.Subtitle}", modalWidth - 2).PadRight(modalWidth - 2), ConsoleColor.White),
+            new StyledSegment(Summarize($" {overlay.Subtitle}", modalWidth - 2).PadRight(modalWidth - 2), ConsoleColor.DarkGray),
             new StyledSegment("║", ConsoleColor.Magenta),
         ]);
         RenderRow divider = RenderRow.Create(modalWidth, [new StyledSegment(BuildInputBorderLine(modalWidth, $" query: {overlay.Query}", '╟', '─', '╢'), ConsoleColor.Magenta)]);
@@ -279,7 +279,7 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
             new(top + 2, divider),
         ];
 
-        IReadOnlyList<StyledLine> wrappedLines = overlay.Lines.SelectMany(line => Wrap(line, Math.Max(1, modalWidth - 4)).Select(static item => new StyledLine(item, ConsoleColor.White))).ToList();
+        IReadOnlyList<StyledLine> wrappedLines = overlay.Lines.SelectMany(line => Wrap(line, Math.Max(1, modalWidth - 4)).Select(static item => new StyledLine(item, ConsoleColor.DarkGray))).ToList();
         for (int index = 0; index < visibleBodyHeight; index++)
         {
             StyledLine line = index < wrappedLines.Count ? wrappedLines[index] : StyledLine.Empty;
@@ -312,9 +312,9 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
     private static RenderRow BuildPanelBorderRow(int width, bool isActive, char left, char fill, char right)
         => RenderRow.Create(width,
         [
-            new StyledSegment(left.ToString(), isActive ? ConsoleColor.Cyan : ConsoleColor.DarkGray),
-            new StyledSegment(new string(fill, Math.Max(0, width - 2)), isActive ? ConsoleColor.Cyan : ConsoleColor.DarkGray),
-            new StyledSegment(right.ToString(), isActive ? ConsoleColor.Cyan : ConsoleColor.DarkGray),
+            new StyledSegment(left.ToString(), ConsoleColor.DarkBlue),
+            new StyledSegment(new string(fill, Math.Max(0, width - 2)), ConsoleColor.DarkBlue),
+            new StyledSegment(right.ToString(), ConsoleColor.DarkBlue),
         ]);
 
     private static RenderRow BuildPanelHeaderRow(int width, TerminalPanelViewModel panel)
@@ -322,18 +322,18 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
         var title = panel.IsActive ? $"▣ {panel.Title}" : $"  {panel.Title}";
         return RenderRow.Create(width,
         [
-            new StyledSegment("│", panel.IsActive ? ConsoleColor.Cyan : ConsoleColor.DarkGray),
-            new StyledSegment(Summarize(title, Math.Max(0, width - 2)).PadRight(Math.Max(0, width - 2)), panel.IsActive ? ConsoleColor.Cyan : ConsoleColor.White),
-            new StyledSegment("│", panel.IsActive ? ConsoleColor.Cyan : ConsoleColor.DarkGray),
+            new StyledSegment("│", ConsoleColor.DarkBlue),
+            new StyledSegment(Summarize(title, Math.Max(0, width - 2)).PadRight(Math.Max(0, width - 2)), ConsoleColor.DarkBlue),
+            new StyledSegment("│", ConsoleColor.DarkBlue),
         ]);
     }
 
     private static RenderRow BuildPanelContentRow(int width, TerminalPanelViewModel panel, StyledLine line)
         => RenderRow.Create(width,
         [
-            new StyledSegment("│", panel.IsActive ? ConsoleColor.Cyan : ConsoleColor.DarkGray),
+            new StyledSegment("│", ConsoleColor.DarkBlue),
             new StyledSegment(line.Text.PadRight(Math.Max(0, width - 2)), line.Color),
-            new StyledSegment("│", panel.IsActive ? ConsoleColor.Cyan : ConsoleColor.DarkGray),
+            new StyledSegment("│", ConsoleColor.DarkBlue),
         ]);
 
     private static string BuildTitleLine(TerminalViewModel viewModel, int width)
@@ -396,24 +396,82 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
         return Summarize($"{state} · {location}", width).PadRight(width);
     }
 
-    private static IReadOnlyList<StyledLine> BuildPanelLines(TerminalPanelViewModel panel, int width, int height)
-    {
-        var isInsideCodeFence = false;
-        List<StyledLine> wrappedLines = panel.Lines
-            .SelectMany(line => Wrap(line, width)
-                .Select(wrapped => new StyledLine(wrapped, DetermineLineColor(panel, wrapped, ref isInsideCodeFence))))
-            .ToList();
-
-        int visibleCount = Math.Max(0, height);
-        if (visibleCount == 0)
+        private static IReadOnlyList<StyledLine> BuildPanelLines(TerminalPanelViewModel panel, int width, int height)
         {
-            return [];
-        }
+            var isInsideCodeFence = false;
+            List<StyledLine> wrappedLines = new();
 
-        int scrollOffset = Math.Max(0, panel.ScrollOffset);
-        int start = Math.Max(0, wrappedLines.Count - visibleCount - scrollOffset);
-        return wrappedLines.Skip(start).Take(visibleCount).ToList();
-    }
+            // Maintain current message color so that message body lines (which are prefixed with two spaces)
+            // inherit the header color (e.g. streaming -> dark gray, assistant final -> white).
+            ConsoleColor currentMessageColor = ConsoleColor.White;
+
+            // Iterate with index so we can merge a header line with the following body line
+            // to keep role and output on the same line.
+            for (int i = 0; i < panel.Lines.Count; i++)
+            {
+                string rawLine = panel.Lines[i];
+
+                // If this is a header line and the next line is a body line (starts with two spaces),
+                // merge them into a single line: "HEADER  body..." so role and content appear on one line.
+                if (!rawLine.StartsWith("  ", StringComparison.Ordinal) && i + 1 < panel.Lines.Count && panel.Lines[i + 1].StartsWith("  ", StringComparison.Ordinal))
+                {
+                    string next = panel.Lines[i + 1];
+                    rawLine = rawLine + " " + next.TrimStart();
+                    // skip the next line since we've merged it
+                    i++;
+                }
+
+                // Determine a candidate color using existing logic which also handles code-fence toggling.
+                ConsoleColor candidate = DetermineLineColor(panel, rawLine, ref isInsideCodeFence);
+
+                // If this raw line is a header (not a body line which starts with two spaces), update currentMessageColor.
+                bool isBodyLine = rawLine.StartsWith("  ", StringComparison.Ordinal);
+                if (!isBodyLine)
+                {
+                    currentMessageColor = candidate;
+                }
+
+                // For body lines we normally want to inherit current message color, but preserve strong syntax colors
+                // such as code fences, diffs and explicit activity colors returned by DetermineLineColor.
+                ConsoleColor finalColor;
+                if (isBodyLine)
+                {
+                    // Preserve special colors; otherwise inherit the message header color.
+                    switch (candidate)
+                    {
+                        case ConsoleColor.DarkYellow: // code fence markers
+                        case ConsoleColor.Yellow: // patch headers
+                        case ConsoleColor.DarkBlue: // additions / emphasis
+                        case ConsoleColor.Red: // deletions / errors
+                        case ConsoleColor.Magenta:
+                            finalColor = candidate;
+                            break;
+                        default:
+                            finalColor = currentMessageColor;
+                            break;
+                    }
+                }
+                else
+                {
+                    finalColor = candidate;
+                }
+
+                foreach (string wrapped in Wrap(rawLine, width))
+                {
+                    wrappedLines.Add(new StyledLine(wrapped, finalColor));
+                }
+            }
+
+            int visibleCount = Math.Max(0, height);
+            if (visibleCount == 0)
+            {
+                return [];
+            }
+
+            int scrollOffset = Math.Max(0, panel.ScrollOffset);
+            int start = Math.Max(0, wrappedLines.Count - visibleCount - scrollOffset);
+            return wrappedLines.Skip(start).Take(visibleCount).ToList();
+        }
 
     private static IReadOnlyList<string> Wrap(string text, int width)
     {
@@ -469,20 +527,20 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
             return ConsoleColor.Yellow;
         }
 
-        if (trimmed.StartsWith('+') && !trimmed.StartsWith("+++", StringComparison.Ordinal))
-        {
-            return ConsoleColor.Green;
-        }
+            if (trimmed.StartsWith('+') && !trimmed.StartsWith("+++", StringComparison.Ordinal))
+            {
+                return ConsoleColor.DarkBlue;
+            }
 
         if (trimmed.StartsWith('-') && !trimmed.StartsWith("---", StringComparison.Ordinal))
         {
             return ConsoleColor.Red;
         }
 
-        if (isInsideCodeFence)
-        {
-            return ConsoleColor.Gray;
-        }
+            if (isInsideCodeFence)
+            {
+                return ConsoleColor.DarkYellow;
+            }
 
         if (string.Equals(panel.PanelId, TerminalPanelCatalog.Activity, StringComparison.OrdinalIgnoreCase) || panel.PanelId.Contains("activity", StringComparison.OrdinalIgnoreCase))
         {
@@ -498,43 +556,61 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
 
             if (trimmed is "Keyboard" or "Recent commands" or "Slash commands")
             {
-                return ConsoleColor.Cyan;
+                return ConsoleColor.DarkBlue;
             }
         }
 
         if (string.Equals(panel.PanelId, TerminalPanelCatalog.Explorer, StringComparison.OrdinalIgnoreCase) && trimmed.StartsWith("●", StringComparison.Ordinal))
         {
-            return ConsoleColor.Cyan;
+            return ConsoleColor.DarkBlue;
         }
 
         if (string.Equals(panel.PanelId, TerminalPanelCatalog.Conversation, StringComparison.OrdinalIgnoreCase))
         {
+            // Color special conversation role header lines (TOOL, TOOL RESULT, THOUGHT)
+            if (trimmed.Contains("TOOL CALL", StringComparison.Ordinal))
+            {
+                return ConsoleColor.Yellow;
+            }
+
+            if (trimmed.Contains("TOOL RESULT", StringComparison.Ordinal))
+            {
+                return ConsoleColor.Magenta;
+            }
+
+            if (trimmed.Contains("THOUGHT", StringComparison.Ordinal))
+            {
+                return ConsoleColor.DarkYellow;
+            }
+
             if (trimmed.Contains("USER", StringComparison.Ordinal))
             {
-                return ConsoleColor.Cyan;
+                return ConsoleColor.DarkBlue;
             }
 
             if (trimmed.Contains("ASSISTANT", StringComparison.Ordinal))
             {
-                return ConsoleColor.Green;
+                // Final assistant replies should be bright (white). Streaming (processing) assistant lines
+                // are marked with "streaming" in the header and rendered as dark gray.
+                return ConsoleColor.White;
             }
 
             if (trimmed.Contains("streaming", StringComparison.OrdinalIgnoreCase))
             {
-                return ConsoleColor.Yellow;
+                return ConsoleColor.DarkGray;
             }
         }
 
         if (string.Equals(panel.PanelId, TerminalPanelCatalog.Inspector, StringComparison.OrdinalIgnoreCase) && trimmed is "Usage" or "Recent sessions" or "Last prompt")
         {
-            return ConsoleColor.Cyan;
+            return ConsoleColor.DarkBlue;
         }
 
         if (panel.PanelId is "sessions")
         {
             if (trimmed is "Recent snapshots")
             {
-                return ConsoleColor.Cyan;
+                return ConsoleColor.DarkBlue;
             }
 
             if (trimmed.Contains("Use /save", StringComparison.Ordinal))
@@ -545,24 +621,24 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
 
         if (panel.PanelId is "overview" or "overview-dock")
         {
-            if (trimmed.StartsWith("Focus", StringComparison.Ordinal)
-                || trimmed.StartsWith("Workspace", StringComparison.Ordinal)
-                || trimmed.StartsWith("Recent", StringComparison.Ordinal)
-                || trimmed.StartsWith("Usage", StringComparison.Ordinal)
-                || trimmed.StartsWith("Model", StringComparison.Ordinal)
-                || trimmed.StartsWith("Snapshots", StringComparison.Ordinal)
-                || trimmed.StartsWith("Prompt", StringComparison.Ordinal)
-                || trimmed.StartsWith("Actions", StringComparison.Ordinal))
-            {
-                return ConsoleColor.Cyan;
-            }
+                if (trimmed.StartsWith("Focus", StringComparison.Ordinal)
+                 || trimmed.StartsWith("Workspace", StringComparison.Ordinal)
+                 || trimmed.StartsWith("Recent", StringComparison.Ordinal)
+                 || trimmed.StartsWith("Usage", StringComparison.Ordinal)
+                 || trimmed.StartsWith("Model", StringComparison.Ordinal)
+                 || trimmed.StartsWith("Snapshots", StringComparison.Ordinal)
+                 || trimmed.StartsWith("Prompt", StringComparison.Ordinal)
+                 || trimmed.StartsWith("Actions", StringComparison.Ordinal))
+                {
+                return ConsoleColor.DarkBlue;
+                }
         }
 
         if (string.Equals(panel.PanelId, "launchpad", StringComparison.OrdinalIgnoreCase))
         {
             if (trimmed.Contains("[ready]", StringComparison.OrdinalIgnoreCase))
             {
-                return ConsoleColor.Green;
+                return ConsoleColor.DarkBlue;
             }
 
             if (trimmed.Contains("[needs setup]", StringComparison.OrdinalIgnoreCase))
@@ -572,11 +648,11 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
 
             if (trimmed is "Next" or "Setup")
             {
-                return ConsoleColor.Cyan;
+                return ConsoleColor.DarkBlue;
             }
         }
 
-        return ConsoleColor.Gray;
+        return ConsoleColor.DarkGray;
     }
 
     private static ConsoleColor DetermineOverlayLineColor(string line)
@@ -584,7 +660,7 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
         string trimmed = line.TrimStart();
         if (trimmed.StartsWith("›", StringComparison.Ordinal))
         {
-            return ConsoleColor.Cyan;
+            return ConsoleColor.DarkBlue;
         }
 
         if (trimmed.StartsWith("/", StringComparison.Ordinal))
@@ -616,15 +692,15 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
 
         if (trimmed.Contains("[save]", StringComparison.OrdinalIgnoreCase) || trimmed.Contains("[restore]", StringComparison.OrdinalIgnoreCase))
         {
-            return ConsoleColor.Cyan;
+            return ConsoleColor.DarkBlue;
         }
 
         if (trimmed.Contains("[prompt]", StringComparison.OrdinalIgnoreCase) || trimmed.Contains("[response]", StringComparison.OrdinalIgnoreCase))
         {
-            return ConsoleColor.Green;
+            return ConsoleColor.DarkBlue;
         }
 
-        return ConsoleColor.Gray;
+        return ConsoleColor.DarkGray;
     }
 
     private static bool IsPatchHeader(string trimmed)
@@ -1029,7 +1105,7 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
             var top = _rows.Count;
             List<RenderRegionRow> rows = [];
 
-            RenderRow topBorder = RenderRow.Create(_width, [new StyledSegment(BuildInputBorderLine(_width, title, '╭', '─', '╮'), ConsoleColor.DarkGray)]);
+            RenderRow topBorder = RenderRow.Create(_width, [new StyledSegment(BuildInputBorderLine(_width, title, '╭', '─', '╮'), ConsoleColor.DarkBlue)]);
             _rows.Add(topBorder);
             rows.Add(new RenderRegionRow(top, topBorder));
 
@@ -1042,9 +1118,10 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
                     : new string(' ', contentWidth);
                 RenderRow row = RenderRow.Create(_width,
                 [
-                    new StyledSegment($"│{prefix}", index == viewport.CursorRow ? ConsoleColor.Cyan : ConsoleColor.DarkGray),
-                    new StyledSegment(text, index == viewport.CursorRow ? ConsoleColor.Cyan : ConsoleColor.White),
-                    new StyledSegment(" │", ConsoleColor.DarkGray),
+                    // Use deep-blue for the input border/prompt marker and white for the input text.
+                    new StyledSegment($"│{prefix}", ConsoleColor.DarkBlue),
+                    new StyledSegment(text, ConsoleColor.White),
+                    new StyledSegment(" │", ConsoleColor.DarkBlue),
                 ]);
                 _rows.Add(row);
                 rows.Add(new RenderRegionRow(top + 1 + index, row));
@@ -1053,12 +1130,19 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
             string footer = viewport.TotalLineCount > viewport.VisibleLines.Count
                 ? $"scroll {viewport.FirstVisibleLineIndex + 1}-{viewport.FirstVisibleLineIndex + viewport.VisibleLines.Count}/{viewport.TotalLineCount}"
                 : Summarize(string.IsNullOrWhiteSpace(composer.Metadata) ? $"{composer.PromptLabel} Enter submit · multiline prompt supported" : composer.Metadata, _width - 4);
-            RenderRow bottomBorder = RenderRow.Create(_width, [new StyledSegment(BuildInputBorderLine(_width, footer, '╰', '─', '╯'), ConsoleColor.DarkGray)]);
+            RenderRow bottomBorder = RenderRow.Create(_width, [new StyledSegment(BuildInputBorderLine(_width, footer, '╰', '─', '╯'), ConsoleColor.DarkBlue)]);
             _rows.Add(bottomBorder);
             rows.Add(new RenderRegionRow(top + visibleHeight + 1, bottomBorder));
             _regions.Add(new RenderRegion("footer:input", 0, rows));
 
-            return (0, 0);
+            // Calculate cursor position so the system caret (and IME) follows the visual cursor.
+            // Left is: region left (0) + 1 for left border + prefix length + cursor column
+            int prefixLengthForCursor = (viewport.CursorRow == 0 && viewport.VisibleLines.Count > 0) ? composer.PromptLabel.Length : 1;
+            int cursorLeft = 0 + 1 + prefixLengthForCursor + viewport.CursorColumn;
+            // Top is: top border row + 1 + cursor row index
+            int cursorTop = top + 1 + viewport.CursorRow;
+
+            return (cursorLeft, cursorTop);
         }
 
         public TerminalRenderFrame Build(int cursorLeft, int cursorTop, bool cursorVisible)
@@ -1067,7 +1151,7 @@ public sealed class ConsoleTerminalLayoutRenderer : ITerminalLayoutRenderer
 
     private readonly record struct StyledLine(string Text, ConsoleColor Color)
     {
-        public static StyledLine Empty => new(string.Empty, ConsoleColor.Gray);
+        public static StyledLine Empty => new(string.Empty, ConsoleColor.DarkGray);
     }
 
     private readonly record struct InputVisualLine(int StartIndex, string Text);
