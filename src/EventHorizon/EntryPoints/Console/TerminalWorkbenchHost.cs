@@ -63,7 +63,7 @@ public sealed class TerminalWorkbenchHost
             while (!cancellationToken.IsCancellationRequested)
             {
                 Render();
-                string? input = ReadInput(cancellationToken);
+                var input = ReadInput(cancellationToken);
                 if (input is null)
                 {
                     System.Console.WriteLine();
@@ -87,7 +87,7 @@ public sealed class TerminalWorkbenchHost
                 {
                     if (TerminalCommand.Parse(input).IsSlashCommand)
                     {
-                        bool shouldExit = await HandleCommandAsync(input, cancellationToken).ConfigureAwait(false);
+                        var shouldExit = await HandleCommandAsync(input, cancellationToken).ConfigureAwait(false);
                         if (shouldExit)
                         {
                             break;
@@ -212,7 +212,7 @@ public sealed class TerminalWorkbenchHost
 
     private async Task SyncEngineWithStateAsync(CancellationToken cancellationToken, bool ensureSession)
     {
-        Microsoft.Agents.AI.AgentSession? session = _runtimeContext.SessionService.CurrentSession;
+        var session = _runtimeContext.SessionService.CurrentSession;
         if (ensureSession && session is null)
         {
             session = await _runtimeContext.SessionService.EnsureSessionAsync(cancellationToken).ConfigureAwait(false);
@@ -270,12 +270,12 @@ public sealed class TerminalWorkbenchHost
                 continue;
             }
 
-            bool canCheckKeyAvailable = TryGetKeyAvailable(out bool keyAvailable);
+            var canCheckKeyAvailable = TryGetKeyAvailable(out var keyAvailable);
             if (canCheckKeyAvailable && !keyAvailable)
             {
                 if (ShouldAnimateLaunchpad())
                 {
-                    int animationFrameIndex = PeekLaunchpadAnimationFrameIndex();
+                    var animationFrameIndex = PeekLaunchpadAnimationFrameIndex();
                     if (animationFrameIndex != _lastRenderedAnimationFrame)
                     {
                         Render();
@@ -407,8 +407,8 @@ public sealed class TerminalWorkbenchHost
         var output = usage.OutputTokenCount ?? usage.OutputTextTokenCount ?? 0;
         var total = usage.TotalTokenCount ?? input + output;
         return costUsd is { } cost
-            ? $"tokens {input}/{output}/{total} · est. {cost:F6} USD"
-            : $"tokens {input}/{output}/{total}";
+            ? $"{total:N0} tokens ({input:N0} in · {output:N0} out) · est. {cost} USD"
+            : $"{total:N0} tokens ({input:N0} in · {output:N0} out)";
     }
 
     private static string Summarize(string text, int maxLength)

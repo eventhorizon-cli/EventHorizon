@@ -34,19 +34,19 @@ public sealed class ModelPriceCatalog
             return true;
         }
 
-        string normalized = modelName.Trim();
+        var normalized = modelName.Trim();
         if (_entries.TryGetValue(normalized, out entry!))
         {
             return true;
         }
 
-        string withoutProviderPrefix = normalized.Replace("azure/", string.Empty, StringComparison.OrdinalIgnoreCase);
+        var withoutProviderPrefix = normalized.Replace("azure/", string.Empty, StringComparison.OrdinalIgnoreCase);
         if (_entries.TryGetValue(withoutProviderPrefix, out entry!))
         {
             return true;
         }
 
-        string withoutSlashVersion = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault() ?? normalized;
+        var withoutSlashVersion = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault() ?? normalized;
         if (_entries.TryGetValue(withoutSlashVersion, out entry!))
         {
             return true;
@@ -58,7 +58,7 @@ public sealed class ModelPriceCatalog
 
     public UsageCost EstimateCost(string modelName, UsageDetails usage)
     {
-        if (!TryGetEntry(modelName, out ModelCatalogEntry entry))
+        if (!TryGetEntry(modelName, out var entry))
         {
             return UsageCost.Unknown(usage);
         }
@@ -67,14 +67,14 @@ public sealed class ModelPriceCatalog
         var outputTokens = usage.OutputTokenCount ?? usage.OutputTextTokenCount ?? 0;
         var cachedInputTokens = usage.CachedInputTokenCount ?? 0;
 
-        decimal inputCost = (decimal)inputTokens * (decimal)entry.InputCostPerToken;
-        decimal outputCost = (decimal)outputTokens * (decimal)entry.OutputCostPerToken;
-        decimal cachedInputCost = (decimal)cachedInputTokens * (decimal)(entry.CacheReadInputCostPerToken ?? entry.InputCostPerToken);
+        var inputCost = (decimal)inputTokens * (decimal)entry.InputCostPerToken;
+        var outputCost = (decimal)outputTokens * (decimal)entry.OutputCostPerToken;
+        var cachedInputCost = (decimal)cachedInputTokens * (decimal)(entry.CacheReadInputCostPerToken ?? entry.InputCostPerToken);
 
         return new UsageCost(
-            InputTokens: (long)inputTokens,
-            OutputTokens: (long)outputTokens,
-            CachedInputTokens: (long)cachedInputTokens,
+            InputTokens: inputTokens,
+            OutputTokens: outputTokens,
+            CachedInputTokens: cachedInputTokens,
             InputCost: inputCost,
             OutputCost: outputCost,
             CachedInputCost: cachedInputCost,
