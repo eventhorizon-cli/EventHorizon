@@ -3,13 +3,6 @@ using EventHorizon.Configuration;
 
 namespace EventHorizon.Cli;
 
-public interface ICommandOptionsParser
-{
-    EffectiveCommandOptions Parse(string[] args);
-
-    string GetHelpText();
-}
-
 public sealed class EventHorizonCli : ICommandOptionsParser
 {
     private static readonly HashSet<string> KnownCommands =

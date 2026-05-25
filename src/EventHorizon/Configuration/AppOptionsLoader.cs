@@ -3,20 +3,6 @@ using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Configuration;
 
-public interface IPathEnvironment
-{
-    string CurrentDirectory { get; }
-
-    string HomeDirectory { get; }
-}
-
-public sealed class PathEnvironment : IPathEnvironment
-{
-    public string CurrentDirectory => Directory.GetCurrentDirectory();
-
-    public string HomeDirectory => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-}
-
 internal sealed class AppOptionsPostConfigure : IPostConfigureOptions<AppOptions>
 {
     private readonly IConfiguration _configuration;

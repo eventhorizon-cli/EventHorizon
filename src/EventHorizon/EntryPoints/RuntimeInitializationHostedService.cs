@@ -13,11 +13,6 @@ using Microsoft.Extensions.Options;
 
 namespace EventHorizon.EntryPoints;
 
-internal sealed class EventHorizonRuntimeHolder
-{
-    public IEventHorizonRuntime? Runtime { get; set; }
-}
-
 internal sealed class RuntimeInitializationHostedService : IHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -94,27 +89,4 @@ internal sealed class RuntimeInitializationHostedService : IHostedService
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-}
-
-internal sealed class EventHorizonRuntimeWrapper : IEventHorizonRuntime
-{
-    private readonly EventHorizonRuntimeHolder _holder;
-
-    public EventHorizonRuntimeWrapper(EventHorizonRuntimeHolder holder)
-    {
-        _holder = holder;
-    }
-
-    private IEventHorizonRuntime Runtime => _holder.Runtime ?? throw new InvalidOperationException("Runtime not initialized");
-
-    public AIAgent Agent => Runtime.Agent;
-    public string ModelName => Runtime.ModelName;
-    public IServiceProvider Services => Runtime.Services;
-    public SessionContextSnapshot ContextSnapshot => Runtime.ContextSnapshot;
-    public IReadOnlyList<ToolDescriptor> ToolCatalog => Runtime.ToolCatalog;
-
-    public async ValueTask DisposeAsync()
-    {
-        await Runtime.DisposeAsync().ConfigureAwait(false);
-    }
 }
