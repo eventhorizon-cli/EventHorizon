@@ -10,7 +10,7 @@ public sealed class ModelPriceCatalog
     public ModelPriceCatalog(Dictionary<string, ModelCatalogEntry> entries)
     {
         _entries = new(StringComparer.OrdinalIgnoreCase);
-        foreach ((string key, ModelCatalogEntry value) in entries)
+        foreach ((var key, var value) in entries)
         {
             _entries[key] = value;
         }
@@ -20,7 +20,7 @@ public sealed class ModelPriceCatalog
 
     public static ModelPriceCatalog FromJson(string json)
     {
-        Dictionary<string, ModelCatalogEntry>? entries = JsonSerializer.Deserialize(
+        var entries = JsonSerializer.Deserialize(
             json,
             Configuration.EventHorizonJsonContext.Default.DictionaryStringModelCatalogEntry);
 

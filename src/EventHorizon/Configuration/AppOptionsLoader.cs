@@ -3,97 +3,154 @@ using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Configuration;
 
-internal sealed class AppOptionsPostConfigure : IPostConfigureOptions<AppOptions>
+internal sealed class AppOptionsInitializer : IAppOptionsInitializer
 {
     private readonly IConfiguration _configuration;
     private readonly EffectiveCommandOptions _commandOptions;
     private readonly IPathEnvironment _pathEnvironment;
 
-    public AppOptionsPostConfigure(IConfiguration configuration, EffectiveCommandOptions commandOptions, IPathEnvironment pathEnvironment)
+    public AppOptionsInitializer(IConfiguration configuration, EffectiveCommandOptions commandOptions, IPathEnvironment pathEnvironment)
     {
         _configuration = configuration;
         _commandOptions = commandOptions;
         _pathEnvironment = pathEnvironment;
     }
 
-    public void PostConfigure(string? name, AppOptions options)
+    public void Initialize(AppOptions options)
     {
+        PromoteLegacyProvider(options);
         ApplyEnvironmentFallbacks(options);
-        ApplyCommandLineOverrides(options);
+        RefreshActiveProvider(options);
         Normalize(options);
+    }
+
+    public void RefreshActiveProvider(AppOptions options)
+    {
+        options.Provider = ResolveActiveProvider(options);
+    }
+
+    private void PromoteLegacyProvider(AppOptions options)
+    {
+
+        if (HasConfiguredValues(options.Provider) && !options.Providers.ContainsKey("default"))
+        {
+            options.Providers["default"] = CloneProvider(options.Provider);
+        }
     }
 
     private void ApplyEnvironmentFallbacks(AppOptions options)
     {
-        if (string.IsNullOrWhiteSpace(options.Provider.Type))
+        foreach (var provider in options.Providers.Values)
         {
-            options.Provider.Type = InferProviderType();
+            ApplyEnvironmentFallbacks(provider);
         }
 
-        switch (options.Provider.Type.Trim().ToLowerInvariant())
+        if (options.Providers.Count == 0)
+        {
+            ApplyEnvironmentFallbacks(options.Provider);
+        }
+    }
+
+    private void ApplyEnvironmentFallbacks(ProviderOptions provider)
+    {
+        provider.Type = NormalizeProviderType(string.IsNullOrWhiteSpace(provider.Type) ? InferProviderType() : provider.Type);
+
+        switch (provider.Type)
         {
             case "azure-openai":
-                options.Provider.Endpoint ??= _configuration["AZURE_OPENAI_ENDPOINT"];
-                options.Provider.ApiKey ??= _configuration["AZURE_OPENAI_API_KEY"];
-                options.Provider.Deployment ??= _configuration["AZURE_OPENAI_DEPLOYMENT_NAME"];
-                options.Provider.Model ??= options.Provider.Deployment;
+                provider.Endpoint ??= _configuration["AZURE_OPENAI_ENDPOINT"];
+                provider.ApiKey ??= _configuration["AZURE_OPENAI_API_KEY"];
+                provider.Deployment ??= _configuration["AZURE_OPENAI_DEPLOYMENT_NAME"];
+                provider.Model ??= provider.Deployment;
                 break;
             case "anthropic":
-                options.Provider.ApiKey ??= _configuration["ANTHROPIC_API_KEY"];
-                options.Provider.Model ??= _configuration["ANTHROPIC_CHAT_MODEL_NAME"] ?? "claude-sonnet-4-20250514";
+                provider.ApiKey ??= _configuration["ANTHROPIC_API_KEY"];
+                provider.Model ??= _configuration["ANTHROPIC_CHAT_MODEL_NAME"] ?? "claude-sonnet-4-20250514";
                 break;
             case "gemini":
-                options.Provider.ApiKey ??= _configuration["GOOGLE_GENAI_API_KEY"];
-                options.Provider.Model ??= _configuration["GOOGLE_GENAI_MODEL"] ?? "gemini-2.5-flash";
+                provider.ApiKey ??= _configuration["GOOGLE_GENAI_API_KEY"];
+                provider.Model ??= _configuration["GOOGLE_GENAI_MODEL"] ?? "gemini-2.5-flash";
                 break;
             case "openai-compatible":
-                options.Provider.ApiKey ??= _configuration["OPENAI_COMPATIBLE_API_KEY"]
+                provider.ApiKey ??= _configuration["OPENAI_COMPATIBLE_API_KEY"]
                     ?? _configuration["OPENAI_API_KEY"]
                     ?? _configuration["OLLAMA_API_KEY"];
-                options.Provider.Endpoint ??= _configuration["OPENAI_COMPATIBLE_ENDPOINT"]
+                provider.Endpoint ??= _configuration["OPENAI_COMPATIBLE_ENDPOINT"]
                     ?? _configuration["OPENAI_BASE_URL"]
                     ?? _configuration["OLLAMA_ENDPOINT"];
-                options.Provider.Model ??= _configuration["OPENAI_COMPATIBLE_MODEL"]
+                provider.Model ??= _configuration["OPENAI_COMPATIBLE_MODEL"]
                     ?? _configuration["OPENAI_MODEL"]
                     ?? _configuration["OLLAMA_MODEL"]
                     ?? "gpt-4.1-mini";
                 break;
             default:
-                options.Provider.Type = "openai";
-                options.Provider.ApiKey ??= _configuration["OPENAI_API_KEY"];
-                options.Provider.Model ??= _configuration["OPENAI_MODEL"]
+                provider.Type = "openai";
+                provider.ApiKey ??= _configuration["OPENAI_API_KEY"];
+                provider.Model ??= _configuration["OPENAI_MODEL"]
                     ?? _configuration["OPENAI_CHAT_MODEL_NAME"]
                     ?? "gpt-4.1-mini";
                 break;
         }
     }
 
-    private void ApplyCommandLineOverrides(AppOptions options)
+    private ProviderOptions ResolveActiveProvider(AppOptions options)
     {
-        if (!string.IsNullOrWhiteSpace(_commandOptions.WorkspaceRoot))
+        ProviderOptions provider;
+        if (!string.IsNullOrWhiteSpace(_commandOptions.Provider) && options.Providers.TryGetValue(_commandOptions.Provider, out var configuredProvider))
         {
-            options.WorkspaceRoot = _commandOptions.WorkspaceRoot;
+            provider = CloneProvider(configuredProvider);
+        }
+        else if (!string.IsNullOrWhiteSpace(options.CurrentProvider))
+        {
+            if (!options.Providers.TryGetValue(options.CurrentProvider, out configuredProvider))
+            {
+                options.CurrentProvider = null;
+                provider = CloneProvider(options.Provider);
+            }
+            else
+            {
+                provider = CloneProvider(configuredProvider);
+            }
+        }
+        else if (options.Providers.Count == 1)
+        {
+            provider = CloneProvider(options.Providers.Values.Single());
+        }
+        else
+        {
+            provider = CloneProvider(options.Provider);
         }
 
-        if (!string.IsNullOrWhiteSpace(_commandOptions.ProviderType))
+        ApplyCommandLineOverrides(provider, options);
+        provider.Type = NormalizeProviderType(provider.Type);
+        return provider;
+    }
+
+    private void ApplyCommandLineOverrides(ProviderOptions provider, AppOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(_commandOptions.Provider) && !options.Providers.ContainsKey(_commandOptions.Provider))
         {
-            options.Provider.Type = _commandOptions.ProviderType;
+            provider.Type = _commandOptions.Provider;
         }
 
         if (!string.IsNullOrWhiteSpace(_commandOptions.Model))
         {
-            options.Provider.Model = _commandOptions.Model;
-            if (string.Equals(options.Provider.Type, "azure-openai", StringComparison.OrdinalIgnoreCase))
+            provider.Model = _commandOptions.Model;
+            if (string.Equals(provider.Type, "azure-openai", StringComparison.OrdinalIgnoreCase))
             {
-                options.Provider.Deployment = _commandOptions.Model;
+                provider.Deployment = _commandOptions.Model;
             }
         }
     }
 
     private void Normalize(AppOptions options)
     {
-        options.WorkspaceRoot = Path.GetFullPath(string.IsNullOrWhiteSpace(options.WorkspaceRoot) ? _pathEnvironment.CurrentDirectory : options.WorkspaceRoot);
-        options.Provider.Type = options.Provider.Type.Trim().ToLowerInvariant();
+        foreach (var provider in options.Providers.Values)
+        {
+            provider.Type = NormalizeProviderType(provider.Type);
+        }
+
+        options.Provider.Type = NormalizeProviderType(options.Provider.Type);
         options.Pricing.CachePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "model_prices_and_context_window.json");
         options.Conversation.StoragePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "sessions");
 
@@ -128,5 +185,41 @@ internal sealed class AppOptionsPostConfigure : IPostConfigureOptions<AppOptions
 
         return "openai";
     }
+
+    private static bool HasConfiguredValues(ProviderOptions provider)
+        => !string.IsNullOrWhiteSpace(provider.Type)
+           || !string.IsNullOrWhiteSpace(provider.Model)
+           || !string.IsNullOrWhiteSpace(provider.ApiKey)
+           || !string.IsNullOrWhiteSpace(provider.Endpoint)
+           || !string.IsNullOrWhiteSpace(provider.Deployment);
+
+    private static ProviderOptions CloneProvider(ProviderOptions provider)
+        => new()
+        {
+            Type = provider.Type,
+            Model = provider.Model,
+            ApiKey = provider.ApiKey,
+            Endpoint = provider.Endpoint,
+            Deployment = provider.Deployment,
+            UseDefaultAzureCredential = provider.UseDefaultAzureCredential,
+        };
+
+    private static string NormalizeProviderType(string? providerType)
+        => string.IsNullOrWhiteSpace(providerType)
+            ? "openai"
+            : providerType.Trim().ToLowerInvariant();
+}
+
+internal sealed class AppOptionsPostConfigure : IPostConfigureOptions<AppOptions>
+{
+    private readonly IAppOptionsInitializer _initializer;
+
+    public AppOptionsPostConfigure(IAppOptionsInitializer initializer)
+    {
+        _initializer = initializer;
+    }
+
+    public void PostConfigure(string? name, AppOptions options)
+        => _initializer.Initialize(options);
 }
 

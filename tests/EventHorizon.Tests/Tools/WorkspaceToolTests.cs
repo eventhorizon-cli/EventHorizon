@@ -28,16 +28,16 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task ApplyPatch_Should_Apply_Patch_Successfully()
     {
         // Arrange
-        string filePath = Path.Combine(_workspaceRoot, "test.txt");
+        var filePath = Path.Combine(_workspaceRoot, "test.txt");
         await File.WriteAllTextAsync(filePath, "line1\nline2\nline3\n");
 
         // Use simpler file editing approach
-        string originalContent = await File.ReadAllTextAsync(filePath);
-        string newContent = originalContent.Replace("line1", "modified_line1");
+        var originalContent = await File.ReadAllTextAsync(filePath);
+        var newContent = originalContent.Replace("line1", "modified_line1");
 
         // Act
-        string result = _workspaceService.InsertEditIntoFile(filePath, "line1", "modified_line1");
-        string content = await File.ReadAllTextAsync(filePath);
+        var result = _workspaceService.InsertEditIntoFile(filePath, "line1", "modified_line1");
+        var content = await File.ReadAllTextAsync(filePath);
 
         // Assert
         Assert.Contains("modified_line1", content);
@@ -56,7 +56,7 @@ public sealed class WorkspaceToolTests : IDisposable
         };
 
         // Act
-        string result = _workspaceService.AskQuestions(questions);
+        var result = _workspaceService.AskQuestions(questions);
 
         // Assert
         Assert.Contains("Q1", result);
@@ -67,11 +67,11 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task CreateFile_Should_Create_New_File()
     {
         // Arrange
-        string filePath = Path.Combine(_workspaceRoot, "newfile.txt");
-        string content = "Hello, World!";
+        var filePath = Path.Combine(_workspaceRoot, "newfile.txt");
+        var content = "Hello, World!";
 
         // Act
-        string result = _workspaceService.CreateFile(filePath, content);
+        var result = _workspaceService.CreateFile(filePath, content);
 
         // Assert
         Assert.Contains("Created", result);
@@ -83,7 +83,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public void CreateFile_Should_Fail_If_Exists()
     {
         // Arrange
-        string filePath = Path.Combine(_workspaceRoot, "existing.txt");
+        var filePath = Path.Combine(_workspaceRoot, "existing.txt");
         File.WriteAllText(filePath, "existing content");
 
         // Act & Assert
@@ -100,7 +100,7 @@ public sealed class WorkspaceToolTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(_workspaceRoot, "subdir", "test3.cs"), "");
 
         // Act
-        string result = _workspaceService.FileSearch("*.cs", 10);
+        var result = _workspaceService.FileSearch("*.cs", 10);
 
         // Assert
         Assert.Contains("test1.cs", result);
@@ -111,13 +111,13 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task GrepSearch_Should_Find_Matching_Lines()
     {
         // Arrange
-        string file1 = Path.Combine(_workspaceRoot, "file1.txt");
-        string file2 = Path.Combine(_workspaceRoot, "file2.txt");
+        var file1 = Path.Combine(_workspaceRoot, "file1.txt");
+        var file2 = Path.Combine(_workspaceRoot, "file2.txt");
         await File.WriteAllTextAsync(file1, "Hello World\n");
         await File.WriteAllTextAsync(file2, "Goodbye World\n");
 
         // Act
-        string result = _workspaceService.GrepSearch("World");
+        var result = _workspaceService.GrepSearch("World");
 
         // Assert
         Assert.Contains("World", result);
@@ -127,11 +127,11 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task GrepSearch_With_Regexp_Should_Find_Matches()
     {
         // Arrange
-        string file = Path.Combine(_workspaceRoot, "data.txt");
+        var file = Path.Combine(_workspaceRoot, "data.txt");
         await File.WriteAllTextAsync(file, "item-123\nitem-456\nother-789\n");
 
         // Act
-        string result = _workspaceService.GrepSearch("item-\\d+", isRegexp: true);
+        var result = _workspaceService.GrepSearch("item-\\d+", isRegexp: true);
 
         // Assert
         Assert.Contains("item-123", result);
@@ -142,14 +142,14 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task InsertEditIntoFile_Should_Replace_Text()
     {
         // Arrange
-        string filePath = Path.Combine(_workspaceRoot, "edit.txt");
+        var filePath = Path.Combine(_workspaceRoot, "edit.txt");
         await File.WriteAllTextAsync(filePath, "Hello Universe\nGoodbye World\n");
 
         // Act
-        string result = _workspaceService.InsertEditIntoFile(filePath, "Universe", "Galaxy");
+        var result = _workspaceService.InsertEditIntoFile(filePath, "Universe", "Galaxy");
 
         // Assert
-        string content = await File.ReadAllTextAsync(filePath);
+        var content = await File.ReadAllTextAsync(filePath);
         Assert.Contains("Hello Galaxy", content);
     }
 
@@ -161,7 +161,7 @@ public sealed class WorkspaceToolTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(_workspaceRoot, "file.txt"), "");
 
         // Act
-        string result = _workspaceService.ListDir("");
+        var result = _workspaceService.ListDir("");
 
         // Assert
         Assert.Contains("subdir", result);
@@ -172,11 +172,11 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task OpenFile_Should_Return_File_Content()
     {
         // Arrange
-        string filePath = Path.Combine(_workspaceRoot, "open.txt");
+        var filePath = Path.Combine(_workspaceRoot, "open.txt");
         await File.WriteAllTextAsync(filePath, "Line 1\nLine 2\nLine 3\n");
 
         // Act
-        string result = _workspaceService.OpenFile(filePath, isPreview: false);
+        var result = _workspaceService.OpenFile(filePath, isPreview: false);
 
         // Assert
         Assert.Contains("Line 1", result);
@@ -187,12 +187,12 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task OpenFile_Preview_Should_Return_Shortened_Content()
     {
         // Arrange
-        string filePath = Path.Combine(_workspaceRoot, "large.txt");
+        var filePath = Path.Combine(_workspaceRoot, "large.txt");
         var lines = Enumerable.Range(1, 100).Select(i => $"Line {i}");
         await File.WriteAllLinesAsync(filePath, lines);
 
         // Act
-        string result = _workspaceService.OpenFile(filePath, isPreview: true);
+        var result = _workspaceService.OpenFile(filePath, isPreview: true);
 
         // Assert
         Assert.Contains("Line 1", result);
@@ -203,11 +203,11 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task ReadFile_Should_Return_Line_Numbered_Content()
     {
         // Arrange
-        string filePath = Path.Combine(_workspaceRoot, "read.txt");
+        var filePath = Path.Combine(_workspaceRoot, "read.txt");
         await File.WriteAllTextAsync(filePath, "Line 1\nLine 2\nLine 3\n");
 
         // Act
-        string result = _workspaceService.ReadFileTool(filePath, offset: null, limit: null);
+        var result = _workspaceService.ReadFileTool(filePath, offset: null, limit: null);
 
         // Assert
         Assert.Contains("1", result);
@@ -218,12 +218,12 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task ReadFile_With_Offset_And_Limit_Should_Return_Partial_Content()
     {
         // Arrange
-        string filePath = Path.Combine(_workspaceRoot, "partial.txt");
+        var filePath = Path.Combine(_workspaceRoot, "partial.txt");
         var lines = Enumerable.Range(1, 10).Select(i => $"Line {i}");
         await File.WriteAllLinesAsync(filePath, lines);
 
         // Act
-        string result = _workspaceService.ReadFileTool(filePath, offset: 2, limit: 3);
+        var result = _workspaceService.ReadFileTool(filePath, offset: 2, limit: 3);
 
         // Assert
         Assert.Contains("Line 2", result);
@@ -235,11 +235,11 @@ public sealed class WorkspaceToolTests : IDisposable
     public void RunSubagent_Should_Return_Subagent_Response()
     {
         // Arrange
-        string task = "Find C# files";
-        string agentName = "Search";
+        var task = "Find C# files";
+        var agentName = "Search";
 
         // Act
-        string result = _workspaceService.RunSubagent(task, agentName);
+        var result = _workspaceService.RunSubagent(task, agentName);
 
         // Assert
         Assert.NotEmpty(result);
@@ -249,13 +249,13 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task SemanticSearch_Should_Return_Ranked_Results()
     {
         // Arrange
-        string file1 = Path.Combine(_workspaceRoot, "about-cats.txt");
-        string file2 = Path.Combine(_workspaceRoot, "about-dogs.txt");
+        var file1 = Path.Combine(_workspaceRoot, "about-cats.txt");
+        var file2 = Path.Combine(_workspaceRoot, "about-dogs.txt");
         await File.WriteAllTextAsync(file1, "Cats are furry animals that meow.");
         await File.WriteAllTextAsync(file2, "Dogs are friendly animals that bark.");
 
         // Act
-        string result = _workspaceService.SemanticSearch("pet animals", maxResults: 2);
+        var result = _workspaceService.SemanticSearch("pet animals", maxResults: 2);
 
         // Assert
         Assert.NotEmpty(result);
@@ -266,10 +266,10 @@ public sealed class WorkspaceToolTests : IDisposable
     {
         // Arrange
         string[] dependencies = ["package@1.0.0"];
-        string ecosystem = "npm";
+        var ecosystem = "npm";
 
         // Act
-        string result = await _workspaceService.ValidateCvesAsync(dependencies, ecosystem, CancellationToken.None);
+        var result = await _workspaceService.ValidateCvesAsync(dependencies, ecosystem, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -279,11 +279,11 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task GetErrors_Should_Return_Diagnostics()
     {
         // Arrange
-        string filePath = Path.Combine(_workspaceRoot, "Test.cs");
+        var filePath = Path.Combine(_workspaceRoot, "Test.cs");
         await File.WriteAllTextAsync(filePath, "public class Test { }");
 
         // Act
-        string result = await _workspaceService.GetErrorsAsync([filePath], CancellationToken.None);
+        var result = await _workspaceService.GetErrorsAsync([filePath], CancellationToken.None);
 
         // Assert
         // Should not throw, result can be empty if no errors
@@ -294,10 +294,10 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task RunInTerminalAsync_Should_Execute_Command()
     {
         // Arrange
-        string command = "echo 'Hello Terminal'";
+        var command = "echo 'Hello Terminal'";
 
         // Act
-        string result = await _workspaceService.RunInTerminalAsync(command, "Test command", isBackground: false, CancellationToken.None);
+        var result = await _workspaceService.RunInTerminalAsync(command, "Test command", isBackground: false, CancellationToken.None);
 
         // Assert
         Assert.Contains("Hello Terminal", result);
@@ -307,10 +307,10 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task RunInTerminalAsync_Background_Should_Start_Background_Process()
     {
         // Arrange
-        string command = "sleep 10";
+        var command = "sleep 10";
 
         // Act
-        string result = await _workspaceService.RunInTerminalAsync(command, "Background test", isBackground: true, CancellationToken.None);
+        var result = await _workspaceService.RunInTerminalAsync(command, "Background test", isBackground: true, CancellationToken.None);
 
         // Assert
         Assert.Contains("Background", result, StringComparison.OrdinalIgnoreCase);
@@ -320,10 +320,10 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task GetTerminalOutput_Should_Return_Process_Output()
     {
         // Arrange
-        string command = "echo 'test'";
+        var command = "echo 'test'";
 
         // Act
-        string result = await _workspaceService.RunInTerminalAsync(command, "Test", isBackground: true, CancellationToken.None);
+        var result = await _workspaceService.RunInTerminalAsync(command, "Test", isBackground: true, CancellationToken.None);
 
         // Extract session ID from result (format: "Started background terminal session.\nId: xxx\n...")
         var lines = result.Split('\n');
@@ -340,7 +340,7 @@ public sealed class WorkspaceToolTests : IDisposable
         Assert.NotNull(sessionId);
 
         await Task.Delay(100); // Give it time to start
-        string output = _workspaceService.GetTerminalOutput(sessionId);
+        var output = _workspaceService.GetTerminalOutput(sessionId);
 
         // Assert
         Assert.NotNull(output);

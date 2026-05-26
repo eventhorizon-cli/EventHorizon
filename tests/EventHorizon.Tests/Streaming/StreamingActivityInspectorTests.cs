@@ -21,7 +21,7 @@ public sealed class StreamingActivityInspectorTests
             }
         ];
 
-        QueryEvent[] events = StreamingActivityInspector.InspectContents(contents).ToArray();
+        var events = StreamingActivityInspector.InspectContents(contents).ToArray();
 
         Assert.Collection(
             events,

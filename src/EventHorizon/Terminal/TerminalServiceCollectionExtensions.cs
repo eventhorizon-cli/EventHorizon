@@ -1,5 +1,6 @@
 using EventHorizon.Terminal.Commands;
-using EventHorizon.Terminal.Surfaces;
+using EventHorizon.Terminal.Dialogs;
+using EventHorizon.Terminal.Layout;
 using EventHorizon.Terminal.Session;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,27 +10,29 @@ public static class TerminalServiceCollectionExtensions
 {
     public static IServiceCollection AddEventHorizonTerminal(this IServiceCollection services)
     {
-        services.AddSingleton<ITerminalLayoutRenderer, ConsoleTerminalLayoutRenderer>();
-        services.AddSingleton<ITerminalWindowSizeMonitor, ConsoleTerminalWindowSizeMonitor>();
-        services.AddSingleton<TerminalWorkbenchComposer>();
-        services.AddSingleton<TerminalCommandDispatcher>();
-        services.AddSingleton<ITerminalSurfaceBuilder, LaunchpadSurfaceBuilder>();
-        services.AddSingleton<ITerminalSurfaceBuilder, SidebarSurfaceBuilder>();
-        services.AddSingleton<ITerminalSurfaceBuilder, MainSurfaceBuilder>();
-        services.AddSingleton<ITerminalSurfaceBuilder, InspectorSurfaceBuilder>();
-        services.AddSingleton<ITerminalSurfaceBuilder, DockSurfaceBuilder>();
-        services.AddSingleton<ITerminalSurfaceBuilder, CommandPaletteOverlayBuilder>();
-        services.AddSingleton<ITerminalCommandHandler, HelpCommandHandler>();
-        services.AddSingleton<ITerminalCommandHandler, StatsCommandHandler>();
-        services.AddSingleton<ITerminalCommandHandler, SaveSessionCommandHandler>();
-        services.AddSingleton<ITerminalCommandHandler, SessionsCommandHandler>();
-        services.AddSingleton<ITerminalCommandHandler, RestoreSessionCommandHandler>();
-        services.AddSingleton<ITerminalCommandHandler, FocusCommandHandler>();
-        services.AddSingleton<ITerminalCommandHandler, SidebarCommandHandler>();
-        services.AddSingleton<ITerminalCommandHandler, ClearActivityCommandHandler>();
-        services.AddSingleton<ITerminalCommandHandler, ResetSessionCommandHandler>();
-        services.AddSingleton<ITerminalCommandHandler, ExitCommandHandler>();
+        services.AddSingleton<TerminalState>();
+        services.AddSingleton<TerminalGuiHost>();
+        services.AddSingleton<TerminalLayoutManager>();
+        services.AddSingleton<TerminalResizeObserver>();
+        services.AddSingleton<ITerminalAgentAdapter, TerminalAgentAdapter>();
         services.AddSingleton<ITerminalSessionService, TerminalSessionService>();
+        services.AddSingleton<TerminalEventDispatcher>();
+        services.AddSingleton<DialogService>();
+        services.AddSingleton<TerminalCommandRegistry>();
+        services.AddSingleton<TerminalApp>();
+
+        services.AddSingleton<ITerminalCommand, HelpCommand>();
+        services.AddSingleton<ITerminalCommand, ClearCommand>();
+        services.AddSingleton<ITerminalCommand, ExitCommand>();
+        services.AddSingleton<ITerminalCommand, CancelCommand>();
+        services.AddSingleton<ITerminalCommand, ModelCommand>();
+        services.AddSingleton<ITerminalCommand, SessionCommand>();
+        services.AddSingleton<ITerminalCommand, FilesCommand>();
+        services.AddSingleton<ITerminalCommand, ToolsCommand>();
+        services.AddSingleton<ITerminalCommand, DiffCommand>();
+        services.AddSingleton<ITerminalCommand, PlanCommand>();
+        services.AddSingleton<ITerminalCommand, LayoutCommand>();
+        services.AddSingleton<ITerminalCommand, ThemeCommand>();
         return services;
     }
 }

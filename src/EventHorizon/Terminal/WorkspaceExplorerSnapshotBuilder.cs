@@ -1,3 +1,5 @@
+using EventHorizon.Terminal.Models;
+
 namespace EventHorizon.Terminal;
 
 public static class WorkspaceExplorerSnapshotBuilder
@@ -10,34 +12,42 @@ public static class WorkspaceExplorerSnapshotBuilder
         ".vs",
         "bin",
         "obj",
-        "node_modules"
+        "node_modules",
     };
 
-    public static IReadOnlyList<string> Build(string workspaceRoot, string? focusedPath, int maxEntries = 28, int maxDepth = 2)
+    public static IReadOnlyList<TerminalContextFile> Build(string workspaceRoot, string? focusedPath, int maxEntries = 28, int maxDepth = 2)
     {
-        string root = Path.GetFullPath(workspaceRoot);
-        List<string> lines = [$"⌂ {Path.GetFileName(root)}"];
-        HashSet<string> focusSegments = BuildFocusSegments(focusedPath);
+        var root = Path.GetFullPath(workspaceRoot);
+        List<TerminalContextFile> items =
+        [
+            new()
+            {
+                Path = Path.GetFileName(root),
+                IsSelected = false,
+                Description = "workspace root",
+            },
+        ];
 
         if (!Directory.Exists(root))
         {
-            lines.Add("! workspace folder not found");
-            return lines;
+            items.Add(new TerminalContextFile { Path = "workspace folder not found", Description = "missing" });
+            return items;
         }
 
-        AppendEntries(root, depth: 0, maxDepth, lines, focusSegments, maxEntries);
-
-        if (lines.Count == 1)
-        {
-            lines.Add("(empty workspace)");
-        }
-
-        return lines.Take(maxEntries).ToList();
+        var focusSegments = BuildFocusSegments(focusedPath);
+        AppendEntries(root, 0, maxDepth, items, focusSegments, maxEntries);
+        return items.Take(maxEntries).ToList();
     }
 
-    private static void AppendEntries(string directory, int depth, int maxDepth, List<string> lines, HashSet<string> focusSegments, int maxEntries)
+    private static void AppendEntries(
+        string directory,
+        int depth,
+        int maxDepth,
+        List<TerminalContextFile> items,
+        HashSet<string> focusSegments,
+        int maxEntries)
     {
-        if (depth >= maxDepth || lines.Count >= maxEntries)
+        if (depth >= maxDepth || items.Count >= maxEntries)
         {
             return;
         }
@@ -46,32 +56,40 @@ public static class WorkspaceExplorerSnapshotBuilder
             .Where(static path => !HiddenDirectories.Contains(Path.GetFileName(path)))
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase);
 
-        foreach (string childDirectory in directories)
+        foreach (var childDirectory in directories)
         {
-            if (lines.Count >= maxEntries)
+            if (items.Count >= maxEntries)
             {
                 return;
             }
 
-            string name = Path.GetFileName(childDirectory) + "/";
-            lines.Add(FormatEntry(depth, name, focusSegments.Contains(Path.GetFileName(childDirectory))));
-            AppendEntries(childDirectory, depth + 1, maxDepth, lines, focusSegments, maxEntries);
+            var name = Path.GetFileName(childDirectory) + "/";
+            items.Add(new TerminalContextFile
+            {
+                Path = new string(' ', depth * 2) + name,
+                IsSelected = focusSegments.Contains(Path.GetFileName(childDirectory)),
+                Description = "directory",
+            });
+            AppendEntries(childDirectory, depth + 1, maxDepth, items, focusSegments, maxEntries);
         }
 
-        foreach (string childFile in Directory.EnumerateFiles(directory).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+        foreach (var childFile in Directory.EnumerateFiles(directory).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
         {
-            if (lines.Count >= maxEntries)
+            if (items.Count >= maxEntries)
             {
                 return;
             }
 
-            string fileName = Path.GetFileName(childFile);
-            lines.Add(FormatEntry(depth, fileName, focusSegments.Contains(fileName)));
+            var fileName = Path.GetFileName(childFile);
+            items.Add(new TerminalContextFile
+            {
+                Path = new string(' ', depth * 2) + fileName,
+                IsSelected = focusSegments.Contains(fileName),
+                Description = "file",
+                SizeBytes = new FileInfo(childFile).Length,
+            });
         }
     }
-
-    private static string FormatEntry(int depth, string name, bool isFocused)
-        => $"{new string(' ', depth * 2)}{(isFocused ? '●' : '•')} {name}";
 
     private static HashSet<string> BuildFocusSegments(string? focusedPath)
     {

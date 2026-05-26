@@ -20,9 +20,9 @@ public sealed class SessionContextBuilder : ISessionContextBuilder
     public async Task<SessionContextSnapshot> BuildAsync(CancellationToken cancellationToken)
     {
         var workspaceRoot = _workspaceService.WorkspaceRoot;
-        string workspaceSummary = _workspaceService.DescribeWorkspace();
-        string gitStatus = await TryGetGitStatusAsync(cancellationToken).ConfigureAwait(false);
-        string projectInstructions = ReadProjectInstructions(workspaceRoot);
+        var workspaceSummary = _workspaceService.DescribeWorkspace();
+        var gitStatus = await TryGetGitStatusAsync(cancellationToken).ConfigureAwait(false);
+        var projectInstructions = ReadProjectInstructions(workspaceRoot);
 
         return new SessionContextSnapshot(
             CurrentDate: $"Today's date is {DateTimeOffset.Now:yyyy-MM-dd}.",
@@ -36,7 +36,7 @@ public sealed class SessionContextBuilder : ISessionContextBuilder
     {
         try
         {
-            string status = await _workspaceService.RunShellAsync("git --no-pager status --short --branch | cat", 15, cancellationToken).ConfigureAwait(false);
+            var status = await _workspaceService.RunShellAsync("git --no-pager status --short --branch | cat", 15, cancellationToken).ConfigureAwait(false);
             return string.IsNullOrWhiteSpace(status)
                 ? "Git status unavailable."
                 : status;
@@ -50,7 +50,7 @@ public sealed class SessionContextBuilder : ISessionContextBuilder
     private static string ReadProjectInstructions(string workspaceRoot)
     {
         StringBuilder builder = new();
-        foreach (string candidate in new[]
+        foreach (var candidate in new[]
                  {
                      Path.Combine(workspaceRoot, "EVENTHORIZON.md"),
                      Path.Combine(workspaceRoot, "AGENTS.md"),
@@ -62,7 +62,7 @@ public sealed class SessionContextBuilder : ISessionContextBuilder
                 continue;
             }
 
-            string content = File.ReadAllText(candidate);
+            var content = File.ReadAllText(candidate);
             if (string.IsNullOrWhiteSpace(content))
             {
                 continue;

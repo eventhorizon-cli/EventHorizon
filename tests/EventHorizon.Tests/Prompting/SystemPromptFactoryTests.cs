@@ -13,7 +13,6 @@ public sealed class SystemPromptFactoryTests
     {
         AppOptions options = new()
         {
-            WorkspaceRoot = "/workspace/demo",
             Agent = new AgentOptions
             {
                 Name = "EventHorizon",

@@ -27,8 +27,8 @@ public sealed class ToolCatalogTests : IDisposable
         };
 
         var catalog = new ToolCatalog();
-        IReadOnlyList<ToolDescriptor> tools = catalog.Create(workspaceService, options);
-        string[] names = tools.Select(static tool => tool.Name).ToArray();
+        var tools = catalog.Create(workspaceService, options);
+        var names = tools.Select(static tool => tool.Name).ToArray();
 
         Assert.Equal(
             ["apply_patch", "ask_questions", "create_file", "file_search", "get_errors", "get_terminal_output", "grep_search", "insert_edit_into_file", "list_dir", "open_file", "read_file", "run_in_terminal", "run_subagent", "semantic_search", "validate_cves"],

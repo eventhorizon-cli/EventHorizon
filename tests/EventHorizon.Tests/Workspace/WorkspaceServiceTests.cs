@@ -16,10 +16,10 @@ public sealed class WorkspaceServiceTests : IDisposable
     [Fact]
     public void Write_And_Read_File_Uses_Workspace_Relative_Paths()
     {
-        WorkspaceService service = CreateService();
+        var service = CreateService();
 
         service.WriteFile("src/demo.txt", "line1\nline2");
-        string content = service.ReadFile("src/demo.txt", startLine: 2, maxLines: 1);
+        var content = service.ReadFile("src/demo.txt", startLine: 2, maxLines: 1);
 
         Assert.Equal("2: line2", content);
     }
@@ -27,9 +27,9 @@ public sealed class WorkspaceServiceTests : IDisposable
     [Fact]
     public void ResolvePath_Blocks_Path_Escape()
     {
-        WorkspaceService service = CreateService();
+        var service = CreateService();
 
-        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => service.ReadFile("../outside.txt"));
+        var ex = Assert.Throws<InvalidOperationException>(() => service.ReadFile("../outside.txt"));
 
         Assert.Contains("escapes", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -37,12 +37,12 @@ public sealed class WorkspaceServiceTests : IDisposable
     [Fact]
     public void FindFiles_And_Grep_Return_Matching_Content()
     {
-        WorkspaceService service = CreateService();
+        var service = CreateService();
         service.WriteFile("src/app.cs", "Console.WriteLine(\"Hello\");");
         service.WriteFile("README.md", "Hello workspace");
 
-        string files = service.FindFiles("*.md");
-        string grep = service.Grep("Hello");
+        var files = service.FindFiles("*.md");
+        var grep = service.Grep("Hello");
 
         Assert.Contains("README.md", files);
         Assert.Contains("README.md:1: Hello workspace", grep);
@@ -51,11 +51,11 @@ public sealed class WorkspaceServiceTests : IDisposable
     [Fact]
     public void CreateFile_And_InsertEditIntoFile_Update_Content()
     {
-        WorkspaceService service = CreateService();
+        var service = CreateService();
 
-        string createResult = service.CreateFile("src/editor.cs", "class Demo\n{\n    void Run() { }\n}\n");
-        string editResult = service.InsertEditIntoFile("src/editor.cs", "void Run() { }", "void Run()\n    {\n        Console.WriteLine(\"updated\");\n    }");
-        string content = service.ReadFile("src/editor.cs");
+        var createResult = service.CreateFile("src/editor.cs", "class Demo\n{\n    void Run() { }\n}\n");
+        var editResult = service.InsertEditIntoFile("src/editor.cs", "void Run() { }", "void Run()\n    {\n        Console.WriteLine(\"updated\");\n    }");
+        var content = service.ReadFile("src/editor.cs");
 
         Assert.Contains("Created src/editor.cs", createResult);
         Assert.Contains("Updated 1 region", editResult);
@@ -65,10 +65,10 @@ public sealed class WorkspaceServiceTests : IDisposable
     [Fact]
     public void ApplyPatch_Updates_Multiple_Regions()
     {
-        WorkspaceService service = CreateService();
+        var service = CreateService();
         service.WriteFile("src/patch-demo.txt", "alpha\nbeta\ngamma\n");
 
-        string patch = """
+        var patch = """
 *** Begin Patch
 *** Update File: src/patch-demo.txt
 @@
@@ -83,8 +83,8 @@ public sealed class WorkspaceServiceTests : IDisposable
 *** End Patch
 """;
 
-        string result = service.ApplyPatch("src/patch-demo.txt", patch, "update sample lines");
-        string content = File.ReadAllText(Path.Combine(_root, "src", "patch-demo.txt"));
+        var result = service.ApplyPatch("src/patch-demo.txt", patch, "update sample lines");
+        var content = File.ReadAllText(Path.Combine(_root, "src", "patch-demo.txt"));
 
         Assert.Contains("Applied patch", result);
         Assert.Equal("alpha\nbeta-2\ngamma\ndelta\n", content);
@@ -93,10 +93,10 @@ public sealed class WorkspaceServiceTests : IDisposable
     [Fact]
     public void SemanticSearch_Returns_Relevant_Snippet()
     {
-        WorkspaceService service = CreateService();
+        var service = CreateService();
         service.WriteFile("src/search.cs", "public sealed class SearchDemo\n{\n    public string RenderExplorerPanel() => \"explorer\";\n}\n");
 
-        string result = service.SemanticSearch("render explorer panel", 5);
+        var result = service.SemanticSearch("render explorer panel", 5);
 
         Assert.Contains("src/search.cs", result);
         Assert.Contains("RenderExplorerPanel", result);
@@ -105,9 +105,9 @@ public sealed class WorkspaceServiceTests : IDisposable
     [Fact]
     public void AskQuestions_Formats_Structured_Output()
     {
-        WorkspaceService service = CreateService();
+        var service = CreateService();
 
-        string result = service.AskQuestions(
+        var result = service.AskQuestions(
         [
             new AskQuestionDefinition(
                 "scope",
@@ -126,13 +126,13 @@ public sealed class WorkspaceServiceTests : IDisposable
     [Fact]
     public async Task RunInTerminal_Background_Session_Can_Be_Inspected()
     {
-        WorkspaceService service = CreateService();
+        var service = CreateService();
 
-        string start = await service.RunInTerminalAsync("dotnet --info | cat", "collect environment", isBackground: true, CancellationToken.None);
-        string id = start.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Single(line => line.StartsWith("Id: ", StringComparison.Ordinal))[4..];
+        var start = await service.RunInTerminalAsync("dotnet --info | cat", "collect environment", isBackground: true, CancellationToken.None);
+        var id = start.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Single(line => line.StartsWith("Id: ", StringComparison.Ordinal))[4..];
 
         var output = string.Empty;
-        for (int attempt = 0; attempt < 20; attempt++)
+        for (var attempt = 0; attempt < 20; attempt++)
         {
             output = service.GetTerminalOutput(id);
             if (output.Contains("Status: completed", StringComparison.Ordinal))

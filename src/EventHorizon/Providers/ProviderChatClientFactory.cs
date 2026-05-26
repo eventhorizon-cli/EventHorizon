@@ -1,5 +1,4 @@
 using System.ClientModel;
-using Anthropic;
 using Azure.AI.OpenAI;
 using Azure.Identity;
 using Google.GenAI;
@@ -12,7 +11,9 @@ public sealed class ProviderChatClientFactory : IProviderChatClientFactory
 {
     public IChatClient CreateChatClient(Configuration.ProviderOptions options)
     {
-        return options.Type.Trim().ToLowerInvariant() switch
+        var providerType = options.Type?.Trim().ToLowerInvariant() ?? "openai";
+
+        return providerType switch
         {
             "azure-openai" => CreateAzureOpenAiChatClient(options),
             "gemini" => CreateGeminiChatClient(options),

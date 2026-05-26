@@ -14,30 +14,30 @@ public sealed class FileConversationSessionStore : IConversationSessionStore
 
     public async Task SaveAsync(ConversationSessionDocument document, CancellationToken cancellationToken)
     {
-        string path = GetPath(document.Id);
-        string json = JsonSerializer.Serialize(document, Configuration.EventHorizonJsonContext.Default.ConversationSessionDocument);
+        var path = GetPath(document.Id);
+        var json = JsonSerializer.Serialize(document, Configuration.EventHorizonJsonContext.Default.ConversationSessionDocument);
         await File.WriteAllTextAsync(path, json, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<ConversationSessionDocument?> LoadAsync(string sessionId, CancellationToken cancellationToken)
     {
-        string path = GetPath(sessionId);
+        var path = GetPath(sessionId);
         if (!File.Exists(path))
         {
             return null;
         }
 
-        string json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+        var json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
         return JsonSerializer.Deserialize(json, Configuration.EventHorizonJsonContext.Default.ConversationSessionDocument);
     }
 
     public async Task<IReadOnlyList<ConversationSessionSummary>> ListAsync(CancellationToken cancellationToken)
     {
         List<ConversationSessionSummary> items = [];
-        foreach (string file in Directory.EnumerateFiles(_storagePath, "*.json", SearchOption.TopDirectoryOnly))
+        foreach (var file in Directory.EnumerateFiles(_storagePath, "*.json", SearchOption.TopDirectoryOnly))
         {
-            string json = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
-            ConversationSessionDocument? document = JsonSerializer.Deserialize(json, Configuration.EventHorizonJsonContext.Default.ConversationSessionDocument);
+            var json = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
+            var document = JsonSerializer.Deserialize(json, Configuration.EventHorizonJsonContext.Default.ConversationSessionDocument);
             if (document is not null)
             {
                 items.Add(new ConversationSessionSummary(document.Id, document.Name, document.UpdatedAt, document.ProviderType, document.Model));

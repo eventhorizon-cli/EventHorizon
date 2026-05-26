@@ -1,4 +1,4 @@
-namespace EventHorizon.Terminal;
+namespace EventHorizon.Terminal.Session;
 
-public sealed record TerminalSessionRestoreResult(TerminalConversationState State, bool RequiresTranscriptReplay);
+public sealed record TerminalSessionRestoreResult(TerminalState State, bool RequiresTranscriptReplay);
 

@@ -23,13 +23,13 @@ public sealed class WorkspaceExplorerSnapshotBuilderTests : IDisposable
     [Fact]
     public void Build_Shows_Tree_And_Highlights_Focused_Path()
     {
-        IReadOnlyList<string> lines = WorkspaceExplorerSnapshotBuilder.Build(_root, "src/Program.cs", maxEntries: 20, maxDepth: 3);
+        var lines = WorkspaceExplorerSnapshotBuilder.Build(_root, "src/Program.cs", maxEntries: 20, maxDepth: 3);
 
-        Assert.Contains(lines, static line => line.Contains("⌂", StringComparison.Ordinal));
-        Assert.Contains(lines, static line => line.Contains("● src/", StringComparison.Ordinal));
-        Assert.Contains(lines, static line => line.Contains("● Program.cs", StringComparison.Ordinal));
-        Assert.DoesNotContain(lines, static line => line.Contains(".eventhorizon/", StringComparison.Ordinal));
-        Assert.DoesNotContain(lines, static line => line.Contains("obj/", StringComparison.Ordinal));
+        Assert.Contains(lines, static line => line.Path.Contains(Path.GetFileName(line.Path), StringComparison.Ordinal));
+        Assert.Contains(lines, static line => line.Path.Contains("src/", StringComparison.Ordinal));
+        Assert.Contains(lines, static line => line.Path.Contains("Program.cs", StringComparison.Ordinal) && line.IsSelected);
+        Assert.DoesNotContain(lines, static line => line.Path.Contains(".eventhorizon/", StringComparison.Ordinal));
+        Assert.DoesNotContain(lines, static line => line.Path.Contains("obj/", StringComparison.Ordinal));
     }
 
     public void Dispose()

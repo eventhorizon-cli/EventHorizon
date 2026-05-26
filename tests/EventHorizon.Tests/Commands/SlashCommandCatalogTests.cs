@@ -22,18 +22,18 @@ public sealed class SlashCommandCatalogTests
     {
         var catalog = new SlashCommandCatalog();
         StringWriter writer = new();
-        TextWriter original = Console.Out;
+        var original = Console.Out;
         Console.SetOut(writer);
 
         try
         {
-            SlashCommandResult result = await catalog.TryExecuteAsync("/help", null!, null!, CancellationToken.None);
+            var result = await catalog.TryExecuteAsync("/help", null!, null!, CancellationToken.None);
 
             Assert.True(result.Handled);
             Assert.False(result.ExitRequested);
 
-            string output = writer.ToString();
-            foreach (SlashCommandDefinition definition in catalog.GetDefinitions())
+            var output = writer.ToString();
+            foreach (var definition in catalog.GetDefinitions())
             {
                 Assert.Contains(definition.Name, output, StringComparison.Ordinal);
                 Assert.Contains(definition.Description, output, StringComparison.Ordinal);
@@ -49,7 +49,7 @@ public sealed class SlashCommandCatalogTests
     public async Task TryExecuteAsync_NonSlash_Input_Is_Not_Handled()
     {
         var catalog = new SlashCommandCatalog();
-        SlashCommandResult result = await catalog.TryExecuteAsync("hello world", null!, null!, CancellationToken.None);
+        var result = await catalog.TryExecuteAsync("hello world", null!, null!, CancellationToken.None);
 
         Assert.False(result.Handled);
         Assert.False(result.ExitRequested);

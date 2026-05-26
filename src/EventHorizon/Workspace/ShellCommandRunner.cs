@@ -8,7 +8,7 @@ public sealed class ShellCommandRunner
 {
     public async Task<ShellCommandResult> RunAsync(string command, string workingDirectory, int timeoutSeconds, CancellationToken cancellationToken)
     {
-        (string fileName, string arguments) = GetShellInvocation(command);
+        (var fileName, var arguments) = GetShellInvocation(command);
 
         using Process process = new();
         process.StartInfo = new ProcessStartInfo
@@ -31,7 +31,7 @@ public sealed class ShellCommandRunner
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        using CancellationTokenSource timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutSource.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, timeoutSeconds)));
 
         try
@@ -64,7 +64,7 @@ public sealed class ShellCommandRunner
             return ("cmd.exe", "/c " + command);
         }
 
-        string? shell = Environment.GetEnvironmentVariable("SHELL");
+        var shell = Environment.GetEnvironmentVariable("SHELL");
         if (string.IsNullOrWhiteSpace(shell) || !File.Exists(shell))
         {
             shell = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "/bin/zsh" : "/bin/bash";

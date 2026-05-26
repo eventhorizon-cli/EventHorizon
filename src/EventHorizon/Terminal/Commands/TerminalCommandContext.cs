@@ -1,18 +1,19 @@
+using EventHorizon.Configuration;
+using EventHorizon.Terminal.Dialogs;
+using EventHorizon.Terminal.Views;
+
 namespace EventHorizon.Terminal.Commands;
 
 public sealed class TerminalCommandContext
 {
-    public TerminalCommandContext(TerminalRuntimeContext runtime, TerminalCommand command, CancellationToken cancellationToken)
-    {
-        Runtime = runtime;
-        Command = command;
-        CancellationToken = cancellationToken;
-    }
+    public required TerminalState State { get; init; }
 
-    public TerminalRuntimeContext Runtime { get; }
+    public required DialogService Dialogs { get; init; }
 
-    public TerminalCommand Command { get; }
+    public required TerminalEventDispatcher Dispatcher { get; init; }
 
-    public CancellationToken CancellationToken { get; }
+    public required MainWindow MainWindow { get; init; }
+
+    public required AppOptions Options { get; init; }
 }
 

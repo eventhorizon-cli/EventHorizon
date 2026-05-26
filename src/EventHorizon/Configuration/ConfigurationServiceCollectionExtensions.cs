@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Configuration;
@@ -9,9 +10,13 @@ public static class ConfigurationServiceCollectionExtensions
     {
         services.AddSingleton(commandOptions);
         services.AddSingleton(pathEnvironment);
+        services.AddSingleton<IUserConfigurationFileService, UserConfigurationFileService>();
         services.AddOptions<AppOptions>().BindConfiguration(string.Empty);
+        services.AddSingleton<IAppOptionsInitializer, AppOptionsInitializer>();
         services.AddSingleton<IPostConfigureOptions<AppOptions>, AppOptionsPostConfigure>();
         services.AddSingleton(serviceProvider => serviceProvider.GetRequiredService<IOptions<AppOptions>>().Value);
+        services.AddSingleton<IProviderConfigurationService, ProviderConfigurationService>();
+        services.AddSingleton<IHostedService, CurrentProviderSelectionHostedService>();
         return services;
     }
 }

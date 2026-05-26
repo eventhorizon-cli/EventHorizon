@@ -9,14 +9,14 @@ internal static class StreamingActivityInspector
 
     public static IEnumerable<QueryEvent> InspectContents(IEnumerable<object> contents)
     {
-        foreach (object content in contents)
+        foreach (var content in contents)
         {
             if (content is UsageContent)
             {
                 continue;
             }
 
-            string typeName = content.GetType().Name;
+            var typeName = content.GetType().Name;
             if (typeName.Contains("FunctionCall", StringComparison.OrdinalIgnoreCase) || typeName.Contains("ToolCall", StringComparison.OrdinalIgnoreCase))
             {
                 yield return new QueryEvent(QueryEventKind.ToolCall, DescribeToolCall(content));
@@ -32,11 +32,11 @@ internal static class StreamingActivityInspector
 
     private static string DescribeToolCall(object content)
     {
-        string name = ReadString(content, "Name")
+        var name = ReadString(content, "Name")
             ?? ReadString(content, "FunctionName")
             ?? ReadString(content, "CallId")
             ?? content.GetType().Name;
-        string? arguments = ReadString(content, "Arguments")
+        var arguments = ReadString(content, "Arguments")
             ?? ReadString(content, "Input")
             ?? ReadString(content, "ArgumentsJson");
         return string.IsNullOrWhiteSpace(arguments)
@@ -46,11 +46,11 @@ internal static class StreamingActivityInspector
 
     private static string DescribeToolResult(object content)
     {
-        string name = ReadString(content, "Name")
+        var name = ReadString(content, "Name")
             ?? ReadString(content, "FunctionName")
             ?? ReadString(content, "CallId")
             ?? content.GetType().Name;
-        string? result = ReadString(content, "Result")
+        var result = ReadString(content, "Result")
             ?? ReadString(content, "Text")
             ?? ReadObject(content, "Value")
             ?? ReadObject(content, "Output");
@@ -61,13 +61,13 @@ internal static class StreamingActivityInspector
 
     private static string? ReadString(object source, string propertyName)
     {
-        object? value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
         return value as string;
     }
 
     private static string? ReadObject(object source, string propertyName)
     {
-        object? value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
         if (value is null)
         {
             return null;

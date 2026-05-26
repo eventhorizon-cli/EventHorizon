@@ -1,66 +1,76 @@
 using EventHorizon.Configuration;
-using EventHorizon.Pricing;
 using EventHorizon.Terminal;
+using EventHorizon.Workspace;
 
 namespace EventHorizon.Conversations;
 
 public sealed class ConversationSessionMapper : IConversationSessionMapper
 {
-    public ConversationSessionDocument MapToDocument(string name, AppOptions options, TerminalConversationState state, string? serializedSession)
+    private readonly WorkspaceContext _workspaceContext;
+
+    public ConversationSessionMapper(WorkspaceContext workspaceContext)
+    {
+        _workspaceContext = workspaceContext;
+    }
+
+    public ConversationSessionDocument MapToDocument(string name, AppOptions options, TerminalState state, string? serializedSession)
     {
         return new ConversationSessionDocument
         {
             Id = state.SessionId,
             Name = name,
-            ProviderType = options.Provider.Type,
+            ProviderType = options.Provider.Type ?? string.Empty,
             Model = options.Provider.Model ?? options.Provider.Deployment ?? string.Empty,
-            WorkspaceRoot = options.WorkspaceRoot,
+            WorkspaceRoot = _workspaceContext.WorkspaceRoot,
             CreatedAt = state.CreatedAt,
             UpdatedAt = DateTimeOffset.UtcNow,
             SerializedSession = serializedSession,
             ConversationId = state.ConversationId,
-            Transcript = state.Transcript.Select(static item => new ConversationTranscriptEntry
+            Transcript = state.Messages.Select(static item => new ConversationTranscriptEntry
             {
-                Role = item.Role,
-                Text = item.Text,
-                Timestamp = item.Timestamp,
+                Role = item.Role.ToString().ToLowerInvariant(),
+                Text = item.Content,
+                Timestamp = item.CreatedAt,
             }).ToList(),
             Usage = new ConversationUsageSnapshot
             {
-                InputTokens = state.TotalUsage.InputTokenCount ?? state.TotalUsage.InputTextTokenCount ?? 0,
-                OutputTokens = state.TotalUsage.OutputTokenCount ?? state.TotalUsage.OutputTextTokenCount ?? 0,
-                TotalTokens = state.TotalUsage.TotalTokenCount ?? ((state.TotalUsage.InputTokenCount ?? 0) + (state.TotalUsage.OutputTokenCount ?? 0)),
-                TotalCost = state.TotalCost.TotalCost,
-                HasPrice = state.TotalCost.HasPrice,
+                InputTokens = 0,
+                OutputTokens = 0,
+                TotalTokens = state.TotalTokens ?? 0,
+                TotalCost = state.LastCostUsd ?? 0m,
+                HasPrice = state.LastCostUsd.HasValue,
             }
         };
     }
 
-    public TerminalConversationState MapToState(ConversationSessionDocument document)
+    public TerminalState MapToState(ConversationSessionDocument document)
     {
-        TerminalConversationState state = new()
+        TerminalState state = new()
         {
             SessionId = document.Id,
             CreatedAt = document.CreatedAt,
             ConversationId = document.ConversationId,
-            TotalCost = new UsageCost(0, 0, 0, 0, 0, 0, document.Usage.TotalCost, document.Usage.HasPrice, "USD")
+            TotalTokens = (int?)document.Usage.TotalTokens,
+            LastCostUsd = document.Usage.HasPrice ? document.Usage.TotalCost : null,
         };
 
-        foreach (ConversationTranscriptEntry entry in document.Transcript)
+        foreach (var entry in document.Transcript)
         {
-            state.Transcript.Add(new TerminalMessage
-            {
-                Role = entry.Role,
-                Text = entry.Text,
-                Timestamp = entry.Timestamp,
-            });
+            state.Messages.Add(new Terminal.Models.TerminalChatMessage(ParseRole(entry.Role), entry.Text, entry.Timestamp));
         }
 
-        state.TotalUsage.InputTokenCount = document.Usage.InputTokens;
-        state.TotalUsage.OutputTokenCount = document.Usage.OutputTokens;
-        state.TotalUsage.TotalTokenCount = document.Usage.TotalTokens;
-        state.DismissLaunchpad();
+        state.Status = Terminal.Models.TerminalRunStatus.WaitingForInput;
         return state;
     }
+
+    private static Terminal.Models.TerminalMessageRole ParseRole(string role)
+        => role.ToLowerInvariant() switch
+        {
+            "assistant" => Terminal.Models.TerminalMessageRole.Assistant,
+            "tool" => Terminal.Models.TerminalMessageRole.Tool,
+            "error" => Terminal.Models.TerminalMessageRole.Error,
+            "system" => Terminal.Models.TerminalMessageRole.System,
+            _ => Terminal.Models.TerminalMessageRole.User,
+        };
 }
 

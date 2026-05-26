@@ -2,11 +2,13 @@ namespace EventHorizon.Configuration;
 
 public sealed class AppOptions
 {
-    public string WorkspaceRoot { get; set; } = Directory.GetCurrentDirectory();
-
     public AgentOptions Agent { get; set; } = new();
 
     public ProviderOptions Provider { get; set; } = new();
+
+    public string? CurrentProvider { get; set; }
+
+    public Dictionary<string, ProviderOptions> Providers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public PricingOptions Pricing { get; set; } = new();
 

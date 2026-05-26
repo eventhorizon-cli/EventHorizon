@@ -9,8 +9,10 @@ namespace EventHorizon;
 public static class EventHorizonHost
 {
     public static IHost Create(string[] args, EffectiveCommandOptions commandOptions)
+        => Create(args, commandOptions, new PathEnvironment());
+
+    public static IHost Create(string[] args, EffectiveCommandOptions commandOptions, IPathEnvironment pathEnvironment)
     {
-        IPathEnvironment pathEnvironment = new PathEnvironment();
         var builder = Host.CreateApplicationBuilder(args);
 
         ConfigureConfiguration(builder.Configuration, commandOptions, pathEnvironment);
@@ -70,18 +72,19 @@ public static class EventHorizonHost
         EffectiveCommandOptions commandOptions,
         IPathEnvironment pathEnvironment)
     {
-        var defaultConfigDirectory = Path.Combine(pathEnvironment.HomeDirectory, ".config", "eventhorizon");
+        var defaultConfigFilePath = UserConfigurationFileService.GetDefaultFilePath(pathEnvironment);
+        Directory.CreateDirectory(Path.GetDirectoryName(defaultConfigFilePath)!);
+        if (!File.Exists(defaultConfigFilePath))
+        {
+            File.WriteAllText(defaultConfigFilePath, "{}" + Environment.NewLine);
+        }
 
         configuration.SetBasePath(pathEnvironment.CurrentDirectory);
         configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: true, reloadOnChange: false);
+        configuration.AddJsonFile(defaultConfigFilePath, optional: false, reloadOnChange: false);
         configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
         configuration.AddJsonFile("eventhorizon.json", optional: true, reloadOnChange: false);
 
-        if (Directory.Exists(defaultConfigDirectory))
-        {
-            configuration.AddJsonFile(Path.Combine(defaultConfigDirectory, "appsettings.json"), optional: true, reloadOnChange: false);
-            configuration.AddJsonFile(Path.Combine(defaultConfigDirectory, "eventhorizon.json"), optional: true, reloadOnChange: false);
-        }
 
         if (!string.IsNullOrWhiteSpace(commandOptions.ConfigFile))
         {

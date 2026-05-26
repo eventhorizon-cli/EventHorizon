@@ -1,3 +1,5 @@
+using EventHorizon.Workspace;
+
 namespace EventHorizon.Prompting;
 
 public interface ICodingInstructionsBuilder
@@ -7,6 +9,13 @@ public interface ICodingInstructionsBuilder
 
 public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
 {
+    private readonly WorkspaceContext _workspaceContext;
+
+    public CodingInstructionsBuilder(WorkspaceContext workspaceContext)
+    {
+        _workspaceContext = workspaceContext;
+    }
+
     public string Build(Configuration.AppOptions options)
     {
         List<string> sections =
@@ -34,7 +43,7 @@ public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
             sections.Add("Additional MCP tools are connected. Use them when they provide specialized capabilities beyond local workspace operations.");
         }
 
-        sections.Add($"The workspace root is: {options.WorkspaceRoot}");
+        sections.Add($"The workspace root is: {_workspaceContext.WorkspaceRoot}");
 
         if (options.Agent.AdditionalSystemPrompts.Length > 0)
         {

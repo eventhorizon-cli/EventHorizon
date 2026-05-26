@@ -10,18 +10,20 @@ public static class ConversationsServiceCollectionExtensions
         services.AddSingleton<IConversationSessionMapper, ConversationSessionMapper>();
         services.AddSingleton<IConversationSessionSerializer, ChatClientConversationSessionSerializer>();
         services.AddSingleton<IConversationSessionStore>(serviceProvider =>
-            new FileConversationSessionStore(ResolveStoragePath(serviceProvider.GetRequiredService<IOptions<Configuration.AppOptions>>().Value)));
+            new FileConversationSessionStore(ResolveStoragePath(
+                serviceProvider.GetRequiredService<IOptions<Configuration.AppOptions>>().Value,
+                serviceProvider.GetRequiredService<Workspace.WorkspaceContext>())));
         return services;
     }
 
-    private static string ResolveStoragePath(Configuration.AppOptions options)
+    private static string ResolveStoragePath(Configuration.AppOptions options, Workspace.WorkspaceContext workspaceContext)
     {
         if (!string.IsNullOrWhiteSpace(options.Conversation.StoragePath))
         {
             return Path.GetFullPath(options.Conversation.StoragePath);
         }
 
-        return Path.Combine(Path.GetFullPath(options.WorkspaceRoot), ".eventhorizon", "sessions");
+        return Path.Combine(workspaceContext.WorkspaceRoot, ".eventhorizon", "sessions");
     }
 }
 

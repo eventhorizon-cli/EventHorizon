@@ -48,9 +48,9 @@ public sealed class SlashCommandCatalog : ISlashCommandService
             return SlashCommandResult.NotHandled;
         }
 
-        if (!Commands.TryGetValue(input.Trim(), out SlashCommand? command))
+        if (!Commands.TryGetValue(input.Trim(), out var command))
         {
-            System.Console.WriteLine("Unknown slash command. Use /help.");
+            Console.WriteLine("Unknown slash command. Use /help.");
             return SlashCommandResult.Continue;
         }
 
@@ -67,7 +67,7 @@ public sealed class SlashCommandCatalog : ISlashCommandService
                 {
                     foreach (var definition in Commands.Values.Select(static command => command.Definition).OrderBy(static definition => definition.Name, StringComparer.Ordinal))
                     {
-                        System.Console.WriteLine($"{definition.Name.PadRight(9)} {definition.Description}");
+                        Console.WriteLine($"{definition.Name.PadRight(9)} {definition.Description}");
                     }
 
                     return Task.FromResult(SlashCommandResult.Continue);
@@ -78,7 +78,7 @@ public sealed class SlashCommandCatalog : ISlashCommandService
                 {
                     foreach (var tool in runtime.ToolCatalog)
                     {
-                        System.Console.WriteLine($"- {tool.Name}: {tool.Description}");
+                        Console.WriteLine($"- {tool.Name}: {tool.Description}");
                     }
 
                     return Task.FromResult(SlashCommandResult.Continue);
@@ -87,24 +87,24 @@ public sealed class SlashCommandCatalog : ISlashCommandService
                 new SlashCommandDefinition("/context", "show the memoized session context snapshot"),
                 static (runtime, _, _) =>
                 {
-                    System.Console.WriteLine(runtime.ContextSnapshot.CurrentDate);
-                    System.Console.WriteLine($"Workspace: {runtime.ContextSnapshot.WorkspaceRoot}");
-                    System.Console.WriteLine();
-                    System.Console.WriteLine("Workspace snapshot:");
-                    System.Console.WriteLine(runtime.ContextSnapshot.WorkspaceSummary);
-                    System.Console.WriteLine();
-                    System.Console.WriteLine("Git snapshot:");
-                    System.Console.WriteLine(runtime.ContextSnapshot.GitStatus);
+                    Console.WriteLine(runtime.ContextSnapshot.CurrentDate);
+                    Console.WriteLine($"Workspace: {runtime.ContextSnapshot.WorkspaceRoot}");
+                    Console.WriteLine();
+                    Console.WriteLine("Workspace snapshot:");
+                    Console.WriteLine(runtime.ContextSnapshot.WorkspaceSummary);
+                    Console.WriteLine();
+                    Console.WriteLine("Git snapshot:");
+                    Console.WriteLine(runtime.ContextSnapshot.GitStatus);
                     return Task.FromResult(SlashCommandResult.Continue);
                 }),
             ["/history"] = new(
                 new SlashCommandDefinition("/history", "print the current transcript"),
                 static (_, queryEngine, _) =>
                 {
-                    foreach (ConversationEntry entry in queryEngine.History)
+                    foreach (var entry in queryEngine.History)
                     {
-                        System.Console.WriteLine($"[{entry.Role.Value}] {entry.Text}");
-                        System.Console.WriteLine();
+                        Console.WriteLine($"[{entry.Role.Value}] {entry.Text}");
+                        Console.WriteLine();
                     }
 
                     return Task.FromResult(SlashCommandResult.Continue);
@@ -114,7 +114,7 @@ public sealed class SlashCommandCatalog : ISlashCommandService
                 static async (_, queryEngine, cancellationToken) =>
                 {
                     await queryEngine.ResetAsync(cancellationToken).ConfigureAwait(false);
-                    System.Console.WriteLine("Started a fresh session.");
+                    Console.WriteLine("Started a fresh session.");
                     return SlashCommandResult.Continue;
                 }),
             ["/exit"] = new(

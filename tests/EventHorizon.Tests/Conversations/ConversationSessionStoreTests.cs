@@ -31,8 +31,8 @@ public sealed class ConversationSessionStoreTests : IDisposable
         };
 
         await store.SaveAsync(document, CancellationToken.None);
-        ConversationSessionDocument? loaded = await store.LoadAsync("session-1", CancellationToken.None);
-        IReadOnlyList<ConversationSessionSummary> list = await store.ListAsync(CancellationToken.None);
+        var loaded = await store.LoadAsync("session-1", CancellationToken.None);
+        var list = await store.ListAsync(CancellationToken.None);
 
         Assert.NotNull(loaded);
         Assert.Equal("demo", loaded.Name);

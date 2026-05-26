@@ -1,32 +1,23 @@
-using System;
 using EventHorizon.Configuration;
 using EventHorizon.EntryPoints.Console;
 using EventHorizon.Pricing;
-using EventHorizon.Providers;
-using Microsoft.Extensions.Options;
 
 namespace EventHorizon.EntryPoints;
 
 internal sealed class EventHorizonApplication : IEventHorizonApplication
 {
     private readonly EffectiveCommandOptions _command;
-    private readonly AppOptions _options;
-    private readonly IEventHorizonRuntime _runtime;
     private readonly IModelPriceCatalogService _priceService;
     private readonly ConsoleHost _consoleHost;
     private readonly TerminalWorkbenchHost _terminalWorkbenchHost;
 
     public EventHorizonApplication(
         EffectiveCommandOptions command,
-        IOptions<AppOptions> options,
-        IEventHorizonRuntime runtime,
         IModelPriceCatalogService priceService,
         ConsoleHost consoleHost,
         TerminalWorkbenchHost terminalWorkbenchHost)
     {
         _command = command;
-        _options = options.Value;
-        _runtime = runtime;
         _priceService = priceService;
         _consoleHost = consoleHost;
         _terminalWorkbenchHost = terminalWorkbenchHost;
@@ -34,7 +25,7 @@ internal sealed class EventHorizonApplication : IEventHorizonApplication
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        _ = LoadPricingInBackgroundAsync(_terminalWorkbenchHost, cancellationToken);
+        _ = LoadPricingInBackgroundAsync(cancellationToken);
 
         var task = _command.Command switch
         {
@@ -46,7 +37,7 @@ internal sealed class EventHorizonApplication : IEventHorizonApplication
         await task;
     }
 
-    private async Task LoadPricingInBackgroundAsync(TerminalWorkbenchHost host, CancellationToken cancellationToken)
+    private async Task LoadPricingInBackgroundAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -55,10 +46,7 @@ internal sealed class EventHorizonApplication : IEventHorizonApplication
         }
         catch (Exception ex)
         {
-            host.RuntimeContext.State.AddActivity(
-                "pricing",
-                "Pricing refresh failed",
-                ex.Message);
+            _ = ex;
         }
     }
 }

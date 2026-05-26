@@ -40,13 +40,16 @@ If the first token is not a known command, the CLI treats the input as a `run` p
 Configuration flows through `AppOptionsLoader` and supports:
 
 1. built-in `appsettings.json`
-2. local `appsettings.json`
-3. local `eventhorizon.json`
-4. `~/.config/eventhorizon/appsettings.json`
-5. `~/.config/eventhorizon/eventhorizon.json`
-6. `--config <path>`
-7. `EVENTHORIZON__...` environment variables
-8. provider-specific environment fallbacks
+2. `~/.config/eventhorizon.json` (created automatically if missing)
+3. local `appsettings.json`
+4. local `eventhorizon.json`
+5. `--config <path>`
+6. `EVENTHORIZON__...` environment variables
+7. provider-specific environment fallbacks
+
+Later providers override earlier ones using the standard .NET configuration system, so you can keep defaults in your home config and override them per project or per command.
+
+`WorkspaceRoot` is no longer stored in configuration. By default EventHorizon uses the directory where you open/run the project, and you can override it for a single run with `--workspace <path>`.
 
 ### Provider Types
 
@@ -64,7 +67,6 @@ EventHorizon supports the following provider types:
 
 ```json
 {
-  "WorkspaceRoot": ".",
   "Agent": {
     "Name": "EventHorizon",
     "Description": "A terminal-first coding agent runtime.",
@@ -73,13 +75,24 @@ EventHorizon supports the following provider types:
     "EnableMcpTools": true,
     "AdditionalSystemPrompts": []
   },
-  "Provider": {
-    "Type": "openai",
-    "Model": "gpt-4.1-mini",
-    "ApiKey": null,
-    "Endpoint": null,
-    "Deployment": null,
-    "UseDefaultAzureCredential": true
+  "CurrentProvider": "openai",
+  "Providers": {
+    "openai": {
+      "Type": "openai",
+      "Model": "gpt-4.1-mini",
+      "ApiKey": null,
+      "Endpoint": null,
+      "Deployment": null,
+      "UseDefaultAzureCredential": true
+    },
+    "azure": {
+      "Type": "azure-openai",
+      "Model": "gpt-4o-mini",
+      "ApiKey": null,
+      "Endpoint": "https://example.openai.azure.com/",
+      "Deployment": "gpt-4o-mini",
+      "UseDefaultAzureCredential": true
+    }
   },
   "Protocol": {
     "Url": "http://127.0.0.1:8787",
@@ -108,6 +121,8 @@ EventHorizon supports the following provider types:
 ```
 
 Sample configs live under `samples/` with configurations for all supported provider types.
+
+If multiple named providers are configured and `CurrentProvider` is missing, EventHorizon will prompt you to choose one on startup and persist your selection back to `~/.config/eventhorizon.json`.
 
 ## Quick start
 

@@ -54,6 +54,10 @@ dotnet run --project src/EventHorizon -- tui --config samples/gemini.eventhorizo
 
 ## Configuration Reference
 
+`WorkspaceRoot` is resolved from the directory where EventHorizon starts. Use `--workspace <path>` to override it for a single run.
+
+Named providers live under `Providers`, and `CurrentProvider` selects which entry is active by default.
+
 ### Provider Options
 
 | Field | Type | Required | Description |
@@ -64,3 +68,19 @@ dotnet run --project src/EventHorizon -- tui --config samples/gemini.eventhorizo
 | `Endpoint` | string | ✓ for azure-openai/openai-compatible | Endpoint URL |
 | `Deployment` | string | ✓ for azure-openai | Azure deployment name |
 | `UseDefaultAzureCredential` | bool | - | Use Azure AD credentials |
+
+Example:
+
+```json
+{
+  "CurrentProvider": "openai",
+  "Providers": {
+	"openai": {
+	  "Type": "openai",
+	  "Model": "gpt-4.1-mini",
+	  "ApiKey": "..."
+	}
+  }
+}
+```
+

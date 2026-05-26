@@ -42,23 +42,23 @@ public sealed class TerminalSessionService : ITerminalSessionService
         return _currentSession;
     }
 
-    public async Task SaveAsync(string sessionName, TerminalConversationState state, CancellationToken cancellationToken)
+    public async Task SaveAsync(string sessionName, TerminalState state, CancellationToken cancellationToken)
     {
-        string? serializedSession = _currentSession is null ? null : _sessionSerializer.Serialize(_currentSession);
-        ConversationSessionDocument document = _sessionMapper.MapToDocument(sessionName, _options, state, serializedSession);
+        var serializedSession = _currentSession is null ? null : _sessionSerializer.Serialize(_currentSession);
+        var document = _sessionMapper.MapToDocument(sessionName, _options, state, serializedSession);
         await _sessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<TerminalSessionRestoreResult> RestoreAsync(string sessionId, CancellationToken cancellationToken)
     {
-        ConversationSessionDocument? document = await _sessionStore.LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        var document = await _sessionStore.LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
         if (document is null)
         {
             throw new InvalidOperationException($"The session '{sessionId}' was not found.");
         }
 
         bool requiresTranscriptReplay;
-        AgentSession? restoredSession = document.SerializedSession is null
+        var restoredSession = document.SerializedSession is null
             ? null
             : _sessionSerializer.Deserialize(document.SerializedSession);
 

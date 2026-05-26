@@ -1,5 +1,4 @@
 {
-  "WorkspaceRoot": "/Users/hkh/Documents/Projects/test",
   "Agent": {
     "Name": "EventHorizon",
     "Description": "A terminal-first coding agent runtime.",
@@ -8,13 +7,16 @@
     "EnableMcpTools": true,
     "AdditionalSystemPrompts": []
   },
-  "Provider": {
-    "Type": "openai-compatible",
-    "Model": "gpt-4.1-mini",
-    "ApiKey": "sk-your-openai-compatible-api-key",
-    "Endpoint": "https://your-openai-compatible-endpoint/v1",
-    "Deployment": null,
-    "UseDefaultAzureCredential": false
+  "CurrentProvider": "compatible",
+  "Providers": {
+    "compatible": {
+      "Type": "openai-compatible",
+      "Model": "gpt-4.1-mini",
+      "ApiKey": "sk-your-openai-compatible-api-key",
+      "Endpoint": "https://your-openai-compatible-endpoint/v1",
+      "Deployment": null,
+      "UseDefaultAzureCredential": false
+    }
   },
   "Protocol": {
     "Url": "http://127.0.0.1:8787",

@@ -86,9 +86,9 @@ public sealed class WorkspaceService
         StringBuilder builder = new();
         builder.AppendLine($"Workspace root: {_workspaceRoot}");
         builder.AppendLine("Top-level entries:");
-        foreach (string entry in Directory.EnumerateFileSystemEntries(_workspaceRoot).OrderBy(static p => p, StringComparer.OrdinalIgnoreCase))
+        foreach (var entry in Directory.EnumerateFileSystemEntries(_workspaceRoot).OrderBy(static p => p, StringComparer.OrdinalIgnoreCase))
         {
-            string name = Path.GetFileName(entry);
+            var name = Path.GetFileName(entry);
             builder.AppendLine(Directory.Exists(entry) ? $"- {name}/" : $"- {name}");
         }
         return builder.ToString().TrimEnd();
@@ -99,12 +99,12 @@ public sealed class WorkspaceService
 
     public string ListDirectory(string? relativePath = null)
     {
-        string path = ResolvePath(relativePath);
+        var path = ResolvePath(relativePath);
         StringBuilder builder = new();
         builder.AppendLine($"Directory: {GetDisplayPath(path)}");
-        foreach (string entry in Directory.EnumerateFileSystemEntries(path).OrderBy(static p => p, StringComparer.OrdinalIgnoreCase))
+        foreach (var entry in Directory.EnumerateFileSystemEntries(path).OrderBy(static p => p, StringComparer.OrdinalIgnoreCase))
         {
-            string relative = Path.GetRelativePath(_workspaceRoot, entry);
+            var relative = Path.GetRelativePath(_workspaceRoot, entry);
             builder.AppendLine(Directory.Exists(entry) ? $"- {relative}/" : $"- {relative}");
         }
         return builder.ToString().TrimEnd();
@@ -112,7 +112,7 @@ public sealed class WorkspaceService
 
     public string OpenFile(string filePath, bool isPreview = false)
     {
-        string path = ResolvePath(filePath);
+        var path = ResolvePath(filePath);
         var maxLines = isPreview ? 120 : 250;
         return $"Opened {GetDisplayPath(path)} (preview={isPreview.ToString().ToLowerInvariant()})\n\n{ReadFile(filePath, 1, maxLines)}";
     }
@@ -122,14 +122,14 @@ public sealed class WorkspaceService
 
     public string ReadFile(string relativePath, int startLine = 1, int maxLines = 250)
     {
-        string path = ResolvePath(relativePath);
-        string[] lines = File.ReadAllLines(path);
-        int safeStartLine = Math.Max(1, startLine);
-        int safeMaxLines = Math.Clamp(maxLines, 1, 500);
-        IEnumerable<string> selected = lines.Skip(safeStartLine - 1).Take(safeMaxLines);
+        var path = ResolvePath(relativePath);
+        var lines = File.ReadAllLines(path);
+        var safeStartLine = Math.Max(1, startLine);
+        var safeMaxLines = Math.Clamp(maxLines, 1, 500);
+        var selected = lines.Skip(safeStartLine - 1).Take(safeMaxLines);
         StringBuilder builder = new();
         var lineNumber = safeStartLine;
-        foreach (string line in selected)
+        foreach (var line in selected)
         {
             builder.Append(lineNumber++).Append(": ").AppendLine(line);
         }
@@ -138,7 +138,7 @@ public sealed class WorkspaceService
 
     public string CreateFile(string filePath, string content)
     {
-        string path = ResolvePath(filePath);
+        var path = ResolvePath(filePath);
         if (File.Exists(path))
         {
             throw new InvalidOperationException($"The file '{GetDisplayPath(path)}' already exists.");
@@ -151,7 +151,7 @@ public sealed class WorkspaceService
 
     public string WriteFile(string relativePath, string content)
     {
-        string path = ResolvePath(relativePath);
+        var path = ResolvePath(relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content);
         return $"Wrote {content.Length} characters to {GetDisplayPath(path)}.";
@@ -159,7 +159,7 @@ public sealed class WorkspaceService
 
     public string AppendFile(string relativePath, string content)
     {
-        string path = ResolvePath(relativePath);
+        var path = ResolvePath(relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.AppendAllText(path, content);
         return $"Appended {content.Length} characters to {GetDisplayPath(path)}.";
@@ -172,9 +172,9 @@ public sealed class WorkspaceService
             throw new InvalidOperationException("searchText must be provided for insert_edit_into_file.");
         }
 
-        string path = ResolvePath(filePath);
-        string content = File.ReadAllText(path);
-        int occurrenceCount = CountOccurrences(content, searchText);
+        var path = ResolvePath(filePath);
+        var content = File.ReadAllText(path);
+        var occurrenceCount = CountOccurrences(content, searchText);
         if (occurrenceCount == 0)
         {
             throw new InvalidOperationException($"The requested text was not found in '{GetDisplayPath(path)}'.");
@@ -185,23 +185,23 @@ public sealed class WorkspaceService
             throw new InvalidOperationException($"The requested text matched {occurrenceCount} regions in '{GetDisplayPath(path)}'. Provide a more specific snippet.");
         }
 
-        string updated = ReplaceFirstOccurrence(content, searchText, replacementText);
+        var updated = ReplaceFirstOccurrence(content, searchText, replacementText);
         File.WriteAllText(path, updated);
         return $"Updated 1 region in {GetDisplayPath(path)}.";
     }
 
     public string ApplyPatch(string filePath, string input, string explanation)
     {
-        string normalizedPatch = NormalizePatchEnvelope(filePath, input);
-        List<PatchOperation> operations = ParsePatch(normalizedPatch);
+        var normalizedPatch = NormalizePatchEnvelope(filePath, input);
+        var operations = ParsePatch(normalizedPatch);
         if (operations.Count == 0)
         {
             throw new InvalidOperationException("No patch operations were provided.");
         }
 
-        foreach (PatchOperation operation in operations)
+        foreach (var operation in operations)
         {
-            string resolvedPath = ResolvePath(operation.FilePath);
+            var resolvedPath = ResolvePath(operation.FilePath);
             if (!PathsEqual(resolvedPath, ResolvePath(filePath)))
             {
                 throw new InvalidOperationException("apply_patch currently supports exactly one target file per invocation.");
@@ -225,8 +225,8 @@ public sealed class WorkspaceService
                         throw new InvalidOperationException($"Cannot update '{GetDisplayPath(resolvedPath)}' because it does not exist.");
                     }
 
-                    string currentContent = File.ReadAllText(resolvedPath);
-                    string updatedContent = ApplyHunks(currentContent, operation.Hunks, GetDisplayPath(resolvedPath));
+                    var currentContent = File.ReadAllText(resolvedPath);
+                    var updatedContent = ApplyHunks(currentContent, operation.Hunks, GetDisplayPath(resolvedPath));
                     File.WriteAllText(resolvedPath, updatedContent);
                     break;
 
@@ -240,8 +240,8 @@ public sealed class WorkspaceService
 
     public string FileSearch(string query, int maxResults = 200)
     {
-        Regex regex = WildcardToRegex(query);
-        List<string> matches = EnumerateWorkspaceFiles()
+        var regex = WildcardToRegex(query);
+        var matches = EnumerateWorkspaceFiles()
             .Select(path => Path.GetRelativePath(_workspaceRoot, path))
             .Where(path => regex.IsMatch(path))
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
@@ -256,12 +256,12 @@ public sealed class WorkspaceService
 
     public string GrepSearch(string query, bool isRegexp = false, string includePattern = "*")
     {
-        Regex fileRegex = WildcardToRegex(includePattern);
+        var fileRegex = WildcardToRegex(includePattern);
         Regex searchRegex = new(isRegexp ? query : Regex.Escape(query), RegexOptions.Multiline | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
         List<string> matches = [];
-        foreach (string file in EnumerateWorkspaceFiles())
+        foreach (var file in EnumerateWorkspaceFiles())
         {
-            string relative = Path.GetRelativePath(_workspaceRoot, file);
+            var relative = Path.GetRelativePath(_workspaceRoot, file);
             if (!fileRegex.IsMatch(relative))
             {
                 continue;
@@ -277,7 +277,7 @@ public sealed class WorkspaceService
                 continue;
             }
 
-            for (int i = 0; i < lines.Length; i++)
+            for (var i = 0; i < lines.Length; i++)
             {
                 if (searchRegex.IsMatch(lines[i]))
                 {
@@ -294,16 +294,16 @@ public sealed class WorkspaceService
 
     public string SemanticSearch(string query, int maxResults = 8)
     {
-        string[] terms = ExtractSearchTerms(query);
+        var terms = ExtractSearchTerms(query);
         if (terms.Length == 0)
         {
             return "No semantic search terms were extracted from the query.";
         }
 
         List<SemanticSnippet> snippets = [];
-        foreach (string file in EnumerateWorkspaceFiles())
+        foreach (var file in EnumerateWorkspaceFiles())
         {
-            string relative = Path.GetRelativePath(_workspaceRoot, file);
+            var relative = Path.GetRelativePath(_workspaceRoot, file);
             string[] lines;
             try
             {
@@ -314,22 +314,22 @@ public sealed class WorkspaceService
                 continue;
             }
 
-            int fileBonus = ScoreText(relative, terms) * 3;
-            for (int i = 0; i < lines.Length; i++)
+            var fileBonus = ScoreText(relative, terms) * 3;
+            for (var i = 0; i < lines.Length; i++)
             {
-                int lineScore = ScoreText(lines[i], terms);
+                var lineScore = ScoreText(lines[i], terms);
                 if (lineScore == 0 && fileBonus == 0)
                 {
                     continue;
                 }
 
-                int start = Math.Max(0, i - 2);
-                int end = Math.Min(lines.Length - 1, i + 2);
+                var start = Math.Max(0, i - 2);
+                var end = Math.Min(lines.Length - 1, i + 2);
                 snippets.Add(new SemanticSnippet(relative, start + 1, end + 1, fileBonus + lineScore, BuildSnippet(lines, start, end)));
             }
         }
 
-        SemanticSnippet[] ranked = snippets
+        var ranked = snippets
             .OrderByDescending(static snippet => snippet.Score)
             .ThenBy(static snippet => snippet.Path, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static snippet => snippet.StartLine)
@@ -351,11 +351,11 @@ public sealed class WorkspaceService
     {
         if (isBackground)
         {
-            string id = _backgroundTerminalCommandStore.Start(command, _workspaceRoot);
+            var id = _backgroundTerminalCommandStore.Start(command, _workspaceRoot);
             return $"Started background terminal session.\nId: {id}\nExplanation: {explanation}\nCommand: {command}";
         }
 
-        ShellCommandResult result = await _shellCommandRunner.RunAsync(command, _workspaceRoot, 120, cancellationToken).ConfigureAwait(false);
+        var result = await _shellCommandRunner.RunAsync(command, _workspaceRoot, 120, cancellationToken).ConfigureAwait(false);
         return $"Explanation: {explanation}\n{result}";
     }
 
@@ -364,7 +364,7 @@ public sealed class WorkspaceService
 
     public async Task<string> RunShellAsync(string command, int timeoutSeconds, CancellationToken cancellationToken)
     {
-        ShellCommandResult result = await _shellCommandRunner.RunAsync(command, _workspaceRoot, timeoutSeconds, cancellationToken).ConfigureAwait(false);
+        var result = await _shellCommandRunner.RunAsync(command, _workspaceRoot, timeoutSeconds, cancellationToken).ConfigureAwait(false);
         return result.ToString();
     }
 
@@ -375,21 +375,21 @@ public sealed class WorkspaceService
             return "No files were supplied.";
         }
 
-        string? buildTarget = FindDotNetBuildTarget();
+        var buildTarget = FindDotNetBuildTarget();
         if (buildTarget is null)
         {
             return "No .NET solution or project was found for diagnostics.";
         }
 
-        HashSet<string> requestedPaths = filePaths
+        var requestedPaths = filePaths
             .Select(ResolvePath)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        ShellCommandResult result = await _shellCommandRunner
+        var result = await _shellCommandRunner
             .RunAsync($"dotnet build \"{buildTarget}\" --nologo --no-restore", _workspaceRoot, 180, cancellationToken)
             .ConfigureAwait(false);
 
-        string combinedOutput = string.Join(
+        var combinedOutput = string.Join(
             Environment.NewLine,
             new[] { result.StandardOutput, result.StandardError }.Where(static value => !string.IsNullOrWhiteSpace(value)));
 
@@ -397,7 +397,7 @@ public sealed class WorkspaceService
         Regex regex = new(@"^(?<path>.+?)\((?<line>\d+)(,(?<column>\d+))?\): (?<severity>error|warning) (?<code>[^:]+): (?<message>.+)$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
         foreach (Match match in regex.Matches(combinedOutput))
         {
-            string diagnosticPath = Path.GetFullPath(match.Groups["path"].Value);
+            var diagnosticPath = Path.GetFullPath(match.Groups["path"].Value);
             if (!requestedPaths.Contains(diagnosticPath))
             {
                 continue;
@@ -426,7 +426,7 @@ public sealed class WorkspaceService
             return "No dependencies were supplied.";
         }
 
-        string mappedEcosystem = MapEcosystem(ecosystem);
+        var mappedEcosystem = MapEcosystem(ecosystem);
         OsvBatchQueryRequest request = new(
             dependencies.Select(dependency => ParseDependency(dependency, mappedEcosystem)).ToArray());
 
@@ -435,29 +435,29 @@ public sealed class WorkspaceService
             Content = new StringContent(JsonSerializer.Serialize(request, JsonSerializerOptions.Web), Encoding.UTF8, "application/json"),
         };
 
-        using HttpResponseMessage response = await OsvHttpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        using var response = await OsvHttpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        string content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        OsvBatchQueryResponse? payload = JsonSerializer.Deserialize<OsvBatchQueryResponse>(content, JsonSerializerOptions.Web);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var payload = JsonSerializer.Deserialize<OsvBatchQueryResponse>(content, JsonSerializerOptions.Web);
         if (payload?.Results is null || payload.Results.Length == 0)
         {
             return "No vulnerability data was returned.";
         }
 
         StringBuilder builder = new();
-        for (int i = 0; i < dependencies.Length; i++)
+        for (var i = 0; i < dependencies.Length; i++)
         {
             builder.AppendLine(dependencies[i]);
-            OsvBatchResult result = payload.Results.ElementAtOrDefault(i) ?? new OsvBatchResult(null);
+            var result = payload.Results.ElementAtOrDefault(i) ?? new OsvBatchResult(null);
             if (result.Vulns is null || result.Vulns.Length == 0)
             {
                 builder.AppendLine("- No known vulnerabilities found.");
                 continue;
             }
 
-            foreach (OsvVulnerability vulnerability in result.Vulns)
+            foreach (var vulnerability in result.Vulns)
             {
-                string fixedVersions = string.Join(", ", vulnerability.Affected?
+                var fixedVersions = string.Join(", ", vulnerability.Affected?
                     .SelectMany(static affected => affected.Ranges ?? [])
                     .SelectMany(static range => range.Events ?? [])
                     .Select(static @event => @event.Fixed)
@@ -491,7 +491,7 @@ public sealed class WorkspaceService
 
         StringBuilder builder = new();
         builder.AppendLine("Prepared question bundle:");
-        foreach (AskQuestionDefinition question in questions)
+        foreach (var question in questions)
         {
             builder.Append("- ").Append(question.Header).Append(": ").AppendLine(question.Question);
             builder.Append("  multiSelect=").Append(question.MultiSelect.ToString().ToLowerInvariant())
@@ -500,7 +500,7 @@ public sealed class WorkspaceService
 
             if (question.Options is not null)
             {
-                foreach (AskQuestionOption option in question.Options)
+                foreach (var option in question.Options)
                 {
                     builder.Append("  - ").Append(option.Label);
                     if (!string.IsNullOrWhiteSpace(option.Description))
@@ -524,15 +524,15 @@ public sealed class WorkspaceService
             return $"Subagent '{agentName}' is not available. Supported agents: Search.";
         }
 
-        string[] terms = ExtractSearchTerms(task);
-        List<string> fileCandidates = EnumerateWorkspaceFiles()
+        var terms = ExtractSearchTerms(task);
+        var fileCandidates = EnumerateWorkspaceFiles()
             .Select(path => Path.GetRelativePath(_workspaceRoot, path))
             .Where(path => terms.Any(term => path.Contains(term, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
             .Take(10)
             .ToList();
 
-        string semanticResults = SemanticSearch(task, 5);
+        var semanticResults = SemanticSearch(task, 5);
         StringBuilder builder = new();
         builder.AppendLine("Subagent: Search");
         if (!string.IsNullOrWhiteSpace(description))
@@ -549,7 +549,7 @@ public sealed class WorkspaceService
         }
         else
         {
-            foreach (string candidate in fileCandidates)
+            foreach (var candidate in fileCandidates)
             {
                 builder.Append("- ").AppendLine(candidate);
             }
@@ -563,7 +563,7 @@ public sealed class WorkspaceService
 
     private string ResolvePath(string? path)
     {
-        string candidate = string.IsNullOrWhiteSpace(path)
+        var candidate = string.IsNullOrWhiteSpace(path)
             ? _workspaceRoot
             : Path.IsPathRooted(path)
                 ? Path.GetFullPath(path)
@@ -579,7 +579,7 @@ public sealed class WorkspaceService
 
     private bool IsInsideWorkspace(string path)
     {
-        string rootWithSeparator = _workspaceRoot.EndsWith(Path.DirectorySeparatorChar)
+        var rootWithSeparator = _workspaceRoot.EndsWith(Path.DirectorySeparatorChar)
             ? _workspaceRoot
             : _workspaceRoot + Path.DirectorySeparatorChar;
 
@@ -589,7 +589,7 @@ public sealed class WorkspaceService
 
     private string GetDisplayPath(string fullPath)
     {
-        string relative = Path.GetRelativePath(_workspaceRoot, fullPath);
+        var relative = Path.GetRelativePath(_workspaceRoot, fullPath);
         return relative == "." ? "." : relative;
     }
 
@@ -601,8 +601,8 @@ public sealed class WorkspaceService
 
     private bool IsIgnoredPath(string path)
     {
-        string relative = Path.GetRelativePath(_workspaceRoot, path);
-        string[] segments = relative.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+        var relative = Path.GetRelativePath(_workspaceRoot, path);
+        var segments = relative.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
         return segments.Any(IgnoredDirectoryNames.Contains);
     }
 
@@ -621,25 +621,25 @@ public sealed class WorkspaceService
 
     private static string ReplaceFirstOccurrence(string content, string searchText, string replacementText)
     {
-        int index = content.IndexOf(searchText, StringComparison.Ordinal);
+        var index = content.IndexOf(searchText, StringComparison.Ordinal);
         return content[..index] + replacementText + content[(index + searchText.Length)..];
     }
 
     private static string NormalizePatchEnvelope(string filePath, string input)
     {
-        string normalized = input.Replace("\r\n", "\n");
+        var normalized = input.Replace("\r\n", "\n");
         if (normalized.Contains("*** Begin Patch", StringComparison.Ordinal))
         {
             return normalized;
         }
 
-        string patchPath = Path.IsPathRooted(filePath) ? filePath : filePath.Replace('\\', '/');
+        var patchPath = Path.IsPathRooted(filePath) ? filePath : filePath.Replace('\\', '/');
         return $"*** Begin Patch\n*** Update File: {patchPath}\n@@\n{normalized}\n*** End Patch";
     }
 
     private List<PatchOperation> ParsePatch(string patch)
     {
-        string[] lines = patch.Replace("\r\n", "\n").Split('\n');
+        var lines = patch.Replace("\r\n", "\n").Split('\n');
         if (lines.Length < 2 || !string.Equals(lines[0], "*** Begin Patch", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Patch input must start with '*** Begin Patch'.");
@@ -657,7 +657,7 @@ public sealed class WorkspaceService
 
             if (line.StartsWith("*** Add File: ", StringComparison.Ordinal))
             {
-                string operationPath = line[14..].Trim();
+                var operationPath = line[14..].Trim();
                 index++;
                 List<string> addedLines = [];
                 while (index < lines.Length && !lines[index].StartsWith("*** ", StringComparison.Ordinal))
@@ -680,7 +680,7 @@ public sealed class WorkspaceService
                 throw new InvalidOperationException($"Unsupported patch header '{line}'.");
             }
 
-            string filePathValue = line[17..].Trim();
+            var filePathValue = line[17..].Trim();
             index++;
             if (index < lines.Length && lines[index].StartsWith("*** Move to:", StringComparison.Ordinal))
             {
@@ -735,24 +735,24 @@ public sealed class WorkspaceService
 
     private static string ApplyHunks(string content, IReadOnlyList<PatchHunk> hunks, string displayPath)
     {
-        bool hadTrailingNewline = content.EndsWith('\n');
-        List<string> lines = content.Replace("\r\n", "\n").Split('\n').ToList();
+        var hadTrailingNewline = content.EndsWith('\n');
+        var lines = content.Replace("\r\n", "\n").Split('\n').ToList();
         if (hadTrailingNewline && lines.Count > 0 && lines[^1].Length == 0)
         {
             lines.RemoveAt(lines.Count - 1);
         }
 
         var searchStart = 0;
-        foreach (PatchHunk hunk in hunks)
+        foreach (var hunk in hunks)
         {
-            List<string> before = hunk.Lines.Where(static line => line.Prefix != '+').Select(static line => line.Text).ToList();
-            List<string> after = hunk.Lines.Where(static line => line.Prefix != '-').Select(static line => line.Text).ToList();
+            var before = hunk.Lines.Where(static line => line.Prefix != '+').Select(static line => line.Text).ToList();
+            var after = hunk.Lines.Where(static line => line.Prefix != '-').Select(static line => line.Text).ToList();
             if (before.Count == 0)
             {
                 throw new InvalidOperationException("Patch hunks must include at least one context or removed line.");
             }
 
-            int index = FindSequence(lines, before, searchStart);
+            var index = FindSequence(lines, before, searchStart);
             if (index < 0)
             {
                 throw new InvalidOperationException($"Failed to apply patch to '{displayPath}' because the expected context was not found.");
@@ -763,7 +763,7 @@ public sealed class WorkspaceService
             searchStart = index;
         }
 
-        string updated = string.Join('\n', lines);
+        var updated = string.Join('\n', lines);
         return hadTrailingNewline ? updated + '\n' : updated;
     }
 
@@ -774,10 +774,10 @@ public sealed class WorkspaceService
             return startIndex;
         }
 
-        for (int i = Math.Max(0, startIndex); i <= lines.Count - sequence.Count; i++)
+        for (var i = Math.Max(0, startIndex); i <= lines.Count - sequence.Count; i++)
         {
             var matched = true;
-            for (int j = 0; j < sequence.Count; j++)
+            for (var j = 0; j < sequence.Count; j++)
             {
                 if (!string.Equals(lines[i + j], sequence[j], StringComparison.Ordinal))
                 {
@@ -797,19 +797,19 @@ public sealed class WorkspaceService
 
     private string? FindDotNetBuildTarget()
     {
-        string? slnx = Directory.EnumerateFiles(_workspaceRoot, "*.slnx", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+        var slnx = Directory.EnumerateFiles(_workspaceRoot, "*.slnx", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
         if (slnx is not null)
         {
             return Path.GetRelativePath(_workspaceRoot, slnx);
         }
 
-        string? sln = Directory.EnumerateFiles(_workspaceRoot, "*.sln", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+        var sln = Directory.EnumerateFiles(_workspaceRoot, "*.sln", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
         if (sln is not null)
         {
             return Path.GetRelativePath(_workspaceRoot, sln);
         }
 
-        string? project = Directory.EnumerateFiles(_workspaceRoot, "*.csproj", SearchOption.AllDirectories)
+        var project = Directory.EnumerateFiles(_workspaceRoot, "*.csproj", SearchOption.AllDirectories)
             .Where(path => !IsIgnoredPath(path))
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
@@ -829,7 +829,7 @@ public sealed class WorkspaceService
     private static int ScoreText(string value, IEnumerable<string> terms)
     {
         var score = 0;
-        foreach (string term in terms)
+        foreach (var term in terms)
         {
             if (value.Contains(term, StringComparison.OrdinalIgnoreCase))
             {
@@ -843,7 +843,7 @@ public sealed class WorkspaceService
     private static string BuildSnippet(IReadOnlyList<string> lines, int start, int end)
     {
         StringBuilder builder = new();
-        for (int i = start; i <= end; i++)
+        for (var i = start; i <= end; i++)
         {
             builder.Append(i + 1).Append(": ").AppendLine(lines[i]);
         }
@@ -870,7 +870,7 @@ public sealed class WorkspaceService
 
     private static OsvQuery ParseDependency(string dependency, string ecosystem)
     {
-        int separatorIndex = dependency.LastIndexOf('@');
+        var separatorIndex = dependency.LastIndexOf('@');
         if (separatorIndex <= 0 || separatorIndex == dependency.Length - 1)
         {
             throw new InvalidOperationException($"Dependency '{dependency}' must be in the format package@version.");
@@ -884,7 +884,7 @@ public sealed class WorkspaceService
 
     private static Regex WildcardToRegex(string pattern)
     {
-        string escaped = Regex.Escape(string.IsNullOrWhiteSpace(pattern) ? "*" : pattern)
+        var escaped = Regex.Escape(string.IsNullOrWhiteSpace(pattern) ? "*" : pattern)
             .Replace("\\*", ".*")
             .Replace("\\?", ".");
         return new Regex("^" + escaped + "$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);

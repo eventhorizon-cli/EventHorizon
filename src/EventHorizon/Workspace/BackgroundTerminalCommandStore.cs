@@ -10,15 +10,15 @@ public sealed class BackgroundTerminalCommandStore
 
     public string Start(string command, string workingDirectory)
     {
-        string id = Guid.NewGuid().ToString("N");
-        BackgroundTerminalCommand session = BackgroundTerminalCommand.Start(id, command, workingDirectory);
+        var id = Guid.NewGuid().ToString("N");
+        var session = BackgroundTerminalCommand.Start(id, command, workingDirectory);
         _commands[id] = session;
         return id;
     }
 
     public string GetOutput(string id)
     {
-        if (!_commands.TryGetValue(id, out BackgroundTerminalCommand? command))
+        if (!_commands.TryGetValue(id, out var command))
         {
             throw new InvalidOperationException($"The terminal session '{id}' was not found.");
         }
@@ -49,7 +49,7 @@ public sealed class BackgroundTerminalCommandStore
 
         public static BackgroundTerminalCommand Start(string id, string command, string workingDirectory)
         {
-            (string fileName, string arguments) = ShellCommandRunner.GetShellInvocation(command);
+            (var fileName, var arguments) = ShellCommandRunner.GetShellInvocation(command);
             Process process = new()
             {
                 StartInfo = new ProcessStartInfo

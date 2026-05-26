@@ -26,7 +26,7 @@ public sealed class EventHorizonCli : ICommandOptionsParser
     }
 
     public string GetHelpText()
-        => "Commands: chat, tui, run";
+        => "Commands: chat, tui, run\nOptions: --config|-c, --workspace|-w, --provider, --model|-m";
 
     private static ParserConfiguration CreateParserConfiguration()
         => new()
@@ -36,7 +36,12 @@ public sealed class EventHorizonCli : ICommandOptionsParser
 
     private static string[] NormalizeArgs(string[] args)
     {
-        if (args.Length == 0 || args[0].StartsWith("-", StringComparison.Ordinal))
+        if (args.Length == 0)
+        {
+            return ["tui"];
+        }
+
+        if (args[0].StartsWith("-", StringComparison.Ordinal))
         {
             if (string.Equals(args[0], "--tui", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "-tui", StringComparison.OrdinalIgnoreCase))
@@ -70,14 +75,12 @@ public sealed class EventHorizonCli : ICommandOptionsParser
     {
         Option<string?> configOption = new("--config", ["-c"]) { Description = "Path to an additional configuration file." };
         Option<string?> workspaceOption = new("--workspace", ["-w"]) { Description = "Workspace root directory." };
-        Option<string?> providerOption = new("--provider", []) { Description = "Provider type: openai, azure-openai, anthropic, gemini, or openai-compatible." };
+        Option<string?> providerOption = new("--provider", []) { Description = "Configured provider name, or a provider type override such as openai, azure-openai, anthropic, gemini, or openai-compatible." };
         Option<string?> modelOption = new("--model", ["-m"]) { Description = "Model or deployment name." };
-        Option<string?> urlOption = new("--url", []) { Description = "Server or client URL, depending on the selected command." };
 
         Command command = new(commandName, $"EventHorizon {commandName} command")
         {
             configOption, workspaceOption, providerOption, modelOption,
-            urlOption
         };
 
         Argument<string[]>? promptArgument = null;
@@ -94,7 +97,7 @@ public sealed class EventHorizonCli : ICommandOptionsParser
             command.Add(promptTextOption);
         }
 
-        return new CommandModel(command, configOption, workspaceOption, providerOption, modelOption, urlOption, promptArgument, promptTextOption);
+        return new CommandModel(command, configOption, workspaceOption, providerOption, modelOption, promptArgument, promptTextOption);
     }
 
     private sealed record CommandModel(
@@ -103,21 +106,20 @@ public sealed class EventHorizonCli : ICommandOptionsParser
         Option<string?> WorkspaceOption,
         Option<string?> ProviderOption,
         Option<string?> ModelOption,
-        Option<string?> UrlOption,
         Argument<string[]>? PromptArgument,
         Option<string?>? PromptTextOption)
     {
         public EffectiveCommandOptions ToOptions(ParseResult result, string commandName)
         {
-            string[] promptTokens = PromptArgument is null ? [] : result.GetValue(PromptArgument) ?? [];
-            string? promptText = PromptTextOption is null ? null : result.GetValue(PromptTextOption);
+            var promptTokens = PromptArgument is null ? [] : result.GetValue(PromptArgument) ?? [];
+            var promptText = PromptTextOption is null ? null : result.GetValue(PromptTextOption);
 
             return new EffectiveCommandOptions
             {
                 Command = commandName,
                 ConfigFile = result.GetValue(ConfigOption),
                 WorkspaceRoot = result.GetValue(WorkspaceOption),
-                ProviderType = result.GetValue(ProviderOption),
+                Provider = result.GetValue(ProviderOption),
                 Model = result.GetValue(ModelOption),
                 Prompt = !string.IsNullOrWhiteSpace(promptText)
                     ? promptText

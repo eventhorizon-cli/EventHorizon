@@ -1,4 +1,3 @@
-using EventHorizon.EntryPoints;
 using EventHorizon.EntryPoints.Console;
 using EventHorizon.Providers;
 using Microsoft.Extensions.DependencyInjection;

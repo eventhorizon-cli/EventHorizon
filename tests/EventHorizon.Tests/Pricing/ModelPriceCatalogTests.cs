@@ -19,7 +19,7 @@ public class ModelPriceCatalogTests
         }
         """;
 
-        ModelPriceCatalog catalog = ModelPriceCatalog.FromJson(json);
+        var catalog = ModelPriceCatalog.FromJson(json);
         UsageDetails usage = new()
         {
             InputTokenCount = 100,
@@ -27,7 +27,7 @@ public class ModelPriceCatalogTests
             CachedInputTokenCount = 10,
         };
 
-        UsageCost cost = catalog.EstimateCost("gpt-test", usage);
+        var cost = catalog.EstimateCost("gpt-test", usage);
 
         Assert.True(cost.HasPrice);
         Assert.Equal(100, cost.InputTokens);
@@ -50,7 +50,7 @@ public class ModelPriceCatalogTests
         }
         """;
 
-        ModelPriceCatalog catalog = ModelPriceCatalog.FromJson(json);
+        var catalog = ModelPriceCatalog.FromJson(json);
 
         Assert.True(catalog.TryGetEntry("sample_spec", out _));
     }
@@ -61,7 +61,7 @@ public class ModelPriceCatalogTests
         ModelPriceCatalog catalog = new([]);
         UsageDetails usage = new() { InputTokenCount = 11, OutputTokenCount = 7 };
 
-        UsageCost cost = catalog.EstimateCost("missing-model", usage);
+        var cost = catalog.EstimateCost("missing-model", usage);
 
         Assert.False(cost.HasPrice);
         Assert.Equal(11, cost.InputTokens);

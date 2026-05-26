@@ -1,5 +1,4 @@
 {
-  "WorkspaceRoot": "/Users/hkh/Documents/Projects/test",
   "Agent": {
     "Name": "EventHorizon",
     "Description": "A terminal-first coding agent runtime.",
@@ -8,18 +7,16 @@
     "EnableMcpTools": true,
     "AdditionalSystemPrompts": []
   },
-  "Provider": {
-    "Type": "openai",
-    "Model": "gpt-4.1-mini",
-    "ApiKey": "sk-your-openai-api-key",
-    "Endpoint": null,
-    "Deployment": null,
-    "UseDefaultAzureCredential": false
-  },
-  "Protocol": {
-    "Url": "http://127.0.0.1:8787",
-    "Path": "/agui",
-    "ClientUrl": "http://127.0.0.1:8787/agui"
+  "CurrentProvider": "openai",
+  "Providers": {
+    "openai": {
+      "Type": "openai",
+      "Model": "gpt-4.1-mini",
+      "ApiKey": "sk-your-openai-api-key",
+      "Endpoint": null,
+      "Deployment": null,
+      "UseDefaultAzureCredential": false
+    }
   },
   "Pricing": {
     "CatalogUrl": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json",

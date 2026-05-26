@@ -1,5 +1,4 @@
 {
-  "WorkspaceRoot": ".",
   "Agent": {
     "Name": "EventHorizon",
     "Description": "A terminal-first coding agent runtime.",
@@ -8,13 +7,16 @@
     "EnableMcpTools": true,
     "AdditionalSystemPrompts": []
   },
-  "Provider": {
-    "Type": "openai",
-    "Model": "gpt-4.1-mini",
-    "ApiKey": null,
-    "Endpoint": null,
-    "Deployment": null,
-    "UseDefaultAzureCredential": true
+  "CurrentProvider": "openai",
+  "Providers": {
+    "openai": {
+      "Type": "openai",
+      "Model": "gpt-4.1-mini",
+      "ApiKey": null,
+      "Endpoint": null,
+      "Deployment": null,
+      "UseDefaultAzureCredential": true
+    }
   },
   "Protocol": {
     "Url": "http://127.0.0.1:8787",

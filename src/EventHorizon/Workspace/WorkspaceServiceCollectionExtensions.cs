@@ -11,9 +11,19 @@ public static class WorkspaceServiceCollectionExtensions
         services.AddSingleton(new ShellCommandRunner());
         services.AddSingleton(serviceProvider =>
         {
-            var options = serviceProvider.GetRequiredService<IOptions<Configuration.AppOptions>>().Value;
+            var commandOptions = serviceProvider.GetRequiredService<Configuration.EffectiveCommandOptions>();
+            var pathEnvironment = serviceProvider.GetRequiredService<Configuration.IPathEnvironment>();
+            var workspaceRoot = string.IsNullOrWhiteSpace(commandOptions.WorkspaceRoot)
+                ? pathEnvironment.CurrentDirectory
+                : commandOptions.WorkspaceRoot;
+
+            return new WorkspaceContext(workspaceRoot);
+        });
+        services.AddSingleton(serviceProvider =>
+        {
+            var workspaceContext = serviceProvider.GetRequiredService<WorkspaceContext>();
             return new WorkspaceService(
-                options.WorkspaceRoot,
+                workspaceContext.WorkspaceRoot,
                 serviceProvider.GetRequiredService<ShellCommandRunner>(),
                 serviceProvider.GetRequiredService<BackgroundTerminalCommandStore>());
         });

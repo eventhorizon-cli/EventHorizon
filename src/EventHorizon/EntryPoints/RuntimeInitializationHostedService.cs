@@ -20,7 +20,6 @@ internal sealed class RuntimeInitializationHostedService : IHostedService
     private readonly IToolCatalogFactory _toolCatalogFactory;
     private readonly ISystemPromptFactory _systemPromptFactory;
     private readonly IProviderAgentFactory _providerAgentFactory;
-    private readonly IProviderChatClientFactory _providerChatClientFactory;
     private readonly McpToolConnector _mcpToolConnector;
     private readonly IOptions<AppOptions> _options;
     private readonly EventHorizonRuntimeHolder _runtimeHolder;
@@ -31,7 +30,6 @@ internal sealed class RuntimeInitializationHostedService : IHostedService
         IToolCatalogFactory toolCatalogFactory,
         ISystemPromptFactory systemPromptFactory,
         IProviderAgentFactory providerAgentFactory,
-        IProviderChatClientFactory providerChatClientFactory,
         McpToolConnector mcpToolConnector,
         IOptions<AppOptions> options,
         EventHorizonRuntimeHolder runtimeHolder)
@@ -41,7 +39,6 @@ internal sealed class RuntimeInitializationHostedService : IHostedService
         _toolCatalogFactory = toolCatalogFactory;
         _systemPromptFactory = systemPromptFactory;
         _providerAgentFactory = providerAgentFactory;
-        _providerChatClientFactory = providerChatClientFactory;
         _mcpToolConnector = mcpToolConnector;
         _options = options;
         _runtimeHolder = runtimeHolder;
@@ -49,6 +46,7 @@ internal sealed class RuntimeInitializationHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+
         var options = _options.Value;
 
         _runtimeHolder.Runtime = await CreateLocalRuntimeAsync(options, cancellationToken).ConfigureAwait(false);
@@ -80,7 +78,7 @@ internal sealed class RuntimeInitializationHostedService : IHostedService
 
         var instructions = _systemPromptFactory.Build(options, contextSnapshot, toolCatalog);
 
-        var modelName = options.Provider.Type.Equals("azure-openai", StringComparison.OrdinalIgnoreCase)
+        var modelName = string.Equals(options.Provider.Type, "azure-openai", StringComparison.OrdinalIgnoreCase)
             ? (options.Provider.Deployment ?? options.Provider.Model ?? string.Empty)
             : (options.Provider.Model ?? string.Empty);
 

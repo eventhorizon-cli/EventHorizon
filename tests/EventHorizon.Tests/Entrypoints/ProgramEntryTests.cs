@@ -1,4 +1,3 @@
-using EventHorizon.Configuration;
 
 namespace EventHorizon.Tests.EntryPoints;
 
@@ -17,7 +16,7 @@ public class ProgramEntryTests
             "Fix", "the", "failing", "tests"
         ];
 
-        EffectiveCommandOptions options = Program.ParseArguments(args);
+        var options = Program.ParseArguments(args);
 
         Assert.Equal("run", options.Command);
         Assert.Equal("openai-compatible", options.ProviderType);
@@ -27,11 +26,19 @@ public class ProgramEntryTests
     }
 
     [Fact]
+    public void ParseArguments_Defaults_To_Tui_When_No_Arguments_Are_Provided()
+    {
+        var options = Program.ParseArguments([]);
+
+        Assert.Equal("tui", options.Command);
+    }
+
+    [Fact]
     public void ParseArguments_Defaults_To_Chat_When_No_Command_Is_Provided()
     {
         string[] args = ["--workspace", "/tmp/workspace"];
 
-        EffectiveCommandOptions options = Program.ParseArguments(args);
+        var options = Program.ParseArguments(args);
 
         Assert.Equal("chat", options.Command);
         Assert.Equal("/tmp/workspace", options.WorkspaceRoot);
@@ -46,7 +53,7 @@ public class ProgramEntryTests
 
         try
         {
-            int exitCode = await Program.RunAsync(["--help"]);
+            var exitCode = await Program.RunAsync(["--help"]);
 
             Assert.Equal(0, exitCode);
             Assert.Contains("Commands:", writer.ToString(), StringComparison.Ordinal);
