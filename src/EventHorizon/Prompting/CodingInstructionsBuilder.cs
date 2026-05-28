@@ -20,22 +20,19 @@ public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
     {
         List<string> sections =
         [
-            "You are EventHorizon, a software engineering agent designed for codebases and terminal-driven workflows.",
+            "You are EventHorizon, a software engineering agent designed for general software work across any text-based codebase.",
             "Work like a disciplined coding agent: inspect the workspace first, keep a visible plan, execute small verified changes, and summarize what changed.",
-            "Operate like a terminal workbench agent: keep track of transcript context, workspace focus, recent activity, and session checkpoints as you work.",
+            "Operate like a code workbench agent: keep track of transcript context, workspace focus, recent activity, and session checkpoints as you work.",
             "When editing code, prefer minimal diffs, preserve style, verify the result with tests or builds, and avoid speculative changes.",
             "Always operate inside the configured workspace root.",
             "If you cannot complete a request with confidence, explain the blocker clearly and propose the next best step."
         ];
 
-        if (options.Agent.EnableShell)
-        {
-            sections.Add("A shell execution capability is available. Use it when live command output or build feedback is necessary.");
-        }
+        sections.Add("A shell execution capability is available. Use it when live command output, builds, tests, generators, or tooling feedback is necessary.");
 
         if (options.Agent.EnableSkills)
         {
-            sections.Add("A workspace skill is available for browsing files, reading content, editing content, searching code, and running shell commands.");
+            sections.Add("A workspace skill is available for browsing files, reading content, editing content, searching code, and running shell commands across many project types.");
         }
 
         if (options.Agent.EnableMcpTools && options.McpServers.Count > 0)

@@ -26,5 +26,37 @@ public sealed class TerminalLayoutManagerTests
 
         Assert.Equal(TerminalLayoutMode.Expanded, actual);
     }
+
+    [Fact]
+    public void Build_Expanded_Creates_All_Workbench_Regions()
+    {
+        TerminalLayoutManager manager = new();
+
+        var layout = manager.Build(new TerminalSize(160, 45));
+
+        Assert.Equal(TerminalLayoutMode.Expanded, layout.Mode);
+        Assert.True(layout[TerminalRegionId.Chat].Width > 0);
+        Assert.True(layout[TerminalRegionId.Context].Width > 0);
+        Assert.True(layout[TerminalRegionId.Tools].Width > 0);
+        Assert.True(layout[TerminalRegionId.Plan].Width > 0);
+        Assert.True(layout[TerminalRegionId.Diff].Width > 0);
+        Assert.True(layout[TerminalRegionId.Input].Height > 0);
+        Assert.True(layout[TerminalRegionId.StatusBar].Height > 0);
+    }
+
+    [Fact]
+    public void Build_Compact_Hides_Secondary_Sidebars()
+    {
+        TerminalLayoutManager manager = new();
+
+        var layout = manager.Build(new TerminalSize(80, 24));
+
+        Assert.Equal(TerminalLayoutMode.Compact, layout.Mode);
+        Assert.True(layout[TerminalRegionId.Chat].Height > 0);
+        Assert.Equal(TerminalRect.Empty, layout[TerminalRegionId.Context]);
+        Assert.Equal(TerminalRect.Empty, layout[TerminalRegionId.Tools]);
+        Assert.Equal(TerminalRect.Empty, layout[TerminalRegionId.Plan]);
+        Assert.Equal(TerminalRect.Empty, layout[TerminalRegionId.Diff]);
+    }
 }
 

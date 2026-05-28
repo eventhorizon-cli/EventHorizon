@@ -84,39 +84,36 @@ public sealed class ToolCatalog : IToolCatalogFactory
                 AIFunctionFactory.Create(workspaceService.ValidateCvesAsync, name: "validate_cves", description: "Validate package versions against OSV vulnerability data.")),
         ];
 
-        if (options.Agent.EnableShell)
-        {
-            tools.AddRange(
-            [
-                new ToolDescriptor(
-                    "get_errors",
-                    "Run workspace diagnostics and return compile or analyzer output for specific files.",
-                    IsReadOnly: true,
-                    IsConcurrencySafe: false,
-                    AIFunctionFactory.Create(
-                        workspaceService.GetErrorsAsync,
-                        name: "get_errors",
-                        description: "Run workspace diagnostics and return matched errors for specific files.")),
-                new ToolDescriptor(
-                    "get_terminal_output",
-                    "Inspect the current output for a previously started background terminal session.",
-                    IsReadOnly: true,
-                    IsConcurrencySafe: false,
-                    AIFunctionFactory.Create(
-                        workspaceService.GetTerminalOutput,
-                        name: "get_terminal_output",
-                        description: "Get stdout, stderr, status, and exit code for a background terminal session.")),
-                new ToolDescriptor(
-                    "run_in_terminal",
-                    "Run a terminal command in the workspace. Use background mode for long-running tasks.",
-                    IsReadOnly: false,
-                    IsConcurrencySafe: false,
-                    AIFunctionFactory.Create(
-                        workspaceService.RunInTerminalAsync,
-                        name: "run_in_terminal",
-                        description: "Run a terminal command in the workspace or start it in the background.")),
-            ]);
-        }
+        tools.AddRange(
+        [
+            new ToolDescriptor(
+                "get_errors",
+                "Run workspace diagnostics and return compile or analyzer output for specific files.",
+                IsReadOnly: true,
+                IsConcurrencySafe: false,
+                AIFunctionFactory.Create(
+                    workspaceService.GetErrorsAsync,
+                    name: "get_errors",
+                    description: "Run workspace diagnostics and return matched errors for specific files.")),
+            new ToolDescriptor(
+                "get_terminal_output",
+                "Inspect the current output for a previously started background terminal session.",
+                IsReadOnly: true,
+                IsConcurrencySafe: false,
+                AIFunctionFactory.Create(
+                    workspaceService.GetTerminalOutput,
+                    name: "get_terminal_output",
+                    description: "Get stdout, stderr, status, and exit code for a background terminal session.")),
+            new ToolDescriptor(
+                "run_in_terminal",
+                "Run a terminal command in the workspace. Use background mode for long-running tasks.",
+                IsReadOnly: false,
+                IsConcurrencySafe: false,
+                AIFunctionFactory.Create(
+                    workspaceService.RunInTerminalAsync,
+                    name: "run_in_terminal",
+                    description: "Run a terminal command in the workspace or start it in the background.")),
+        ]);
 
         return tools.OrderBy(static tool => tool.Name, StringComparer.Ordinal).ToArray();
     }

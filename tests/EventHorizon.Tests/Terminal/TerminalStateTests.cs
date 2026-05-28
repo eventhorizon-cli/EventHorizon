@@ -46,5 +46,48 @@ public sealed class TerminalStateTests
 
         Assert.Empty(state.Messages);
     }
+
+    [Fact]
+    public void UpdateCommandSuggestions_Replaces_Items_And_Tracks_Selection()
+    {
+        TerminalState state = new();
+
+        state.UpdateCommandSuggestions(
+            "/mo",
+            [
+                new TerminalCommandDescriptor("/model", "Switch model"),
+                new TerminalCommandDescriptor("/mode", "Example"),
+            ],
+            1);
+
+        Assert.True(state.CommandSuggestions.IsOpen);
+        Assert.Equal("/mo", state.CommandSuggestions.Query);
+        Assert.Equal(1, state.CommandSuggestions.SelectedIndex);
+        Assert.Equal(["/model", "/mode"], state.CommandSuggestions.Items.Select(static item => item.Name));
+    }
+
+    [Fact]
+    public void CloseCommandSuggestions_Clears_Suggestion_State()
+    {
+        TerminalState state = new();
+        state.UpdateCommandSuggestions("/", [new TerminalCommandDescriptor("/help", "Show help")]);
+
+        state.CloseCommandSuggestions();
+
+        Assert.False(state.CommandSuggestions.IsOpen);
+        Assert.Empty(state.CommandSuggestions.Items);
+        Assert.Equal(string.Empty, state.CommandSuggestions.Query);
+        Assert.Equal(0, state.CommandSuggestions.SelectedIndex);
+    }
+
+    [Fact]
+    public void SetModelConnectionStatus_Updates_Model_Connection_Status()
+    {
+        TerminalState state = new();
+
+        state.SetModelConnectionStatus(ModelConnectionStatus.Connected);
+
+        Assert.Equal(ModelConnectionStatus.Connected, state.ModelConnectionStatus);
+    }
 }
 

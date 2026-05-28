@@ -7,8 +7,6 @@ public static class ConversationsServiceCollectionExtensions
 {
     public static IServiceCollection AddEventHorizonConversations(this IServiceCollection services)
     {
-        services.AddSingleton<IConversationSessionMapper, ConversationSessionMapper>();
-        services.AddSingleton<IConversationSessionSerializer, ChatClientConversationSessionSerializer>();
         services.AddSingleton<IConversationSessionStore>(serviceProvider =>
             new FileConversationSessionStore(ResolveStoragePath(
                 serviceProvider.GetRequiredService<IOptions<Configuration.AppOptions>>().Value,

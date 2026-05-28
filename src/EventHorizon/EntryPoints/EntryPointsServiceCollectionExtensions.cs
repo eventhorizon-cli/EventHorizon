@@ -1,4 +1,3 @@
-using EventHorizon.EntryPoints.Console;
 using EventHorizon.Providers;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,8 +11,6 @@ public static class EntryPointsServiceCollectionExtensions
         services.AddSingleton<EventHorizonRuntimeHolder>();
         services.AddSingleton<IEventHorizonRuntime, EventHorizonRuntimeWrapper>();
         services.AddHostedService<RuntimeInitializationHostedService>();
-        services.AddSingleton<ConsoleHost>();
-        services.AddSingleton<TerminalWorkbenchHost>();
         return services;
     }
 }

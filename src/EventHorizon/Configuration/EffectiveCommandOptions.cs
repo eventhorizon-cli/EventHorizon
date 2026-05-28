@@ -2,7 +2,9 @@ namespace EventHorizon.Configuration;
 
 public sealed class EffectiveCommandOptions
 {
-    public string Command { get; set; } = "chat";
+    public const string StartupMode = "serve";
+
+    public string Command { get; set; } = StartupMode;
     public string? Prompt { get; set; }
     public string? WorkspaceRoot { get; set; }
     public string? Provider { get; set; }

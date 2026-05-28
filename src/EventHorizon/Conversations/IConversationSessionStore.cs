@@ -2,10 +2,12 @@ namespace EventHorizon.Conversations;
 
 public interface IConversationSessionStore
 {
-    Task SaveAsync(Conversations.ConversationSessionDocument document, CancellationToken cancellationToken);
+    Task SaveAsync(ConversationSessionDocument document, CancellationToken cancellationToken);
 
-    Task<Conversations.ConversationSessionDocument?> LoadAsync(string sessionId, CancellationToken cancellationToken);
+    Task<ConversationSessionDocument?> LoadAsync(string sessionId, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<Conversations.ConversationSessionSummary>> ListAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<ConversationSessionSummary>> ListAsync(CancellationToken cancellationToken);
+
+    Task DeleteAsync(string sessionId, CancellationToken cancellationToken);
 }
 

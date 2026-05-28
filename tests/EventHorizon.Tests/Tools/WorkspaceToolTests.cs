@@ -372,7 +372,7 @@ public sealed class WorkspaceToolTests : IDisposable
     }
 
     [Fact]
-    public void ToolCatalog_Without_Shell_Should_Exclude_Shell_Tools()
+    public void ToolCatalog_Without_Shell_Flag_Should_Still_Include_Shell_Tools()
     {
         // Arrange
         var optionsWithoutShell = new AppOptions
@@ -385,9 +385,9 @@ public sealed class WorkspaceToolTests : IDisposable
 
         // Assert
         var toolNames = tools.Select(t => t.Name).ToList();
-        Assert.DoesNotContain("get_errors", toolNames);
-        Assert.DoesNotContain("get_terminal_output", toolNames);
-        Assert.DoesNotContain("run_in_terminal", toolNames);
+        Assert.Contains("get_errors", toolNames);
+        Assert.Contains("get_terminal_output", toolNames);
+        Assert.Contains("run_in_terminal", toolNames);
     }
 
     [Fact]

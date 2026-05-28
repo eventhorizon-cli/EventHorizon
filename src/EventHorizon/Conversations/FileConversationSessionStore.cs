@@ -40,11 +40,34 @@ public sealed class FileConversationSessionStore : IConversationSessionStore
             var document = JsonSerializer.Deserialize(json, Configuration.EventHorizonJsonContext.Default.ConversationSessionDocument);
             if (document is not null)
             {
-                items.Add(new ConversationSessionSummary(document.Id, document.Name, document.UpdatedAt, document.ProviderType, document.Model));
+                items.Add(new ConversationSessionSummary(
+                    document.Id,
+                    document.Name,
+                    document.CreatedAt,
+                    document.UpdatedAt,
+                    document.ProviderType,
+                    document.Model,
+                    document.Status,
+                    document.LastRunId,
+                    document.Summary,
+                    document.ChangedFilesCount,
+                    document.IsTitleGenerated));
             }
         }
 
         return items.OrderByDescending(static item => item.UpdatedAt).ToList();
+    }
+
+    public Task DeleteAsync(string sessionId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var path = GetPath(sessionId);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+
+        return Task.CompletedTask;
     }
 
     private string GetPath(string sessionId) => Path.Combine(_storagePath, sessionId + ".json");

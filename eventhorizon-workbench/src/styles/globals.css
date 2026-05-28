@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 20% 96%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 210 16% 93%;
+  --muted-foreground: 215 16% 40%;
+  --border: 214 18% 88%;
+  --input: 214 18% 88%;
+  --primary: 221 83% 53%;
+  --primary-foreground: 210 40% 98%;
+  --accent: 210 16% 93%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 221 83% 53%;
+}
+
+.dark {
+  --background: 222 24% 9%;
+  --foreground: 210 20% 92%;
+  --card: 222 18% 12%;
+  --card-foreground: 210 20% 92%;
+  --muted: 222 16% 16%;
+  --muted-foreground: 215 20% 67%;
+  --border: 222 16% 20%;
+  --input: 222 16% 20%;
+  --primary: 199 89% 48%;
+  --primary-foreground: 222 47% 11%;
+  --accent: 222 16% 16%;
+  --accent-foreground: 210 20% 92%;
+  --destructive: 0 63% 54%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 199 89% 48%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+.markdown {
+  @apply space-y-3 text-sm leading-7;
+}
+
+.markdown pre {
+  @apply overflow-x-auto rounded-lg bg-muted p-3 text-xs;
+}
+
+.markdown code {
+  @apply rounded bg-muted px-1 py-0.5 text-xs;
+}
+

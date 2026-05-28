@@ -3,7 +3,7 @@ using EventHorizon.Providers;
 
 namespace EventHorizon.EntryPoints;
 
-public interface IAguiServerRunner
+public interface IAGUIServerRunner
 {
     Task RunAsync(AppOptions options, IEventHorizonRuntime runtime, CancellationToken cancellationToken);
 }

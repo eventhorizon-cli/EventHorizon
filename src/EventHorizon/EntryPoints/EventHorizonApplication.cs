@@ -1,26 +1,29 @@
 using EventHorizon.Configuration;
-using EventHorizon.EntryPoints.Console;
 using EventHorizon.Pricing;
+using EventHorizon.Providers;
 
 namespace EventHorizon.EntryPoints;
 
 internal sealed class EventHorizonApplication : IEventHorizonApplication
 {
+    private readonly AppOptions _options;
     private readonly EffectiveCommandOptions _command;
     private readonly IModelPriceCatalogService _priceService;
-    private readonly ConsoleHost _consoleHost;
-    private readonly TerminalWorkbenchHost _terminalWorkbenchHost;
+    private readonly IEventHorizonRuntime _runtime;
+    private readonly IAGUIServerRunner _aguiServerRunner;
 
     public EventHorizonApplication(
+        AppOptions options,
         EffectiveCommandOptions command,
         IModelPriceCatalogService priceService,
-        ConsoleHost consoleHost,
-        TerminalWorkbenchHost terminalWorkbenchHost)
+        IEventHorizonRuntime runtime,
+        IAGUIServerRunner aguiServerRunner)
     {
+        _options = options;
         _command = command;
         _priceService = priceService;
-        _consoleHost = consoleHost;
-        _terminalWorkbenchHost = terminalWorkbenchHost;
+        _runtime = runtime;
+        _aguiServerRunner = aguiServerRunner;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -29,9 +32,8 @@ internal sealed class EventHorizonApplication : IEventHorizonApplication
 
         var task = _command.Command switch
         {
-            "run" => _consoleHost.RunSingleAsync(_command.Prompt, cancellationToken).ConfigureAwait(false),
-            "chat" => _consoleHost.RunAsync(cancellationToken).ConfigureAwait(false),
-            _ => _terminalWorkbenchHost.RunAsync(cancellationToken).ConfigureAwait(false),
+            "serve" => _aguiServerRunner.RunAsync(_options, _runtime, cancellationToken).ConfigureAwait(false),
+            _ => throw new InvalidOperationException($"Unsupported startup mode '{_command.Command}'. Only '{EffectiveCommandOptions.StartupMode}' is supported."),
         };
 
         await task;

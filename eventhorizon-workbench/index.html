@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (() => {
+        const stored = localStorage.getItem("event-horizon-workbench-theme");
+        const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const useDark = stored === "dark" || (!stored || stored === "system") && systemDark;
+        if (useDark) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
+    <title>Event Horizon Workbench</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

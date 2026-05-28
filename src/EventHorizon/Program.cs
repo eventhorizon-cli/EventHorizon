@@ -1,4 +1,3 @@
-using EventHorizon.Cli;
 using EventHorizon.Configuration;
 using EventHorizon.EntryPoints;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,15 +28,14 @@ public static class Program
 
         try
         {
-            var parser = new EventHorizonCli();
             if (args.Any(static arg => string.Equals(arg, "--help", StringComparison.Ordinal) ||
                                        string.Equals(arg, "-h", StringComparison.Ordinal)))
             {
-                Console.WriteLine(parser.GetHelpText());
+                Console.WriteLine(GetHelpText());
                 return 0;
             }
 
-            var command = parser.Parse(args);
+            var command = ParseArguments(args);
             host = EventHorizonHost.Create(args, command);
             await host.StartAsync(cancellationToken).ConfigureAwait(false);
             await host.Services.GetRequiredService<IEventHorizonApplication>().RunAsync(cancellationToken)
@@ -72,7 +70,35 @@ public static class Program
     }
 
     internal static EffectiveCommandOptions ParseArguments(string[] args)
-        => new EventHorizonCli().Parse(args);
+    {
+        string? configFile = null;
+
+        for (var index = 0; index < args.Length; index++)
+        {
+            var argument = args[index];
+            if (!string.Equals(argument, "--config", StringComparison.Ordinal) &&
+                !string.Equals(argument, "-c", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"Unsupported argument '{argument}'. Only --config is supported.");
+            }
+
+            if (index == args.Length - 1)
+            {
+                throw new InvalidOperationException("Missing value for --config.");
+            }
+
+            configFile = args[++index];
+        }
+
+        return new EffectiveCommandOptions
+        {
+            Command = EffectiveCommandOptions.StartupMode,
+            ConfigFile = configFile,
+        };
+    }
+
+    private static string GetHelpText()
+        => "Usage: EventHorizon [--config <path>]\nStarts the AGUI server.\nOptions: --config|-c";
 
     private static async Task StopHostAsync(IHost host)
     {

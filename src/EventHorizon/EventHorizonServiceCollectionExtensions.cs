@@ -1,4 +1,4 @@
-using EventHorizon.Commands;
+using EventHorizon.AGUI;
 using EventHorizon.Configuration;
 using EventHorizon.Context;
 using EventHorizon.Conversations;
@@ -7,7 +7,6 @@ using EventHorizon.Execution;
 using EventHorizon.Pricing;
 using EventHorizon.Prompting;
 using EventHorizon.Providers;
-using EventHorizon.Terminal;
 using EventHorizon.Workspace;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,12 +21,11 @@ public static class EventHorizonServiceCollectionExtensions
             .AddEventHorizonWorkspace()
             .AddEventHorizonContext()
             .AddEventHorizonConversations()
-            .AddEventHorizonCommands()
             .AddEventHorizonPrompting()
             .AddEventHorizonProviders()
             .AddEventHorizonPricing()
             .AddEventHorizonExecution()
-            .AddEventHorizonTerminal()
+            .AddEventHorizonAGUI()
             .AddEventHorizonEntryPoints();
 
         return services;
