@@ -29,5 +29,7 @@ npm run build
 
 The local production build is emitted to `eventhorizon-workbench/dist`.
 
-GitHub Actions or a packaging script is responsible for copying `dist` into `src/EventHorizon/wwwroot` before building and packing the .NET tool.
+Local frontend builds do not write directly into `src/EventHorizon/wwwroot`.
+
+GitHub Actions or a packaging script is responsible for copying `dist` into `src/EventHorizon/wwwroot` before building and packing the `.NET tool`.
 

@@ -6,6 +6,13 @@ export type ContextView = "overview" | "files" | "diff" | "logs" | "details";
 export type AgentPhase = "idle" | "understanding" | "inspecting" | "planning" | "editing" | "validating" | "summarizing" | "completed" | "failed" | "cancelled";
 export type FileChangeStatus = "added" | "modified" | "deleted" | "renamed";
 
+export type DirectoryItem = {
+  path: string;
+  name: string;
+  isDirectory: boolean;
+  parentPath?: string;
+};
+
 export type AgentSession = {
   id: string;
   title: string;
@@ -16,6 +23,7 @@ export type AgentSession = {
   summary?: string;
   changedFilesCount?: number;
   isTitleGenerated?: boolean;
+  workspaceRoot?: string;
 };
 
 export type ChatMessage = {

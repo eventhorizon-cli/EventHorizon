@@ -10,6 +10,9 @@ public sealed class CreateAGUIRunRequest
 
     public string? WorkingDirectory { get; set; }
 
+    public string? ProviderName { get; set; }
+
+    public string? Model { get; set; }
+
     public JsonElement? Options { get; set; }
 }
-

@@ -1,4 +1,4 @@
-using EventHorizon.Workspace;
+using EventHorizon.Diff;
 
 namespace EventHorizon.AGUI;
 
@@ -50,21 +50,6 @@ public sealed class AGUICodeAgentEventMapper
         List<AGUIEventEnvelope> events = [];
         switch (toolCall.Name)
         {
-            case "create_file":
-                events.Add(CreateCustomEvent(run, "file.created", toolCall.Id, new
-                {
-                    toolCall.Arguments,
-                    Result = Truncate(resultText, 4000),
-                }));
-                break;
-            case "apply_patch":
-            case "insert_edit_into_file":
-                events.Add(CreateCustomEvent(run, "file.modified", toolCall.Id, new
-                {
-                    toolCall.Arguments,
-                    Result = Truncate(resultText, 4000),
-                }));
-                break;
             case "run_in_terminal":
                 if (!string.IsNullOrWhiteSpace(resultText))
                 {
@@ -111,9 +96,20 @@ public sealed class AGUICodeAgentEventMapper
             {
                 "added" => "file.created",
                 "deleted" => "file.deleted",
+                "renamed" => "file.renamed",
                 _ => "file.modified",
             };
-            events.Add(CreateCustomEvent(run, type, change.Path, change));
+            events.Add(CreateCustomEvent(run, type, change.Path, new
+            {
+                runId = run.Id,
+                sessionId = run.SessionId,
+                path = change.Path,
+                oldPath = change.OldPath,
+                status = change.Status,
+                additions = change.Additions,
+                deletions = change.Deletions,
+                binary = change.Binary,
+            }));
         }
 
         return events;
@@ -122,8 +118,20 @@ public sealed class AGUICodeAgentEventMapper
     internal AGUIEventEnvelope CreateDiffGenerated(AGUIRun run, IReadOnlyList<FileChange> changes)
         => CreateCustomEvent(run, "diff.generated", $"artifact_{run.Id}", new
         {
-            Count = changes.Count,
-            Files = changes.Select(static change => change.Path).ToArray(),
+            runId = run.Id,
+            sessionId = run.SessionId,
+            count = changes.Count,
+            additions = changes.Sum(static change => change.Additions),
+            deletions = changes.Sum(static change => change.Deletions),
+            files = changes.Select(static change => new
+            {
+                path = change.Path,
+                oldPath = change.OldPath,
+                status = change.Status,
+                additions = change.Additions,
+                deletions = change.Deletions,
+                binary = change.Binary,
+            }).ToArray(),
         });
 
     private static AGUIEventEnvelope CreateCustomEvent(AGUIRun run, string type, string id, object data)

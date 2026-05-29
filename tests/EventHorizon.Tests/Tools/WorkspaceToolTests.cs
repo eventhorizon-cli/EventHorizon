@@ -1,4 +1,5 @@
 using EventHorizon.Configuration;
+using EventHorizon.Diff;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
 using Microsoft.Extensions.AI;
@@ -16,7 +17,12 @@ public sealed class WorkspaceToolTests : IDisposable
     {
         _workspaceRoot = Path.Combine(Path.GetTempPath(), "eventhorizon-tool-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_workspaceRoot);
-        _workspaceService = new WorkspaceService(_workspaceRoot, new ShellCommandRunner(), new BackgroundTerminalCommandStore());
+        _workspaceService = new WorkspaceService(
+            _workspaceRoot,
+            new ShellCommandRunner(),
+            new FileSnapshotService(_workspaceRoot),
+            new FileStateTrackerAccessor(),
+            new BackgroundTerminalCommandStore());
         _toolCatalog = new ToolCatalog();
         _options = new AppOptions
         {

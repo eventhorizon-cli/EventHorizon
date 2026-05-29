@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using EventHorizon.Diff;
 using EventHorizon.Tools;
 
 namespace EventHorizon.Workspace;
@@ -71,11 +72,20 @@ public sealed class WorkspaceService
     private readonly string _workspaceRoot;
     private readonly ShellCommandRunner _shellCommandRunner;
     private readonly BackgroundTerminalCommandStore _backgroundTerminalCommandStore;
+    private readonly FileSnapshotService _fileSnapshotService;
+    private readonly FileStateTrackerAccessor _fileStateTrackerAccessor;
 
-    public WorkspaceService(string workspaceRoot, ShellCommandRunner shellCommandRunner, BackgroundTerminalCommandStore? backgroundTerminalCommandStore = null)
+    public WorkspaceService(
+        string workspaceRoot,
+        ShellCommandRunner shellCommandRunner,
+        FileSnapshotService fileSnapshotService,
+        FileStateTrackerAccessor fileStateTrackerAccessor,
+        BackgroundTerminalCommandStore? backgroundTerminalCommandStore = null)
     {
         _workspaceRoot = Path.GetFullPath(workspaceRoot);
         _shellCommandRunner = shellCommandRunner;
+        _fileSnapshotService = fileSnapshotService;
+        _fileStateTrackerAccessor = fileStateTrackerAccessor;
         _backgroundTerminalCommandStore = backgroundTerminalCommandStore ?? new BackgroundTerminalCommandStore();
     }
 
@@ -114,6 +124,7 @@ public sealed class WorkspaceService
     {
         var path = ResolvePath(filePath);
         var maxLines = isPreview ? 120 : 250;
+        TrackRead(path);
         return $"Opened {GetDisplayPath(path)} (preview={isPreview.ToString().ToLowerInvariant()})\n\n{ReadFile(filePath, 1, maxLines)}";
     }
 
@@ -123,6 +134,7 @@ public sealed class WorkspaceService
     public string ReadFile(string relativePath, int startLine = 1, int maxLines = 250)
     {
         var path = ResolvePath(relativePath);
+        TrackRead(path);
         var lines = File.ReadAllLines(path);
         var safeStartLine = Math.Max(1, startLine);
         var safeMaxLines = Math.Clamp(maxLines, 1, 500);
@@ -144,24 +156,30 @@ public sealed class WorkspaceService
             throw new InvalidOperationException($"The file '{GetDisplayPath(path)}' already exists.");
         }
 
+        TrackBaseline(path);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content);
+        TrackCurrent(path);
         return $"Created {GetDisplayPath(path)} with {content.Length} characters.";
     }
 
     public string WriteFile(string relativePath, string content)
     {
         var path = ResolvePath(relativePath);
+        TrackBaseline(path);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content);
+        TrackCurrent(path);
         return $"Wrote {content.Length} characters to {GetDisplayPath(path)}.";
     }
 
     public string AppendFile(string relativePath, string content)
     {
         var path = ResolvePath(relativePath);
+        TrackBaseline(path);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.AppendAllText(path, content);
+        TrackCurrent(path);
         return $"Appended {content.Length} characters to {GetDisplayPath(path)}.";
     }
 
@@ -173,6 +191,7 @@ public sealed class WorkspaceService
         }
 
         var path = ResolvePath(filePath);
+        TrackBaseline(path);
         var content = File.ReadAllText(path);
         var occurrenceCount = CountOccurrences(content, searchText);
         if (occurrenceCount == 0)
@@ -187,6 +206,7 @@ public sealed class WorkspaceService
 
         var updated = ReplaceFirstOccurrence(content, searchText, replacementText);
         File.WriteAllText(path, updated);
+        TrackCurrent(path);
         return $"Updated 1 region in {GetDisplayPath(path)}.";
     }
 
@@ -215,8 +235,10 @@ public sealed class WorkspaceService
                         throw new InvalidOperationException($"Cannot add '{GetDisplayPath(resolvedPath)}' because it already exists.");
                     }
 
+                    TrackBaseline(resolvedPath);
                     Directory.CreateDirectory(Path.GetDirectoryName(resolvedPath)!);
                     File.WriteAllText(resolvedPath, string.Join('\n', operation.AddedLines));
+                    TrackCurrent(resolvedPath);
                     break;
 
                 case PatchOperationKind.Update:
@@ -225,9 +247,22 @@ public sealed class WorkspaceService
                         throw new InvalidOperationException($"Cannot update '{GetDisplayPath(resolvedPath)}' because it does not exist.");
                     }
 
+                    TrackBaseline(resolvedPath);
+                    var sourceSnapshotBeforeUpdate = _fileSnapshotService.CaptureFile(resolvedPath);
                     var currentContent = File.ReadAllText(resolvedPath);
                     var updatedContent = ApplyHunks(currentContent, operation.Hunks, GetDisplayPath(resolvedPath));
-                    File.WriteAllText(resolvedPath, updatedContent);
+                    var destinationPath = operation.MoveToPath is null ? resolvedPath : ResolvePath(operation.MoveToPath);
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+                    File.WriteAllText(destinationPath, updatedContent);
+                    if (!PathsEqual(destinationPath, resolvedPath))
+                    {
+                        File.Delete(resolvedPath);
+                        TrackRename(resolvedPath, destinationPath, sourceSnapshotBeforeUpdate);
+                    }
+                    else
+                    {
+                        TrackCurrent(destinationPath);
+                    }
                     break;
 
                 default:
@@ -355,7 +390,9 @@ public sealed class WorkspaceService
             return $"Started background terminal session.\nId: {id}\nExplanation: {explanation}\nCommand: {command}";
         }
 
+        var beforeSnapshot = CaptureWorkspaceForTracking();
         var result = await _shellCommandRunner.RunAsync(command, _workspaceRoot, 120, cancellationToken).ConfigureAwait(false);
+        TrackWorkspaceTransition(beforeSnapshot, CaptureWorkspaceForTracking());
         return $"Explanation: {explanation}\n{result}";
     }
 
@@ -682,9 +719,11 @@ public sealed class WorkspaceService
 
             var filePathValue = line[17..].Trim();
             index++;
+            string? moveToPath = null;
             if (index < lines.Length && lines[index].StartsWith("*** Move to:", StringComparison.Ordinal))
             {
-                throw new InvalidOperationException("File moves are not supported.");
+                moveToPath = lines[index][12..].Trim();
+                index++;
             }
 
             List<PatchHunk> hunks = [];
@@ -727,7 +766,7 @@ public sealed class WorkspaceService
                 hunks.Add(new PatchHunk(patchLines));
             }
 
-            operations.Add(PatchOperation.Update(filePathValue, hunks));
+            operations.Add(PatchOperation.Update(filePathValue, moveToPath, hunks));
         }
 
         return operations;
@@ -902,13 +941,38 @@ public sealed class WorkspaceService
         Update,
     }
 
-    private sealed record PatchOperation(PatchOperationKind Kind, string FilePath, IReadOnlyList<string> AddedLines, IReadOnlyList<PatchHunk> Hunks)
+    private WorkspaceSnapshot? CaptureWorkspaceForTracking()
+        => _fileStateTrackerAccessor.Current is null ? null : _fileSnapshotService.CaptureWorkspace();
+
+    private void TrackRead(string path)
+        => _fileStateTrackerAccessor.Current?.RecordRead(path);
+
+    private void TrackBaseline(string path)
+        => _fileStateTrackerAccessor.Current?.CaptureBaseline(path);
+
+    private void TrackCurrent(string path)
+        => _fileStateTrackerAccessor.Current?.CaptureCurrent(path);
+
+    private void TrackRename(string oldPath, string newPath, FileSnapshot? sourceSnapshotBeforeRename)
+        => _fileStateTrackerAccessor.Current?.RecordRename(oldPath, newPath, sourceSnapshotBeforeRename);
+
+    private void TrackWorkspaceTransition(WorkspaceSnapshot? beforeSnapshot, WorkspaceSnapshot? afterSnapshot)
+    {
+        if (beforeSnapshot is null || afterSnapshot is null)
+        {
+            return;
+        }
+
+        _fileStateTrackerAccessor.Current?.RecordWorkspaceTransition(beforeSnapshot, afterSnapshot);
+    }
+
+    private sealed record PatchOperation(PatchOperationKind Kind, string FilePath, string? MoveToPath, IReadOnlyList<string> AddedLines, IReadOnlyList<PatchHunk> Hunks)
     {
         public static PatchOperation Add(string filePath, IReadOnlyList<string> addedLines)
-            => new(PatchOperationKind.Add, filePath, addedLines, []);
+            => new(PatchOperationKind.Add, filePath, null, addedLines, []);
 
-        public static PatchOperation Update(string filePath, IReadOnlyList<PatchHunk> hunks)
-            => new(PatchOperationKind.Update, filePath, [], hunks);
+        public static PatchOperation Update(string filePath, string? moveToPath, IReadOnlyList<PatchHunk> hunks)
+            => new(PatchOperationKind.Update, filePath, moveToPath, [], hunks);
     }
 
     private sealed record OsvBatchQueryRequest(OsvQuery[] Queries);

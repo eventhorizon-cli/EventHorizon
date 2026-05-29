@@ -58,6 +58,24 @@ Exception:
 
 Avoid placing multiple unrelated types in the same file.
 
+## Comments must be written in English
+
+All code comments must be written in English.
+
+This includes:
+
+- inline comments
+- XML documentation comments
+- TODO/FIXME comments
+- explanatory comments in tests
+- comments in configuration or registration code
+
+Avoid mixing languages in comments.
+
+If a comment is necessary, make it concise, clear, and useful.
+
+Prefer self-explanatory code over excessive comments.
+
 ## Use DI and keep code decoupled
 
 Use dependency injection consistently.
@@ -68,6 +86,31 @@ Use dependency injection consistently.
 - Keep services small and focused
 - Keep business logic separate from infrastructure
 - Compose dependencies at the application boundary
+
+Services registered in dependency injection must be registered through abstraction interfaces.
+
+Prefer:
+
+```csharp
+services.AddScoped<IUserService, UserService>();
+services.AddSingleton<IClock, SystemClock>();
+services.AddTransient<IEmailSender, EmailSender>();
+```
+
+Avoid registering concrete services directly when they are consumed by application or business logic:
+
+```csharp
+services.AddScoped<UserService>();
+```
+
+Rules:
+
+- Define an interface for DI-registered services that are consumed outside their own implementation.
+- Inject interfaces into consumers instead of concrete classes.
+- Keep interfaces focused and meaningful.
+- Do not create meaningless abstractions for simple data objects, options classes, framework types, or types that are not services.
+- Concrete implementations may depend on other abstractions through constructor injection.
+- Register implementations at the application boundary or composition root.
 
 Avoid:
 

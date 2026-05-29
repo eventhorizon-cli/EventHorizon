@@ -5,10 +5,12 @@ public sealed record ConversationSessionSummary(
     string Name,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
+    string? ProviderName,
     string ProviderType,
     string Model,
     string Status,
     string? LastRunId,
     string? Summary,
     int ChangedFilesCount,
-    bool IsTitleGenerated);
+    bool IsTitleGenerated,
+    string? WorkspaceRoot);

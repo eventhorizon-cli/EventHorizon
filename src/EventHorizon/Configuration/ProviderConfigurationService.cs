@@ -48,9 +48,9 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
             return _commandOptions.Provider;
         }
 
-        if (!string.IsNullOrWhiteSpace(_options.CurrentProvider))
+        if (!string.IsNullOrWhiteSpace(_options.CurrentDefaultProvider))
         {
-            return _options.CurrentProvider;
+            return _options.CurrentDefaultProvider;
         }
 
         return _options.Providers.Count == 1 ? _options.Providers.Keys.Single() : null;
@@ -64,12 +64,12 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
             throw new InvalidOperationException($"Unknown provider '{providerName}'. Available providers: {available}.");
         }
 
-        _options.CurrentProvider = providerName;
+        _options.CurrentDefaultProvider = providerName;
         _initializer.RefreshActiveProvider(_options);
 
         if (persist)
         {
-            _userConfigurationFileService.SaveCurrentProvider(providerName);
+            _userConfigurationFileService.Save(_options);
         }
     }
 
@@ -87,7 +87,7 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
             return Task.CompletedTask;
         }
 
-        if (!string.IsNullOrWhiteSpace(_options.CurrentProvider))
+        if (!string.IsNullOrWhiteSpace(_options.CurrentDefaultProvider))
         {
             return Task.CompletedTask;
         }
@@ -110,8 +110,8 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
 
     private static string PromptForProvider(IReadOnlyList<ConfiguredProvider> providers, CancellationToken cancellationToken)
     {
-        Console.WriteLine("Multiple providers are configured, but CurrentProvider is not set.");
-        Console.WriteLine("Choose the provider to use and persist to ~/.config/eventhorizon.json:");
+        Console.WriteLine("Multiple providers are configured, but CurrentDefaultProvider is not set.");
+        Console.WriteLine("Choose the provider to use and persist to ~/.eventhorizon/appsettings.json:");
 
         for (var index = 0; index < providers.Count; index++)
         {

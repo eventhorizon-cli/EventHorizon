@@ -1,5 +1,5 @@
 using System.Text.Json;
-using EventHorizon.Workspace;
+using EventHorizon.Diff;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 

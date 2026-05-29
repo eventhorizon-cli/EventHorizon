@@ -83,7 +83,7 @@ internal sealed class RuntimeInitializationHostedService : IHostedService
             : (options.Provider.Model ?? string.Empty);
 
         var agent = _providerAgentFactory.CreateAgent(options, instructions, allTools, skillsProvider, services);
-        return new EventHorizonRuntime(agent, services, modelName, contextSnapshot, toolCatalog, resources, scope);
+        return new EventHorizonRuntime(agent, services, modelName, instructions, contextSnapshot, toolCatalog, allTools, skillsProvider, resources, scope);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

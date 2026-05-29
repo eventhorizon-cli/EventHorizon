@@ -19,9 +19,12 @@ internal sealed class EventHorizonRuntimeWrapper : IEventHorizonRuntime
 
     public AIAgent Agent => Runtime.Agent;
     public string ModelName => Runtime.ModelName;
+    public string Instructions => Runtime.Instructions;
     public IServiceProvider Services => Runtime.Services;
     public SessionContextSnapshot ContextSnapshot => Runtime.ContextSnapshot;
     public IReadOnlyList<ToolDescriptor> ToolCatalog => Runtime.ToolCatalog;
+    public IReadOnlyList<AITool> Tools => Runtime.Tools;
+    public AgentSkillsProvider? SkillsProvider => Runtime.SkillsProvider;
 
     public async ValueTask DisposeAsync()
     {

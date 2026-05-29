@@ -5,6 +5,7 @@ public sealed class ConversationSessionDocument
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "session";
     public string Status { get; set; } = "idle";
+    public string? ProviderName { get; set; }
     public string ProviderType { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
     public string WorkspaceRoot { get; set; } = string.Empty;
@@ -14,6 +15,7 @@ public sealed class ConversationSessionDocument
     public string? Summary { get; set; }
     public int ChangedFilesCount { get; set; }
     public bool IsTitleGenerated { get; set; }
+    public bool IsTitleManuallyEdited { get; set; }
     public string? SerializedSession { get; set; }
     public string? ConversationId { get; set; }
     public List<ConversationTranscriptEntry> Transcript { get; set; } = [];

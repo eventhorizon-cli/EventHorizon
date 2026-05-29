@@ -43,6 +43,8 @@ public sealed class QueryEngineTests
 
         public string ModelName => "missing-model";
 
+        public string Instructions => "instructions";
+
         public IServiceProvider Services => null!;
 
         public SessionContextSnapshot ContextSnapshot => new(
@@ -53,6 +55,10 @@ public sealed class QueryEngineTests
             ProjectInstructions: "instructions");
 
         public IReadOnlyList<ToolDescriptor> ToolCatalog => [];
+
+        public IReadOnlyList<AITool> Tools => [];
+
+        public AgentSkillsProvider? SkillsProvider => null;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

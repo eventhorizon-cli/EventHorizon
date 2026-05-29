@@ -1,5 +1,5 @@
 import { apiRequest } from "@/api/client";
-import type { AgentSession, AgentSessionDetail } from "@/types";
+import type { AgentSession, AgentSessionDetail, DirectoryItem } from "@/types";
 
 type SessionPayload = {
   id: string;
@@ -29,6 +29,7 @@ function mapSession(payload: SessionPayload): AgentSession {
     summary: payload.summary,
     changedFilesCount: payload.changedFilesCount,
     isTitleGenerated: payload.isTitleGenerated,
+    workspaceRoot: (payload as any).workspaceRoot,
   };
 }
 
@@ -37,11 +38,17 @@ export async function getSessions(): Promise<AgentSession[]> {
   return payload.map(mapSession);
 }
 
-export async function createSession(initialMessage?: string): Promise<AgentSession> {
+export async function getDirectories(path?: string): Promise<DirectoryItem[]> {
+  const params = path ? new URLSearchParams({ path }) : undefined;
+  const url = path ? `/api/directories?${params}` : "/api/directories";
+  return apiRequest<DirectoryItem[]>(url);
+}
+
+export async function createSession(initialMessage?: string, workspaceRoot?: string): Promise<AgentSession> {
   return mapSession(
     await apiRequest<SessionPayload>("/api/sessions", {
       method: "POST",
-      body: JSON.stringify({ initialMessage }),
+      body: JSON.stringify({ initialMessage, workspaceRoot }),
     }),
   );
 }

@@ -1,8 +1,10 @@
+using System.Security.Cryptography;
+using System.Text;
 using EventHorizon.Diff;
 
 namespace EventHorizon.Tests.Diff;
 
-public sealed class iffServiceTests
+public sealed class DiffServiceTests
 {
     [Fact]
     public void GetDiff_Returns_Modified_Text_File_With_Line_Counts()
@@ -10,15 +12,15 @@ public sealed class iffServiceTests
         DiffService service = new();
         var before = new WorkspaceSnapshot(
             DateTimeOffset.UtcNow,
-            new Dictionary<string, WorkspaceSnapshotEntry>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, FileSnapshot>(StringComparer.OrdinalIgnoreCase)
             {
-                ["src/Foo.cs"] = new("src/Foo.cs", false, "hash-old", "line1\nline2\nline3"),
+                ["src/Foo.cs"] = CreateSnapshot("src/Foo.cs", "line1\nline2\nline3"),
             });
         var after = new WorkspaceSnapshot(
             DateTimeOffset.UtcNow,
-            new Dictionary<string, WorkspaceSnapshotEntry>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, FileSnapshot>(StringComparer.OrdinalIgnoreCase)
             {
-                ["src/Foo.cs"] = new("src/Foo.cs", false, "hash-new", "line1\nline2 changed\nline3\nline4"),
+                ["src/Foo.cs"] = CreateSnapshot("src/Foo.cs", "line1\nline2 changed\nline3\nline4"),
             });
 
         var diff = service.GetDiff(before, after, "src/Foo.cs");
@@ -32,36 +34,37 @@ public sealed class iffServiceTests
     }
 
     [Fact]
-    public void GetChanges_Returns_Added_And_Deleted_Files()
+    public void GetChanges_Detects_Renames_From_NonGit_Snapshots()
     {
         DiffService service = new();
         var before = new WorkspaceSnapshot(
             DateTimeOffset.UtcNow,
-            new Dictionary<string, WorkspaceSnapshotEntry>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, FileSnapshot>(StringComparer.OrdinalIgnoreCase)
             {
-                ["src/Old.cs"] = new("src/Old.cs", false, "hash-old", "old"),
+                ["src/Old.cs"] = CreateSnapshot("src/Old.cs", "class Old {}\n"),
             });
         var after = new WorkspaceSnapshot(
             DateTimeOffset.UtcNow,
-            new Dictionary<string, WorkspaceSnapshotEntry>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, FileSnapshot>(StringComparer.OrdinalIgnoreCase)
             {
-                ["src/New.cs"] = new("src/New.cs", false, "hash-new", "new"),
+                ["src/New.cs"] = CreateSnapshot("src/New.cs", "class Old {}\n"),
             });
 
         var changes = service.GetChanges(before, after);
 
-        Assert.Collection(
-            changes,
-            added =>
-            {
-                Assert.Equal("src/New.cs", added.Path);
-                Assert.Equal("added", added.Status);
-            },
-            deleted =>
-            {
-                Assert.Equal("src/Old.cs", deleted.Path);
-                Assert.Equal("deleted", deleted.Status);
-            });
+        var change = Assert.Single(changes);
+        Assert.Equal("renamed", change.Status);
+        Assert.Equal("src/New.cs", change.Path);
+        Assert.Equal("src/Old.cs", change.OldPath);
     }
+
+    private static FileSnapshot CreateSnapshot(string path, string content)
+        => new(
+            path,
+            content,
+            null,
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))),
+            false,
+            DateTimeOffset.UtcNow);
 }
 

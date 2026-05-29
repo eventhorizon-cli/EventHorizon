@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
-using EventHorizon.Workspace;
+using EventHorizon.Diff;
 
 namespace EventHorizon.AGUI;
 
@@ -11,18 +11,16 @@ internal sealed class RunStoreEntry
     private readonly List<AGUIEventEnvelope> _history = [];
     private readonly ConcurrentDictionary<Guid, Channel<AGUIEventEnvelope>> _subscribers = new();
 
-    public RunStoreEntry(AGUIRun run, WorkspaceSnapshot beforeSnapshot, CancellationTokenSource cancellationTokenSource)
+    public RunStoreEntry(AGUIRun run, FileStateTracker fileStateTracker, CancellationTokenSource cancellationTokenSource)
     {
         Run = run;
-        BeforeSnapshot = beforeSnapshot;
+        FileStateTracker = fileStateTracker;
         CancellationTokenSource = cancellationTokenSource;
     }
 
     public AGUIRun Run { get; }
 
-    public WorkspaceSnapshot BeforeSnapshot { get; }
-
-    public WorkspaceSnapshot? FinalSnapshot { get; private set; }
+    public FileStateTracker FileStateTracker { get; }
 
     public CancellationTokenSource CancellationTokenSource { get; }
 
@@ -49,7 +47,7 @@ internal sealed class RunStoreEntry
         }
     }
 
-    public void Complete(WorkspaceSnapshot finalSnapshot)
+    public void Complete()
     {
         List<Channel<AGUIEventEnvelope>> subscribers;
         lock (_gate)
@@ -58,8 +56,6 @@ internal sealed class RunStoreEntry
             {
                 return;
             }
-
-            FinalSnapshot = finalSnapshot;
             IsCompleted = true;
             subscribers = _subscribers.Values.ToList();
             _subscribers.Clear();
@@ -71,7 +67,6 @@ internal sealed class RunStoreEntry
         }
     }
 
-    public WorkspaceSnapshot GetComparisonSnapshot() => FinalSnapshot ?? BeforeSnapshot;
 
     public async IAsyncEnumerable<AGUIEventEnvelope> SubscribeAsync(long? afterSequence, [EnumeratorCancellation] CancellationToken cancellationToken)
     {

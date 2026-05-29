@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EventHorizon.Diff;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
 using EventHorizon.Workspace;
@@ -13,32 +14,44 @@ public sealed class RunService
     private readonly RunStore _runStore;
     private readonly IEventHorizonRuntime _runtime;
     private readonly IModelPriceCatalogService _priceCatalogService;
-    private readonly WorkspaceSnapshotService _workspaceSnapshotService;
+    private readonly FileSnapshotService _fileSnapshotService;
+    private readonly FileStateTrackerAccessor _fileStateTrackerAccessor;
     private readonly DiffService _diffService;
-    private readonly AGUISessionService _sessionService;
+    private readonly IAGUISessionService _sessionService;
     private readonly AGUIEventMapper _eventMapper;
     private readonly AGUICodeAgentEventMapper _codeAgentEventMapper;
+    private readonly IProviderResolutionService _providerResolutionService;
+    private readonly IProviderAgentFactory _providerAgentFactory;
+    private readonly IConversationAgentManager _conversationAgentManager;
     private readonly ILogger<RunService> _logger;
 
     public RunService(
         RunStore runStore,
         IEventHorizonRuntime runtime,
         IModelPriceCatalogService priceCatalogService,
-        WorkspaceSnapshotService workspaceSnapshotService,
+        FileSnapshotService fileSnapshotService,
+        FileStateTrackerAccessor fileStateTrackerAccessor,
         DiffService diffService,
-        AGUISessionService sessionService,
+        IAGUISessionService sessionService,
         AGUIEventMapper eventMapper,
         AGUICodeAgentEventMapper codeAgentEventMapper,
+        IProviderResolutionService providerResolutionService,
+        IProviderAgentFactory providerAgentFactory,
+        IConversationAgentManager conversationAgentManager,
         ILogger<RunService> logger)
     {
         _runStore = runStore;
         _runtime = runtime;
         _priceCatalogService = priceCatalogService;
-        _workspaceSnapshotService = workspaceSnapshotService;
+        _fileSnapshotService = fileSnapshotService;
+        _fileStateTrackerAccessor = fileStateTrackerAccessor;
         _diffService = diffService;
         _sessionService = sessionService;
         _eventMapper = eventMapper;
         _codeAgentEventMapper = codeAgentEventMapper;
+        _providerResolutionService = providerResolutionService;
+        _providerAgentFactory = providerAgentFactory;
+        _conversationAgentManager = conversationAgentManager;
         _logger = logger;
     }
 
@@ -49,29 +62,42 @@ public sealed class RunService
             throw new ArgumentException("Task is required.", nameof(request));
         }
 
-        var workingDirectory = NormalizeWorkingDirectory(request.WorkingDirectory);
-        var beforeSnapshot = await _workspaceSnapshotService.CaptureAsync(cancellationToken).ConfigureAwait(false);
+        // 如果没有提供 workingDirectory 但有 sessionId，从 session 中获取工作目录
+        var workingDirectory = request.WorkingDirectory;
+        if (string.IsNullOrWhiteSpace(workingDirectory) && !string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            var sessionDocument = await _sessionService.GetDocumentAsync(request.SessionId, cancellationToken).ConfigureAwait(false);
+            if (sessionDocument is not null && !string.IsNullOrWhiteSpace(sessionDocument.WorkspaceRoot))
+            {
+                workingDirectory = sessionDocument.WorkspaceRoot;
+            }
+        }
+
+        var normalizedWorkingDirectory = NormalizeWorkingDirectory(workingDirectory);
         var run = new AGUIRun
         {
             Id = $"run_{Guid.NewGuid():N}",
             ThreadId = $"thread_{Guid.NewGuid():N}",
             SessionId = request.SessionId,
             Task = request.Task.Trim(),
-            WorkingDirectory = workingDirectory,
+            WorkingDirectory = normalizedWorkingDirectory,
+            ProviderName = request.ProviderName,
+            Model = request.Model,
             CreatedAt = DateTimeOffset.UtcNow,
         };
         run.MarkRunning(AGUIRunStates.Planning);
 
         if (!string.IsNullOrWhiteSpace(request.SessionId))
         {
-            var session = await _sessionService.StartRunAsync(request.SessionId, run.Id, run.Task, cancellationToken).ConfigureAwait(false);
+            var session = await _sessionService.StartRunAsync(request.SessionId, run.Id, run.Task, request.ProviderName, request.Model, cancellationToken).ConfigureAwait(false);
             if (session is null)
             {
                 throw new ArgumentException($"Session '{request.SessionId}' was not found.", nameof(request));
             }
         }
 
-        var entry = _runStore.Add(new RunStoreEntry(run, beforeSnapshot, new CancellationTokenSource()));
+        var fileStateTracker = new FileStateTracker(run.Id, run.SessionId, _fileSnapshotService, _diffService);
+        var entry = _runStore.Add(new RunStoreEntry(run, fileStateTracker, new CancellationTokenSource()));
         var options = request.Options?.Clone();
         _ = Task.Run(() => ExecuteRunAsync(entry, options), CancellationToken.None);
         return run;
@@ -91,6 +117,7 @@ public sealed class RunService
         entry.CancellationTokenSource.Cancel();
         if (!string.IsNullOrWhiteSpace(entry.Run.SessionId))
         {
+            _ = _conversationAgentManager.InvalidateAsync(entry.Run.SessionId, CancellationToken.None);
             _ = _sessionService.RecordRunCancelledAsync(entry.Run.SessionId, CancellationToken.None);
         }
 
@@ -102,49 +129,123 @@ public sealed class RunService
             ? entry.SubscribeAsync(afterSequence, cancellationToken)
             : null;
 
-    public async Task<IReadOnlyList<FileChange>?> GetChangesAsync(string runId, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<FileChange>?> GetChangesAsync(string runId, CancellationToken cancellationToken)
     {
         if (!_runStore.TryGet(runId, out var entry) || entry is null)
         {
-            return null;
+            return Task.FromResult<IReadOnlyList<FileChange>?>(null);
         }
 
-        var afterSnapshot = await GetAfterSnapshotAsync(entry, cancellationToken).ConfigureAwait(false);
-        return _diffService.GetChanges(entry.BeforeSnapshot, afterSnapshot);
+        return Task.FromResult<IReadOnlyList<FileChange>?>(entry.FileStateTracker.GetChanges());
     }
 
-    public async Task<FileDiff?> GetDiffAsync(string runId, string path, CancellationToken cancellationToken)
+    public Task<FileDiff?> GetDiffAsync(string runId, string path, CancellationToken cancellationToken)
     {
         if (!_runStore.TryGet(runId, out var entry) || entry is null)
         {
-            return null;
+            return Task.FromResult<FileDiff?>(null);
         }
 
-        var afterSnapshot = await GetAfterSnapshotAsync(entry, cancellationToken).ConfigureAwait(false);
-        return _diffService.GetDiff(entry.BeforeSnapshot, afterSnapshot, path);
+        return Task.FromResult(entry.FileStateTracker.GetDiff(path));
     }
 
     private async Task ExecuteRunAsync(RunStoreEntry entry, JsonElement? options)
     {
         var run = entry.Run;
         var context = new AGUIRunExecutionContext();
-        var usageTracker = new SessionUsageTracker(_priceCatalogService, _runtime);
-        WorkspaceSnapshot? finalSnapshot = null;
+        var sessionDocument = string.IsNullOrWhiteSpace(run.SessionId)
+            ? null
+            : await _sessionService.GetDocumentAsync(run.SessionId, CancellationToken.None).ConfigureAwait(false);
+        var overrides = new ChatRequestOverrides
+        {
+            ProviderName = run.ProviderName,
+            Model = run.Model,
+        };
+        var resolvedProvider = _providerResolutionService.TryResolveForSession(sessionDocument, overrides);
+
+        if (resolvedProvider is null)
+        {
+            throw new InvalidOperationException("No provider is configured. Please open settings and configure a provider before sending messages.");
+        }
+
+        ConversationAgentRuntime? conversationRuntime = null;
+        AIAgent agent;
+        AgentSession? session = null;
+
+        if (sessionDocument is not null && !string.IsNullOrWhiteSpace(run.SessionId))
+        {
+            conversationRuntime = await _conversationAgentManager
+                .GetOrCreateAsync(sessionDocument, overrides, entry.CancellationTokenSource.Token)
+                .ConfigureAwait(false);
+            agent = conversationRuntime.Agent;
+            session = conversationRuntime.Session;
+        }
+        else
+        {
+            var runtimeOptions = new Configuration.AppOptions
+            {
+                AgUi = new Configuration.AGUIOptions
+                {
+                    ApiBasePath = string.Empty,
+                    RawEndpointPath = string.Empty,
+                    Urls = [],
+                },
+                Agent = new Configuration.AgentOptions
+                {
+                    Name = _runtime.Agent.Name,
+                    Description = _runtime.Agent.Description,
+                    EnableSkills = true,
+                    EnableShell = true,
+                    EnableMcpTools = true,
+                    AdditionalSystemPrompts = [],
+                },
+                Provider = resolvedProvider.Provider,
+                CurrentDefaultProvider = resolvedProvider.ProviderName,
+                Providers = new Dictionary<string, Configuration.ProviderOptions>(StringComparer.OrdinalIgnoreCase),
+                Pricing = new Configuration.PricingOptions(),
+                Conversation = new Configuration.ConversationOptions(),
+                McpServers = [],
+            };
+
+            agent = _providerAgentFactory.CreateAgent(
+                runtimeOptions,
+                _runtime.Instructions,
+                _runtime.Tools,
+                _runtime.SkillsProvider,
+                _runtime.Services);
+        }
+
+        var usageRuntime = new EventHorizonRuntime(
+            agent,
+            _runtime.Services,
+            resolvedProvider.Model,
+            _runtime.Instructions,
+            _runtime.ContextSnapshot,
+            _runtime.ToolCatalog,
+            _runtime.Tools,
+            _runtime.SkillsProvider,
+            []);
+        var usageTracker = new SessionUsageTracker(_priceCatalogService, usageRuntime);
 
         try
         {
-            Publish(entry, _eventMapper.CreateRunStarted(run, _runtime.ModelName, run.WorkingDirectory, options));
+            Publish(entry, _eventMapper.CreateRunStarted(run, resolvedProvider.Model, run.WorkingDirectory, options));
             Publish(entry, _eventMapper.CreateUserMessage(run));
             Publish(entry, _eventMapper.CreatePlanUpdated(run, BuildPlan(), []));
             Publish(entry, _eventMapper.CreateReasoningSummaryUpdated(run, BuildInitialSummary(run)));
             Publish(entry, _eventMapper.CreateStepStarted(run, context.ExecutionStepId, "Plan and execute task"));
 
             run.MarkRunning(AGUIRunStates.Executing);
-            var session = await _runtime.Agent.CreateSessionAsync(cancellationToken: entry.CancellationTokenSource.Token).ConfigureAwait(false);
+            using var fileTrackingScope = _fileStateTrackerAccessor.BeginScope(entry.FileStateTracker);
+            session ??= await agent.CreateSessionAsync(cancellationToken: entry.CancellationTokenSource.Token).ConfigureAwait(false);
             usageTracker.StartTurn();
 
-            await foreach (var update in _runtime.Agent
-                               .RunStreamingAsync(BuildMessages(run), session, cancellationToken: entry.CancellationTokenSource.Token)
+            var messages = conversationRuntime is not null && !conversationRuntime.WasReused
+                ? BuildMessages(run, sessionDocument?.Transcript)
+                : BuildMessages(run);
+
+            await foreach (var update in agent
+                               .RunStreamingAsync(messages, session, cancellationToken: entry.CancellationTokenSource.Token)
                                .ConfigureAwait(false))
             {
                 usageTracker.ObserveUpdate(update);
@@ -161,8 +262,8 @@ public sealed class RunService
             }
 
             Publish(entry, _eventMapper.CreateStepCompleted(run, context.ExecutionStepId, "Plan and execute task"));
-            finalSnapshot = await _workspaceSnapshotService.CaptureAsync(CancellationToken.None).ConfigureAwait(false);
-            await PublishWorkspaceChangesAsync(entry, run, finalSnapshot).ConfigureAwait(false);
+            PublishPendingFileChanges(entry, run);
+            PublishWorkspaceChanges(entry, run);
             run.MarkCompleted();
             Publish(entry, _eventMapper.CreatePlanUpdated(run, BuildPlan(), ["Executed the task.", "Captured the final workspace state."]));
             Publish(entry, _eventMapper.CreateReasoningSummaryUpdated(run, BuildCompletedSummary(run)));
@@ -170,8 +271,9 @@ public sealed class RunService
             if (!string.IsNullOrWhiteSpace(run.SessionId))
             {
                 var assistantMessage = context.AssistantText.Length == 0 ? null : context.AssistantText.ToString();
-                var changedFilesCount = _diffService.GetChanges(entry.BeforeSnapshot, finalSnapshot).Count;
+                var changedFilesCount = entry.FileStateTracker.GetChanges().Count;
                 await _sessionService.RecordRunCompletedAsync(run.SessionId, assistantMessage, changedFilesCount, CancellationToken.None).ConfigureAwait(false);
+                _conversationAgentManager.MarkTranscriptCount(run.SessionId, sessionDocument?.Transcript.Count + (string.IsNullOrWhiteSpace(assistantMessage) ? 1 : 2) ?? 0);
             }
         }
         catch (OperationCanceledException)
@@ -191,6 +293,7 @@ public sealed class RunService
             Publish(entry, _eventMapper.CreateReasoningSummaryUpdated(run, BuildCancelledSummary(run)));
             if (!string.IsNullOrWhiteSpace(run.SessionId))
             {
+                await _conversationAgentManager.InvalidateAsync(run.SessionId, CancellationToken.None).ConfigureAwait(false);
                 await _sessionService.RecordRunCancelledAsync(run.SessionId, CancellationToken.None).ConfigureAwait(false);
             }
         }
@@ -212,20 +315,21 @@ public sealed class RunService
             Publish(entry, _eventMapper.CreateRunFailed(run, ex.Message));
             if (!string.IsNullOrWhiteSpace(run.SessionId))
             {
+                await _conversationAgentManager.InvalidateAsync(run.SessionId, CancellationToken.None).ConfigureAwait(false);
                 await _sessionService.RecordRunFailedAsync(run.SessionId, ex.Message, CancellationToken.None).ConfigureAwait(false);
             }
         }
         finally
         {
-            finalSnapshot ??= await _workspaceSnapshotService.CaptureAsync(CancellationToken.None).ConfigureAwait(false);
-            entry.Complete(finalSnapshot);
+            PublishPendingFileChanges(entry, run);
+            entry.Complete();
             entry.CancellationTokenSource.Dispose();
         }
     }
 
-    private async Task PublishWorkspaceChangesAsync(RunStoreEntry entry, AGUIRun run, WorkspaceSnapshot finalSnapshot)
+    private void PublishWorkspaceChanges(RunStoreEntry entry, AGUIRun run)
     {
-        var changes = _diffService.GetChanges(entry.BeforeSnapshot, finalSnapshot);
+        var changes = entry.FileStateTracker.GetChanges();
         if (changes.Count == 0)
         {
             return;
@@ -235,12 +339,6 @@ public sealed class RunService
         Publish(entry, _eventMapper.CreateStepStarted(run, stepId, "Capture workspace changes"));
         var artifact = _eventMapper.CreateChangesArtifact(changes);
         Publish(entry, _eventMapper.CreateArtifactCreated(run, artifact));
-        foreach (var @event in _codeAgentEventMapper.CreateChangeEvents(run, changes))
-        {
-            Publish(entry, @event);
-        }
-
-        Publish(entry, _codeAgentEventMapper.CreateDiffGenerated(run, changes));
         Publish(entry, _eventMapper.CreateArtifactUpdated(run, artifact));
         Publish(entry, _eventMapper.CreateStepCompleted(run, stepId, "Capture workspace changes"));
     }
@@ -263,15 +361,33 @@ public sealed class RunService
         {
             Publish(entry, extensionEvent);
         }
+
+        if (string.Equals(@event.Type, "toolCallResult", StringComparison.Ordinal))
+        {
+            PublishPendingFileChanges(entry, run);
+        }
     }
 
-    private static IEnumerable<ChatMessage> BuildMessages(AGUIRun run)
+    private static IEnumerable<ChatMessage> BuildMessages(AGUIRun run, IReadOnlyList<Conversations.ConversationTranscriptEntry>? transcript = null)
     {
         if (!string.IsNullOrWhiteSpace(run.WorkingDirectory))
         {
             yield return new ChatMessage(
                 ChatRole.System,
                 $"Preferred working directory for this task: {run.WorkingDirectory}. Use relative paths from that directory when practical.");
+        }
+
+        if (transcript is not null)
+        {
+            foreach (var entry in transcript)
+            {
+                yield return new ChatMessage(entry.Role.Trim().ToLowerInvariant() switch
+                {
+                    "assistant" => ChatRole.Assistant,
+                    "system" => ChatRole.System,
+                    _ => ChatRole.User,
+                }, entry.Text);
+            }
         }
 
         yield return new ChatMessage(ChatRole.User, run.Task);
@@ -315,8 +431,21 @@ public sealed class RunService
     private void Publish(RunStoreEntry entry, AGUIEventEnvelope @event)
         => entry.Publish(@event);
 
-    private async Task<WorkspaceSnapshot> GetAfterSnapshotAsync(RunStoreEntry entry, CancellationToken cancellationToken)
-        => entry.FinalSnapshot ?? await _workspaceSnapshotService.CaptureAsync(cancellationToken).ConfigureAwait(false);
+    private void PublishPendingFileChanges(RunStoreEntry entry, AGUIRun run)
+    {
+        var changes = entry.FileStateTracker.DrainPendingChanges();
+        if (changes.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var @event in _codeAgentEventMapper.CreateChangeEvents(run, changes))
+        {
+            Publish(entry, @event);
+        }
+
+        Publish(entry, _codeAgentEventMapper.CreateDiffGenerated(run, changes));
+    }
 
     private string? NormalizeWorkingDirectory(string? workingDirectory)
     {
@@ -325,7 +454,7 @@ public sealed class RunService
             return null;
         }
 
-        var workspaceRoot = _workspaceSnapshotService.WorkspaceRoot;
+        var workspaceRoot = _fileSnapshotService.WorkspaceRoot;
         var candidate = Path.IsPathRooted(workingDirectory)
             ? Path.GetFullPath(workingDirectory)
             : Path.GetFullPath(Path.Combine(workspaceRoot, workingDirectory));

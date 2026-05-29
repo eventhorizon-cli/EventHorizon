@@ -6,9 +6,13 @@ public sealed record AGUISessionDetail(
     string Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
+    string? ProviderName,
+    string? ProviderType,
+    string? Model,
     string? LastRunId,
     string? Summary,
     int ChangedFilesCount,
     bool IsTitleGenerated,
+    string? WorkspaceRoot,
     IReadOnlyList<AGUIChatMessage> Messages);
 

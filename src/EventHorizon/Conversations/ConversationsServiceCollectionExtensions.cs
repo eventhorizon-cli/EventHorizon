@@ -11,6 +11,7 @@ public static class ConversationsServiceCollectionExtensions
             new FileConversationSessionStore(ResolveStoragePath(
                 serviceProvider.GetRequiredService<IOptions<Configuration.AppOptions>>().Value,
                 serviceProvider.GetRequiredService<Workspace.WorkspaceContext>())));
+        services.AddSingleton<IConversationSessionSerializer, ChatClientConversationSessionSerializer>();
         return services;
     }
 

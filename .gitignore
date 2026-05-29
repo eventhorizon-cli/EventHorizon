@@ -404,5 +404,47 @@ FodyWeavers.xsd
 
 # Github Copilot
 .scratch/
-.tooltest/
+.toolt/
 .scratch/
+
+# Frontend build output
+eventhorizon-workbench/dist/
+
+# Frontend
+eventhorizon-workbench/node_modules/
+eventhorizon-workbench/.vite/
+eventhorizon-workbench/coverage/
+eventhorizon-workbench/.env
+eventhorizon-workbench/.env.*
+!eventhorizon-workbench/.env.example
+
+# Dotnet
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+*.rsuser
+.vs/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Keep committed wwwroot directory markers
+!src/EventHorizon/wwwroot/
+!src/EventHorizon/wwwroot/.gitkeep
+

@@ -62,6 +62,7 @@ public sealed class SessionUsageTrackerTests
     {
         public AIAgent Agent => null!;
         public string ModelName => "demo-model";
+        public string Instructions => "instructions";
         public IServiceProvider Services => null!;
         public SessionContextSnapshot ContextSnapshot => new(
             CurrentDate: "Today's date is 2026-05-21.",
@@ -70,6 +71,8 @@ public sealed class SessionUsageTrackerTests
             GitStatus: "clean",
             ProjectInstructions: "instructions");
         public IReadOnlyList<ToolDescriptor> ToolCatalog => [];
+        public IReadOnlyList<AITool> Tools => [];
+        public AgentSkillsProvider? SkillsProvider => null;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

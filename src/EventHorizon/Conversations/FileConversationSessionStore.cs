@@ -16,7 +16,9 @@ public sealed class FileConversationSessionStore : IConversationSessionStore
     {
         var path = GetPath(document.Id);
         var json = JsonSerializer.Serialize(document, Configuration.EventHorizonJsonContext.Default.ConversationSessionDocument);
-        await File.WriteAllTextAsync(path, json, cancellationToken).ConfigureAwait(false);
+        var tempPath = path + ".tmp";
+        await File.WriteAllTextAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
+        File.Move(tempPath, path, overwrite: true);
     }
 
     public async Task<ConversationSessionDocument?> LoadAsync(string sessionId, CancellationToken cancellationToken)
@@ -45,13 +47,15 @@ public sealed class FileConversationSessionStore : IConversationSessionStore
                     document.Name,
                     document.CreatedAt,
                     document.UpdatedAt,
+                    document.ProviderName,
                     document.ProviderType,
                     document.Model,
                     document.Status,
                     document.LastRunId,
                     document.Summary,
                     document.ChangedFilesCount,
-                    document.IsTitleGenerated));
+                    document.IsTitleGenerated,
+                    document.WorkspaceRoot));
             }
         }
 

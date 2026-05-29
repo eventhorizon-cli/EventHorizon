@@ -11,6 +11,8 @@ public static class ProvidersServiceCollectionExtensions
         services.AddSingleton<IToolCatalogFactory, ToolCatalog>();
         services.AddSingleton<IProviderChatClientFactory, ProviderChatClientFactory>();
         services.AddSingleton<IProviderAgentFactory, ProviderAgentFactory>();
+        services.AddSingleton<IProviderResolutionService, ProviderResolutionService>();
+        services.AddSingleton<IConversationAgentManager, ConversationAgentManager>();
         services.AddSingleton<McpToolConnector>();
         return services;
     }

@@ -5,25 +5,28 @@ import {
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
-  PanelRightClose,
   Play,
   Square,
-  Wifi,
-  WifiOff,
+  Folder,
+  FolderOpen,
+  File,
+  X,
+  Check,
+  ChevronRight,
 } from "lucide-react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subscribeRunEvents } from "@/api/aguiClient";
 import { getChanges, getFileDiff } from "@/api/diffApi";
 import { cancelRun, createRun, getRun } from "@/api/runsApi";
-import { createSession, getSession, getSessions } from "@/api/sessionsApi";
+import { createSession, getDirectories, getSession, getSessions } from "@/api/sessionsApi";
+import { ModifiedFilesCard } from "@/components/chat/ModifiedFilesCard";
 import { DiffViewer } from "@/components/diff/DiffViewer";
 import { useWorkbenchStore } from "@/store/workbenchStore";
 import { ThemeToggle } from "@/theme/ThemeToggle";
 import { cn } from "@/utils/cn";
 import { buildTemporarySessionTitle } from "@/utils/sessionTitle";
-import type { AgentEvent, AgentRun, AgentSessionDetail, FileChange } from "@/types";
+import type { AgentEvent, AgentRun, AgentSessionDetail, DirectoryItem, FileChange } from "@/types";
 
-const rightPaneKey = "event-horizon-workbench-right-pane-collapsed";
 const leftPaneKey = "event-horizon-workbench-left-pane-collapsed";
 const compactLayoutQuery = "(max-width: 1180px)";
 
@@ -63,6 +66,20 @@ function createDraftSession(task: string): AgentSessionDetail {
   };
 }
 
+function createEmptyDraftSession(): AgentSessionDetail {
+  const id = `draft_${crypto.randomUUID()}`;
+
+  return {
+    id,
+    title: "New Chat",
+    status: "idle",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isTitleGenerated: false,
+    messages: [],
+  };
+}
+
 function eventSummary(event: AgentEvent) {
   if (event.text) return event.text;
   if (event.error) return event.error;
@@ -82,7 +99,6 @@ export default function App() {
     phase,
     connectionStatus,
     contextView,
-    rightPaneCollapsed,
     selectedFile,
     changes,
     currentDiff,
@@ -94,7 +110,6 @@ export default function App() {
     setPhase,
     setConnectionStatus,
     setContextView,
-    toggleRightPane,
     setSelectedFile,
     setChanges,
     setCurrentDiff,
@@ -109,8 +124,99 @@ export default function App() {
   const [leftPaneCollapsed, setLeftPaneCollapsed] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(false);
 
+  const [showDirDialog, setShowDirDialog] = useState(false);
+  const [directories, setDirectories] = useState<DirectoryItem[]>([]);
+  const [currentPath, setCurrentPath] = useState<string | undefined>();
+  const [selectedPath, setSelectedPath] = useState<string | undefined>();
+  const [isLoadingDir, setIsLoadingDir] = useState(false);
+  const [pathInput, setPathInput] = useState("");
+
   const eventSubscriptionRef = useRef<(() => void) | null>(null);
+  const didAutoOpenInitialSessionRef = useRef(false);
   const currentSessionId = currentSession?.id;
+
+  const loadDirectories = useCallback(async (path?: string) => {
+    setIsLoadingDir(true);
+    try {
+      const dirs = await getDirectories(path);
+      setDirectories(dirs);
+      setCurrentPath(path);
+    } catch (error) {
+      console.error("Failed to load directories:", error);
+    } finally {
+      setIsLoadingDir(false);
+    }
+  }, []);
+
+  const handleOpenDirDialog = useCallback(() => {
+    setShowDirDialog(true);
+    setSelectedPath(undefined);
+    loadDirectories(undefined);
+  }, [loadDirectories]);
+
+  const handleSelectPath = useCallback((item: DirectoryItem) => {
+    if (item.name === "..") {
+      loadDirectories(item.path);
+    } else if (item.isDirectory) {
+      setSelectedPath(item.path);
+    }
+  }, []);
+
+  const handleDoubleClickPath = useCallback((item: DirectoryItem) => {
+    if (item.isDirectory && item.name !== "..") {
+      loadDirectories(item.path);
+      setSelectedPath(undefined);
+    }
+  }, [loadDirectories]);
+
+  const handlePathInputSubmit = useCallback(() => {
+    if (pathInput.trim()) {
+      setSelectedPath(pathInput.trim());
+      setPathInput("");
+    }
+  }, [pathInput]);
+
+  const handleCreateFolder = useCallback(() => {
+    const folderName = prompt("Enter folder name:");
+    if (!folderName || !folderName.trim()) return;
+
+    const basePath = currentPath || "";
+    const separator = basePath.endsWith("/") || basePath.endsWith("\\") ? "" : "/";
+    const newFolderPath = `${basePath}${separator}${folderName.trim()}`;
+    setSelectedPath(newFolderPath);
+  }, [currentPath]);
+
+  const handleConfirmCreateSession = useCallback(async () => {
+    if (!selectedPath) return;
+
+    setShowDirDialog(false);
+
+    eventSubscriptionRef.current?.();
+    eventSubscriptionRef.current = null;
+
+    try {
+      const created = await createSession(undefined, selectedPath);
+      const detail = await getSession(created.id);
+      setCurrentSession(detail);
+      await refreshSessions();
+    } catch (error) {
+      console.error("Failed to create session:", error);
+    }
+
+    setCurrentRun(undefined);
+    setCurrentDiff(undefined);
+    setSelectedFile(undefined);
+    setChanges([]);
+    setContextView("overview");
+    setComposerValue("");
+  }, [selectedPath, setChanges, setContextView, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
+
+  const handleCancelDirDialog = useCallback(() => {
+    setShowDirDialog(false);
+    setSelectedPath(undefined);
+    setCurrentPath(undefined);
+    setPathInput("");
+  }, []);
 
   const resolvedTheme = useMemo(() => {
     if (themeMode === "system") {
@@ -119,18 +225,6 @@ export default function App() {
 
     return themeMode;
   }, [themeMode]);
-
-  useEffect(() => {
-    const collapsed = localStorage.getItem(rightPaneKey);
-
-    if (collapsed === "true" && !rightPaneCollapsed) {
-      toggleRightPane();
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(rightPaneKey, rightPaneCollapsed ? "true" : "false");
-  }, [rightPaneCollapsed]);
 
   useEffect(() => {
     const stored = localStorage.getItem(leftPaneKey);
@@ -207,8 +301,12 @@ export default function App() {
     const list = await getSessions();
     setSessions(list);
 
-    if (!currentSessionId && list[0]) {
-      await openSession(list[0].id);
+    if (!didAutoOpenInitialSessionRef.current) {
+      didAutoOpenInitialSessionRef.current = true;
+
+      if (!currentSessionId && list[0]) {
+        await openSession(list[0].id);
+      }
     }
   }, [currentSessionId, openSession, setSessions]);
 
@@ -274,6 +372,7 @@ export default function App() {
           case "file.created":
           case "file.modified":
           case "file.deleted":
+          case "file.renamed":
           case "diff.generated":
             setContextView("files");
 
@@ -292,6 +391,10 @@ export default function App() {
         }
       },
     });
+  }
+
+  function handleNewChat() {
+    handleOpenDirDialog();
   }
 
   async function handleSubmit() {
@@ -321,8 +424,15 @@ export default function App() {
 
       addUserMessage(activeSession.id, task);
 
-      const run = await createRun({ sessionId: activeSession.id, task });
+      const run = await createRun({
+        sessionId: activeSession.id,
+        task,
+        workingDirectory: activeSession.workspaceRoot
+      });
       setCurrentRun(run);
+      setChanges([]);
+      setCurrentDiff(undefined);
+      setSelectedFile(undefined);
       setPhase("understanding");
       setConnectionStatus("connecting");
       subscribeToRun(run, activeSession.id);
@@ -350,6 +460,10 @@ export default function App() {
     setCurrentDiff(await getFileDiff(currentRun.id, change.path));
   }
 
+  function handleViewFiles() {
+    setContextView("files");
+  }
+
   const statusLabel = currentRun?.status ?? "idle";
 
   const canSubmit =
@@ -372,36 +486,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-background/60 px-3 py-1.5 text-xs text-muted-foreground shadow-sm ring-1 ring-border/40">
-              {connectionStatus === "connected" ? (
-                <Wifi className="h-3.5 w-3.5 text-emerald-500" />
-              ) : (
-                <WifiOff className="h-3.5 w-3.5 text-amber-500" />
-              )}
-              <span>{connectionStatus}</span>
-            </div>
-
-            {currentRun?.status === "running" ? (
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="inline-flex items-center gap-2 rounded-full bg-destructive px-3 py-2 text-xs font-medium text-destructive-foreground shadow-sm transition hover:opacity-90"
-              >
-                <Square className="h-3.5 w-3.5" />
-                Cancel
-              </button>
-            ) : null}
-
             <ThemeToggle />
-
-            <button
-              type="button"
-              onClick={toggleRightPane}
-              className="rounded-2xl bg-background/60 p-2 text-muted-foreground shadow-sm ring-1 ring-border/40 transition hover:bg-background hover:text-foreground"
-              title={rightPaneCollapsed ? "Expand details" : "Collapse details"}
-            >
-              {rightPaneCollapsed ? <PanelRightOpenIcon /> : <PanelRightClose className="h-4 w-4" />}
-            </button>
           </div>
         </div>
       </header>
@@ -452,7 +537,7 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={() => setCurrentSession(undefined)}
+                onClick={handleNewChat}
                 className={cn(
                   "inline-flex items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm transition hover:opacity-90",
                   leftPaneCollapsed ? "h-10 w-10 text-lg" : "px-3 py-2 text-xs font-medium",
@@ -523,7 +608,7 @@ export default function App() {
         </aside>
 
         <PanelGroup direction="horizontal" className="min-h-0 flex-1 overflow-hidden">
-          <Panel defaultSize={rightPaneCollapsed ? 100 : 64} minSize={45} className="min-h-0 min-w-0">
+          <Panel defaultSize={64} minSize={45} className="min-h-0 min-w-0">
             <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
                 {!currentSession?.messages.length ? (
@@ -606,6 +691,22 @@ export default function App() {
                         </div>
                       </div>
                     ) : null}
+
+                    {currentRun && changes.length > 0 ? (
+                      <ModifiedFilesCard
+                        runId={currentRun.id}
+                        files={changes}
+                        onViewFiles={handleViewFiles}
+                        onViewDiff={(path) => {
+                          const target = changes.find((change) => change.path === path);
+                          if (!target) {
+                            return;
+                          }
+
+                          void openDiff(target);
+                        }}
+                      />
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -631,18 +732,31 @@ export default function App() {
                       className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-muted-foreground"
                     />
 
-                    <div className="mt-3 flex items-center justify-between">
+                    <div className="mt-3 flex items-center justify-between gap-3">
                       <div className="text-xs text-muted-foreground">Enter to send · Alt + Enter for newline</div>
 
-                      <button
-                        type="button"
-                        onClick={() => void handleSubmit()}
-                        disabled={!canSubmit || isSubmitting}
-                        className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                        Run
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {currentRun?.status === "running" ? (
+                          <button
+                            type="button"
+                            onClick={handleCancel}
+                            className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground shadow-sm transition hover:bg-muted hover:text-foreground"
+                          >
+                            <Square className="h-4 w-4" />
+                            Cancel
+                          </button>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={() => void handleSubmit()}
+                          disabled={!canSubmit || isSubmitting}
+                          className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                          Run
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -650,149 +764,251 @@ export default function App() {
             </main>
           </Panel>
 
-          {!rightPaneCollapsed ? (
-            <PanelResizeHandle className="flex w-3 items-center justify-center bg-transparent">
-              <div className="h-12 w-1 rounded-full bg-border transition hover:bg-primary/40" />
-            </PanelResizeHandle>
-          ) : null}
+          <PanelResizeHandle className="flex w-3 items-center justify-center bg-transparent">
+            <div className="h-12 w-1 rounded-full bg-border transition hover:bg-primary/40" />
+          </PanelResizeHandle>
 
-          {!rightPaneCollapsed ? (
-            <Panel defaultSize={36} minSize={26} className="min-h-0 min-w-0">
-              <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-card/95 shadow-sm">
-                <div className="flex shrink-0 items-center justify-between border-b border-border/70 px-4 py-3">
-                  <div className="flex gap-1 rounded-full bg-muted p-1 text-xs">
-                    {(["overview", "files", "diff", "logs"] as const).map((view) => (
+          <Panel defaultSize={36} minSize={26} className="min-h-0 min-w-0">
+            <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-card/95 shadow-sm">
+              <div className="flex shrink-0 items-center border-b border-border/70 px-4 py-3">
+                <div className="flex gap-1 rounded-full bg-muted p-1 text-xs">
+                  {(["overview", "files", "diff", "logs"] as const).map((view) => (
+                    <button
+                      key={view}
+                      type="button"
+                      onClick={() => setContextView(view)}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 capitalize transition",
+                        contextView === view
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {view}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                {contextView === "overview" ? (
+                  <div className="space-y-4 text-sm">
+                    <section className="rounded-2xl border border-border bg-background/50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Current task</div>
+                      <div className="mt-2 font-medium">{currentRun?.task ?? "No active run"}</div>
+                    </section>
+
+                    <section className="rounded-2xl border border-border bg-background/50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Status</div>
+                      <div className="mt-2 font-medium capitalize">{currentRun?.status ?? "idle"}</div>
+                      <div className="mt-1 text-muted-foreground">Phase: {phase}</div>
+                    </section>
+
+                    <section className="rounded-2xl border border-border bg-background/50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Changes</div>
+                      <div className="mt-2 font-medium">{changes.length} files</div>
+                    </section>
+                  </div>
+                ) : null}
+
+                {contextView === "files" ? (
+                  <div className="space-y-2">
+                    {changes.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                        No file changes yet.
+                      </div>
+                    ) : null}
+
+                    {changes.map((change) => (
                       <button
-                        key={view}
+                        key={change.path}
                         type="button"
-                        onClick={() => setContextView(view)}
+                        onClick={() => void openDiff(change)}
                         className={cn(
-                          "rounded-full px-3 py-1.5 capitalize transition",
-                          contextView === view
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground",
+                          "flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left transition hover:bg-muted",
+                          selectedFile === change.path
+                            ? "border-primary bg-primary/10"
+                            : "border-border bg-background/50",
                         )}
                       >
-                        {view}
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">{change.path}</div>
+                          <div className="text-xs text-muted-foreground">{change.status}</div>
+                        </div>
+                        <div className="shrink-0 text-xs text-muted-foreground">
+                          +{change.additions ?? 0} / -{change.deletions ?? 0}
+                        </div>
                       </button>
                     ))}
                   </div>
+                ) : null}
 
-                  <button
-                    type="button"
-                    onClick={toggleRightPane}
-                    className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  >
-                    <PanelRightClose className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                  {contextView === "overview" ? (
-                    <div className="space-y-4 text-sm">
-                      <section className="rounded-2xl border border-border bg-background/50 p-4">
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Current task</div>
-                        <div className="mt-2 font-medium">{currentRun?.task ?? "No active run"}</div>
-                      </section>
-
-                      <section className="rounded-2xl border border-border bg-background/50 p-4">
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Status</div>
-                        <div className="mt-2 font-medium capitalize">{currentRun?.status ?? "idle"}</div>
-                        <div className="mt-1 text-muted-foreground">Phase: {phase}</div>
-                      </section>
-
-                      <section className="rounded-2xl border border-border bg-background/50 p-4">
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Changes</div>
-                        <div className="mt-2 font-medium">{changes.length} files</div>
-                      </section>
+                {contextView === "diff" ? (
+                  currentDiff ? (
+                    <div className="h-full min-h-[360px] overflow-hidden rounded-2xl border border-border">
+                      <DiffViewer
+                        {...currentDiff}
+                        theme={resolvedTheme === "dark" ? "dark" : "light"}
+                        onBack={() => setContextView("files")}
+                      />
                     </div>
-                  ) : null}
-
-                  {contextView === "files" ? (
-                    <div className="space-y-2">
-                      {changes.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-                          No file changes yet.
-                        </div>
-                      ) : null}
-
-                      {changes.map((change) => (
-                        <button
-                          key={change.path}
-                          type="button"
-                          onClick={() => void openDiff(change)}
-                          className={cn(
-                            "flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left transition hover:bg-muted",
-                            selectedFile === change.path
-                              ? "border-primary bg-primary/10"
-                              : "border-border bg-background/50",
-                          )}
-                        >
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium">{change.path}</div>
-                            <div className="text-xs text-muted-foreground">{change.status}</div>
-                          </div>
-                          <div className="shrink-0 text-xs text-muted-foreground">
-                            +{change.additions ?? 0} / -{change.deletions ?? 0}
-                          </div>
-                        </button>
-                      ))}
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      Select a changed file to inspect the diff.
                     </div>
-                  ) : null}
+                  )
+                ) : null}
 
-                  {contextView === "diff" ? (
-                    currentDiff ? (
-                      <div className="h-full min-h-[360px] overflow-hidden rounded-2xl border border-border">
-                        <DiffViewer
-                          {...currentDiff}
-                          theme={resolvedTheme === "dark" ? "dark" : "light"}
-                          onBack={() => setContextView("files")}
-                        />
-                      </div>
-                    ) : (
+                {contextView === "logs" ? (
+                  <div className="space-y-2">
+                    {logs.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-                        Select a changed file to inspect the diff.
+                        No logs yet.
                       </div>
-                    )
-                  ) : null}
+                    ) : null}
 
-                  {contextView === "logs" ? (
-                    <div className="space-y-2">
-                      {logs.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-                          No logs yet.
+                    {logs.map((log) => (
+                      <div key={log.id} className="rounded-2xl border border-border bg-background/50 p-3">
+                        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                          <span>{log.type}</span>
+                          <span>{formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}</span>
                         </div>
-                      ) : null}
 
-                      {logs.map((log) => (
-                        <div key={log.id} className="rounded-2xl border border-border bg-background/50 p-3">
-                          <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                            <span>{log.type}</span>
-                            <span>{formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}</span>
-                          </div>
+                        <div className="mt-2 text-sm">{log.summary || eventSummary(log.event)}</div>
 
-                          <div className="mt-2 text-sm">{log.summary || eventSummary(log.event)}</div>
-
-                          <details className="mt-3 text-xs text-muted-foreground">
-                            <summary className="cursor-pointer">Raw JSON</summary>
-                            <pre className="mt-2 overflow-x-auto rounded-xl bg-muted p-3 text-xs">
-                              {JSON.stringify(log.event, null, 2)}
-                            </pre>
-                          </details>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </aside>
-            </Panel>
-          ) : null}
+                        <details className="mt-3 text-xs text-muted-foreground">
+                          <summary className="cursor-pointer">Raw JSON</summary>
+                          <pre className="mt-2 overflow-x-auto rounded-xl bg-muted p-3 text-xs">
+                            {JSON.stringify(log.event, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </aside>
+          </Panel>
         </PanelGroup>
       </div>
+
+      {showDirDialog ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCancelDirDialog} />
+          <div className="relative z-10 w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-3xl border border-border bg-background shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold">Select Workspace Directory</h2>
+                <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
+                  <span><kbd className="rounded bg-muted px-1.5 py-0.5 font-mono">Single-click</kbd> to select</span>
+                  <span><kbd className="rounded bg-muted px-1.5 py-0.5 font-mono">Double-click</kbd> folder to navigate</span>
+                  <span><kbd className="rounded bg-muted px-1.5 py-0.5 font-mono">..</kbd> to go up</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelDirDialog}
+                className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="border-b border-border px-6 py-3">
+              <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <ChevronRight className="h-4 w-4" />
+                <span className="truncate font-mono">{currentPath || "Root"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={pathInput}
+                  onChange={(e) => setPathInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handlePathInputSubmit()}
+                  placeholder="Or paste a directory path..."
+                  className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={handlePathInputSubmit}
+                  className="rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted"
+                >
+                  Go
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateFolder}
+                  className="rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted"
+                >
+                  + New Folder
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[50vh] overflow-y-auto p-4">
+              {isLoadingDir ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {directories.map((item) => (
+                    <button
+                      key={item.path}
+                      type="button"
+                      onClick={() => handleSelectPath(item)}
+                      onDoubleClick={() => handleDoubleClickPath(item)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition",
+                        selectedPath === item.path
+                          ? "bg-primary/10 text-primary"
+                          : "hover:bg-muted",
+                        item.isDirectory && "cursor-pointer",
+                        !item.isDirectory && "opacity-60 cursor-default"
+                      )}
+                    >
+                      {item.isDirectory ? (
+                        <Folder className="h-4 w-4 text-amber-500" />
+                      ) : (
+                        <File className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <span className="flex-1 truncate text-sm">{item.name}</span>
+                      {item.isDirectory && item.name !== ".." && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      {selectedPath === item.path && (
+                        <Check className="h-4 w-4 text-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
+              <button
+                type="button"
+                onClick={handleCancelDirDialog}
+                className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCreateSession}
+                disabled={!selectedPath}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition",
+                  selectedPath
+                    ? "bg-primary text-primary-foreground hover:opacity-90"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                )}
+              >
+                <FolderOpen className="h-4 w-4" />
+                Create Session
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
-}
-
-function PanelRightOpenIcon() {
-  return <PanelLeftOpen className="h-4 w-4" />;
 }

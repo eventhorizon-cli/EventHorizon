@@ -1,39 +1,35 @@
 # EventHorizon
 
-EventHorizon is now a **terminal-first coding agent runtime** built around a simpler architecture:
+EventHorizon is an **AGUI-first coding agent runtime** with a .NET backend and a Vite/React workbench frontend.
 
-- a `ParserConfiguration`-based CLI layer built with `System.CommandLine`
-- a runtime bootstrap that snapshots workspace context and tool metadata up front
-- a small query engine that owns session state and chat history, plus a dedicated turn loop for streaming execution
-- an interactive coding workbench for `chat` / `tui`, with a progressive launchpad first screen before expanding into explorer, transcript, activity, command palette, and inspector panels
-- a console host with a centralized slash-command registry for `/help`, `/tools`, `/context`, `/history`, `/reset`, and `/exit`
-- provider-backed execution through the existing OpenAI / Azure OpenAI / Anthropic / Gemini integrations
-- AGUI server/client and MCP server entrypoints retained as first-class launch modes
+- the backend hosts sessions, runs, event streaming, file tools, and the AGUI API
+- the frontend workbench provides chat, files, logs, and side-by-side diff views
+- file diff data is tracked by EventHorizon itself per run and does not depend on Git as the primary source
+- provider-backed execution continues to support OpenAI / Azure OpenAI / Anthropic / Gemini integrations
+- the published `.NET tool` serves the Web UI from embedded static assets
 
 ## Architecture
 
-The main runtime lives in `src/EventHorizon/` and is now organized around these concepts:
+The main runtime lives in `src/EventHorizon/` and is organized around these concepts:
 
-- `Cli/` — command parsing using `System.CommandLine` and `ParserConfiguration`
-- `EntryPoints/` — application entrypoints and console host orchestration
-- `Commands/` — slash command registration and execution
-- `Context/` — session context snapshotting, including workspace summary and git snapshot
-- `Prompting/` — prompt assembly from context + tools + runtime guidance
-- `Execution/` — query engine state, query loop execution, and conversation models
-- `Tools/` — tool contracts and registry metadata
+- `AGUI/` — HTTP API endpoints, session/run management, and event streaming
+- `Diff/` — non-Git file snapshots, file state tracking, and diff generation per run
+- `EntryPoints/` — application startup and AGUI server orchestration
 - `Providers/` — model/runtime factory integration
-- `Workspace/` — local filesystem and shell capabilities
+- `Tools/` — tool contracts and registry metadata
+- `Workspace/` — local filesystem and shell capabilities used by the agent
 
-## Commands
+The frontend workbench lives in `eventhorizon-workbench/` and builds to `eventhorizon-workbench/dist`.
 
-`EventHorizon` supports these commands:
+## Startup
 
-- `tui` — interactive multi-panel workbench (recommended)
-- `chat` — alias for `tui`
-- `run <prompt...>` — single prompt execution
+`EventHorizon` currently starts the AGUI server and workbench experience.
 
-If no command is specified and the input begins with options, the CLI defaults to `tui`.
-If the first token is not a known command, the CLI treats the input as a `run` prompt.
+```zsh
+dotnet run --project src/EventHorizon -- --config samples/openai-compatible.eventhorizon.json
+```
+
+The server exposes `/api/*` for backend APIs and serves the workbench UI for non-API routes.
 
 ## Configuration
 
@@ -124,42 +120,39 @@ Sample configs live under `samples/` with configurations for all supported provi
 
 If multiple named providers are configured and `CurrentProvider` is missing, EventHorizon will prompt you to choose one on startup and persist your selection back to `~/.config/eventhorizon.json`.
 
-## Quick start
+## Frontend development
 
-Build:
+Local frontend development uses the Vite dev server and does **not** write directly to `src/EventHorizon/wwwroot`.
+
+```zsh
+cd eventhorizon-workbench
+npm install
+npm run dev
+```
+
+Local frontend production builds emit to `eventhorizon-workbench/dist`.
+
+```zsh
+cd eventhorizon-workbench
+npm run build
+```
+
+## Build and package
+
+Build the solution locally:
 
 ```zsh
 dotnet build EventHorizon.slnx
 ```
 
-**Recommended:** Run interactive TUI mode (multi-panel workbench):
+The CI/package flow is:
 
-```zsh
-dotnet run --project src/EventHorizon -- tui
-```
+1. build `eventhorizon-workbench/dist`
+2. copy `dist` into `src/EventHorizon/wwwroot`
+3. build/test the .NET solution
+4. pack `src/EventHorizon.Tool/EventHorizon.Tool.csproj`
 
-The `tui` mode opens a progressive launchpad first so you can confirm the model connection before expanding into the full coding workbench with Explorer, Conversation, Activity, Command Palette, and Inspector panels. Session snapshots are autosaved by default under `.eventhorizon/sessions/` inside the configured workspace unless `Conversation.StoragePath` overrides it.
+`src/EventHorizon/wwwroot` is committed as a directory marker via `.gitkeep`, but local Vite builds still target `eventhorizon-workbench/dist`.
 
-Run TUI mode with a sample config:
+During build/pack, files copied into `src/EventHorizon/wwwroot` are embedded into the `EventHorizon` assembly. At runtime, the tool serves the workbench UI from embedded resources, so the installed tool does not depend on a physical `wwwroot` directory.
 
-```zsh
-dotnet run --project src/EventHorizon -- tui --config samples/openai-compatible.eventhorizon.json
-```
-
-Run TUI mode with the OpenAI API key config:
-
-```zsh
-dotnet run --project src/EventHorizon -- tui --config samples/openai-api-key.eventhorizon.json
-```
-
-Run a single prompt:
-
-```zsh
-dotnet run --project src/EventHorizon -- run "Summarize the workspace architecture"
-```
-
-Run a single prompt with a config:
-
-```zsh
-dotnet run --project src/EventHorizon -- run --config samples/openai-compatible.eventhorizon.json "Summarize the workspace architecture"
-```

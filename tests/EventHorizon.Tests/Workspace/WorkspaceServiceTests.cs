@@ -1,3 +1,4 @@
+using EventHorizon.Diff;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
 
@@ -147,7 +148,12 @@ public sealed class WorkspaceServiceTests : IDisposable
         Assert.Contains("Command: dotnet --info | cat", output);
     }
 
-    private WorkspaceService CreateService() => new(_root, new ShellCommandRunner());
+    private WorkspaceService CreateService()
+        => new(
+            _root,
+            new ShellCommandRunner(),
+            new FileSnapshotService(_root),
+            new FileStateTrackerAccessor());
 
     public void Dispose()
     {

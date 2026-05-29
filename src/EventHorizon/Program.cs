@@ -54,8 +54,8 @@ public static class Program
             var logger = host?.Services.GetService<ILogger<StartupLogger>>();
             logger?.LogError(ex, "Startup failed. Args: {Args}", string.Join(' ', args));
 
-            Console.Error.WriteLine($"Startup failed. See logs for details.");
-            Console.Error.WriteLine(ex.Message);
+            await Console.Error.WriteLineAsync("Startup failed. See logs for details.");
+            await Console.Error.WriteLineAsync(ex.Message);
             return 1;
         }
         finally

@@ -1,4 +1,5 @@
 using EventHorizon.Configuration;
+using EventHorizon.Diff;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
 
@@ -17,7 +18,11 @@ public sealed class ToolCatalogTests : IDisposable
     [Fact]
     public void Create_Uses_SnakeCase_Tool_Names()
     {
-        WorkspaceService workspaceService = new(_workspaceRoot, new ShellCommandRunner());
+        WorkspaceService workspaceService = new(
+            _workspaceRoot,
+            new ShellCommandRunner(),
+            new FileSnapshotService(_workspaceRoot),
+            new FileStateTrackerAccessor());
         AppOptions options = new()
         {
             Agent = new AgentOptions

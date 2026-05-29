@@ -27,6 +27,7 @@ export function DiffViewer({
   onBack,
 }: DiffViewerProps) {
   const tooLarge = useMemo(() => (oldText?.length ?? 0) + (newText?.length ?? 0) > 200_000, [newText, oldText]);
+  const omittedLargeText = !binary && !loading && !error && !tooLarge && oldText == null && newText == null;
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-panel">
@@ -65,7 +66,10 @@ export function DiffViewer({
         {!loading && !error && !binary && tooLarge ? (
           <div className="p-4 text-sm text-muted-foreground">This diff is too large to render inline.</div>
         ) : null}
-        {!loading && !error && !binary && !tooLarge ? (
+        {omittedLargeText ? (
+          <div className="p-4 text-sm text-muted-foreground">This diff was omitted by the server because it is too large to load inline.</div>
+        ) : null}
+        {!loading && !error && !binary && !tooLarge && !omittedLargeText ? (
           <DiffEditor
             height="100%"
             original={oldText ?? ""}

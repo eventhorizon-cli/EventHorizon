@@ -29,11 +29,11 @@ public sealed class AppOptionsLoaderTests : IDisposable
         var configFilePath = GetDefaultConfigFilePath();
 
         Assert.True(File.Exists(configFilePath));
-        Assert.Equal("{}" + Environment.NewLine, File.ReadAllText(configFilePath));
+        Assert.Contains("\"AgUi\"", File.ReadAllText(configFilePath), StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Create_Loads_Home_Config_And_Allows_Local_Config_To_Override_It()
+    public void Create_Loads_Home_Config_And_Applies_CurrentDefaultProvider_Migration()
     {
         WriteHomeConfig("""
         {
@@ -47,33 +47,22 @@ public sealed class AppOptionsLoaderTests : IDisposable
         }
         """);
 
-        WriteWorkspaceConfig("""
-        {
-          "CurrentProvider": "local",
-          "Providers": {
-            "local": {
-              "Type": "anthropic",
-              "Model": "claude-sonnet-4-20250514"
-            }
-          }
-        }
-        """);
-
         using var host = CreateHost();
         var options = host.Services.GetRequiredService<IOptions<AppOptions>>().Value;
 
-        Assert.Equal("local", options.CurrentProvider!);
-        Assert.Equal("anthropic", options.Provider.Type!);
-        Assert.Equal("claude-sonnet-4-20250514", options.Provider.Model!);
+        Assert.Equal("home", options.CurrentDefaultProvider);
+        Assert.Null(options.CurrentProvider);
+        Assert.Equal("openai", options.Provider.Type);
+        Assert.Equal("gpt-home", options.Provider.Model);
         Assert.Contains(options.Providers, static pair => pair.Key == "home");
-        Assert.Contains(options.Providers, static pair => pair.Key == "local");
     }
 
     [Fact]
-    public async Task CurrentProviderSelectionHostedService_Prompts_And_Persists_Choice_When_CurrentProvider_Is_Missing()
+    public async Task CurrentProviderSelectionHostedService_Prompts_And_Persists_Choice_When_CurrentDefaultProvider_Is_Missing()
     {
-        WriteWorkspaceConfig("""
+        WriteHomeConfig("""
         {
+          "CurrentDefaultProvider": "",
           "Providers": {
             "openai": {
               "Type": "openai",
@@ -105,9 +94,11 @@ public sealed class AppOptionsLoaderTests : IDisposable
         }
 
         var options = host.Services.GetRequiredService<IOptions<AppOptions>>().Value;
-        Assert.Equal("anthropic", options.CurrentProvider!);
+        Assert.Equal("anthropic", options.CurrentDefaultProvider!);
         Assert.Equal("anthropic", options.Provider.Type!);
-        Assert.Contains("\"CurrentProvider\": \"anthropic\"", File.ReadAllText(GetDefaultConfigFilePath()), StringComparison.Ordinal);
+        var persisted = File.ReadAllText(GetDefaultConfigFilePath());
+        Assert.Contains("\"CurrentDefaultProvider\": \"anthropic\"", persisted, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"CurrentProvider\"", persisted, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -138,9 +129,9 @@ public sealed class AppOptionsLoaderTests : IDisposable
     }
 
     [Fact]
-    public void ProviderConfigurationService_Persists_CurrentProvider_To_Home_Config()
+    public void ProviderConfigurationService_Persists_CurrentDefaultProvider_To_Home_Config()
     {
-        WriteWorkspaceConfig("""
+        WriteHomeConfig("""
         {
           "Providers": {
             "openai": {
@@ -161,7 +152,8 @@ public sealed class AppOptionsLoaderTests : IDisposable
         providerConfigurationService.SetCurrentProvider("anthropic", persist: true);
 
         var persisted = File.ReadAllText(GetDefaultConfigFilePath());
-        Assert.Contains("\"CurrentProvider\": \"anthropic\"", persisted, StringComparison.Ordinal);
+        Assert.Contains("\"CurrentDefaultProvider\": \"anthropic\"", persisted, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"CurrentProvider\"", persisted, StringComparison.Ordinal);
     }
 
     public void Dispose()
@@ -176,7 +168,7 @@ public sealed class AppOptionsLoaderTests : IDisposable
         => EventHorizonHost.Create([], commandOptions ?? new EffectiveCommandOptions(), new TestPathEnvironment(_workspaceDirectory, _homeDirectory));
 
     private string GetDefaultConfigFilePath()
-        => Path.Combine(_homeDirectory, ".config", "eventhorizon.json");
+        => Path.Combine(_homeDirectory, ".eventhorizon", "appsettings.json");
 
     private void WriteHomeConfig(string content)
     {
@@ -185,7 +177,7 @@ public sealed class AppOptionsLoaderTests : IDisposable
     }
 
     private void WriteWorkspaceConfig(string content)
-        => File.WriteAllText(Path.Combine(_workspaceDirectory, "eventhorizon.json"), content);
+        => File.WriteAllText(Path.Combine(_workspaceDirectory, "appsettings.json"), content);
 
     private sealed class TestPathEnvironment : IPathEnvironment
     {

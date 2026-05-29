@@ -12,6 +12,10 @@ public sealed class AGUIRun
 
     public string? WorkingDirectory { get; init; }
 
+    public string? ProviderName { get; init; }
+
+    public string? Model { get; init; }
+
     public string Status { get; private set; } = AGUIRunStates.Idle;
 
     public string? DetailedStatus { get; private set; }
@@ -59,4 +63,3 @@ public sealed class AGUIRun
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 }
-

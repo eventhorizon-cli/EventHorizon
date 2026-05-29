@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace EventHorizon.Configuration;
 
 public sealed class AppOptions
@@ -8,6 +10,9 @@ public sealed class AppOptions
 
     public ProviderOptions Provider { get; set; } = new();
 
+    public string? CurrentDefaultProvider { get; set; }
+
+    [JsonIgnore]
     public string? CurrentProvider { get; set; }
 
     public Dictionary<string, ProviderOptions> Providers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -17,4 +22,6 @@ public sealed class AppOptions
     public ConversationOptions Conversation { get; set; } = new();
 
     public List<McpServerOptions> McpServers { get; set; } = [];
+
+    public SkillCatalogOptions Skills { get; set; } = new();
 }

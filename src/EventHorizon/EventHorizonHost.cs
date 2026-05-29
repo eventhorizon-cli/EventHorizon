@@ -72,25 +72,41 @@ public static class EventHorizonHost
         EffectiveCommandOptions commandOptions,
         IPathEnvironment pathEnvironment)
     {
-        var defaultConfigFilePath = UserConfigurationFileService.GetDefaultFilePath(pathEnvironment);
-        Directory.CreateDirectory(Path.GetDirectoryName(defaultConfigFilePath)!);
-        if (!File.Exists(defaultConfigFilePath))
-        {
-            File.WriteAllText(defaultConfigFilePath, "{}" + Environment.NewLine);
-        }
+        var userConfigFilePath = UserConfigurationFileService.GetDefaultFilePath(pathEnvironment);
+        EnsureUserConfigExists(userConfigFilePath);
 
         configuration.SetBasePath(pathEnvironment.CurrentDirectory);
-        configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: true, reloadOnChange: false);
-        configuration.AddJsonFile(defaultConfigFilePath, optional: false, reloadOnChange: false);
-        configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
-        configuration.AddJsonFile("eventhorizon.json", optional: true, reloadOnChange: false);
+        configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: false, reloadOnChange: false);
+        configuration.AddJsonFile(userConfigFilePath, optional: false, reloadOnChange: false);
 
 
         if (!string.IsNullOrWhiteSpace(commandOptions.ConfigFile))
         {
-            configuration.AddJsonFile(Path.GetFullPath(commandOptions.ConfigFile), optional: false, reloadOnChange: false);
+            var externalConfigPath = Path.GetFullPath(commandOptions.ConfigFile);
+            if (!File.Exists(externalConfigPath))
+            {
+                throw new InvalidOperationException($"The configuration file '{externalConfigPath}' does not exist.");
+            }
+
+            configuration.AddJsonFile(externalConfigPath, optional: false, reloadOnChange: false);
         }
 
         configuration.AddEnvironmentVariables(prefix: "EVENTHORIZON__");
+    }
+
+    private static void EnsureUserConfigExists(string userConfigFilePath)
+    {
+        var directory = Path.GetDirectoryName(userConfigFilePath)!;
+        Directory.CreateDirectory(directory);
+        if (File.Exists(userConfigFilePath))
+        {
+            return;
+        }
+
+        var bundledConfigPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        var defaultContent = File.Exists(bundledConfigPath)
+            ? File.ReadAllText(bundledConfigPath)
+            : "{}";
+        File.WriteAllText(userConfigFilePath, defaultContent.TrimEnd() + Environment.NewLine);
     }
 }

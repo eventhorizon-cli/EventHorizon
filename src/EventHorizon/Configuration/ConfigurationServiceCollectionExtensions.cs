@@ -15,6 +15,10 @@ public static class ConfigurationServiceCollectionExtensions
         services.AddSingleton<IAppOptionsInitializer, AppOptionsInitializer>();
         services.AddSingleton<IPostConfigureOptions<AppOptions>, AppOptionsPostConfigure>();
         services.AddSingleton(serviceProvider => serviceProvider.GetRequiredService<IOptions<AppOptions>>().Value);
+        services.AddSingleton<IAppConfigurationService, AppConfigurationService>();
+        services.AddSingleton<IProviderTestingService, ProviderTestingService>();
+        services.AddSingleton<IMcpService, McpService>();
+        services.AddSingleton<ISkillService, SkillService>();
         services.AddSingleton<IProviderConfigurationService, ProviderConfigurationService>();
         services.AddSingleton<IHostedService, CurrentProviderSelectionHostedService>();
         return services;

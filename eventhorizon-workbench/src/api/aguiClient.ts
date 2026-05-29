@@ -39,6 +39,7 @@ export function subscribeRunEvents(
     "file.created",
     "file.modified",
     "file.deleted",
+    "file.renamed",
     "diff.generated",
     "command.started",
     "command.output",

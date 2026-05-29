@@ -18,6 +18,7 @@ internal sealed class AppOptionsInitializer : IAppOptionsInitializer
 
     public void Initialize(AppOptions options)
     {
+        PromoteLegacyCurrentProvider(options);
         PromoteLegacyProvider(options);
         ApplyEnvironmentFallbacks(options);
         RefreshActiveProvider(options);
@@ -31,11 +32,25 @@ internal sealed class AppOptionsInitializer : IAppOptionsInitializer
 
     private void PromoteLegacyProvider(AppOptions options)
     {
-
         if (HasConfiguredValues(options.Provider) && !options.Providers.ContainsKey("default"))
         {
             options.Providers["default"] = CloneProvider(options.Provider);
         }
+    }
+
+    private static void PromoteLegacyCurrentProvider(AppOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(options.CurrentProvider))
+        {
+            options.CurrentDefaultProvider = options.CurrentProvider;
+        }
+
+        if (string.IsNullOrWhiteSpace(options.CurrentDefaultProvider) && options.Providers.Count == 1)
+        {
+            options.CurrentDefaultProvider = options.Providers.Keys.Single();
+        }
+
+        options.CurrentProvider = null;
     }
 
     private void ApplyEnvironmentFallbacks(AppOptions options)
@@ -100,11 +115,11 @@ internal sealed class AppOptionsInitializer : IAppOptionsInitializer
         {
             provider = CloneProvider(configuredProvider);
         }
-        else if (!string.IsNullOrWhiteSpace(options.CurrentProvider))
+        else if (!string.IsNullOrWhiteSpace(options.CurrentDefaultProvider))
         {
-            if (!options.Providers.TryGetValue(options.CurrentProvider, out configuredProvider))
+            if (!options.Providers.TryGetValue(options.CurrentDefaultProvider!, out configuredProvider))
             {
-                options.CurrentProvider = null;
+                options.CurrentDefaultProvider = null;
                 provider = CloneProvider(options.Provider);
             }
             else
@@ -148,11 +163,14 @@ internal sealed class AppOptionsInitializer : IAppOptionsInitializer
         foreach (var provider in options.Providers.Values)
         {
             provider.Type = NormalizeProviderType(provider.Type);
+            NormalizeProviderModels(provider);
         }
 
         options.Provider.Type = NormalizeProviderType(options.Provider.Type);
+        NormalizeProviderModels(options.Provider);
         options.Pricing.CachePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "model_prices_and_context_window.json");
         options.Conversation.StoragePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "sessions");
+        options.Skills.StoragePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "skills");
 
         foreach (var server in options.McpServers)
         {
@@ -196,13 +214,31 @@ internal sealed class AppOptionsInitializer : IAppOptionsInitializer
     private static ProviderOptions CloneProvider(ProviderOptions provider)
         => new()
         {
+            Name = provider.Name,
             Type = provider.Type,
             Model = provider.Model,
+            Models = [.. provider.Models],
             ApiKey = provider.ApiKey,
             Endpoint = provider.Endpoint,
             Deployment = provider.Deployment,
             UseDefaultAzureCredential = provider.UseDefaultAzureCredential,
         };
+
+    private static void NormalizeProviderModels(ProviderOptions provider)
+    {
+        provider.Name ??= provider.Type;
+        provider.Models = provider.Models
+            .Where(static model => !string.IsNullOrWhiteSpace(model))
+            .Select(static model => model.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(provider.Model) &&
+            !provider.Models.Contains(provider.Model, StringComparer.OrdinalIgnoreCase))
+        {
+            provider.Models.Insert(0, provider.Model);
+        }
+    }
 
     private static string NormalizeProviderType(string? providerType)
         => string.IsNullOrWhiteSpace(providerType)
