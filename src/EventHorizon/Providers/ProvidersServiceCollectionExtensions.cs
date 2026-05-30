@@ -14,6 +14,7 @@ public static class ProvidersServiceCollectionExtensions
         services.AddSingleton<IProviderResolutionService, ProviderResolutionService>();
         services.AddSingleton<IConversationAgentManager, ConversationAgentManager>();
         services.AddSingleton<McpToolConnector>();
+        services.AddSingleton<IEventHorizonRuntime, EventHorizonRuntime>();
         return services;
     }
 }

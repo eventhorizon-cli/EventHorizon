@@ -1,26 +1,20 @@
 using EventHorizon.Context;
 using EventHorizon.Tools;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 namespace EventHorizon.Providers;
 
 public interface IEventHorizonRuntime : IAsyncDisposable
 {
-    AIAgent Agent { get; }
-
     string ModelName { get; }
 
-    string Instructions { get; }
+    ValueTask<SessionContextSnapshot> GetContextSnapshotAsync(CancellationToken cancellationToken = default);
 
-    IServiceProvider Services { get; }
+    ValueTask<string> GetInstructionsAsync(CancellationToken cancellationToken = default);
 
-    SessionContextSnapshot ContextSnapshot { get; }
+    ValueTask<IReadOnlyList<ToolDescriptor>> GetToolCatalogAsync(CancellationToken cancellationToken = default);
 
-    IReadOnlyList<ToolDescriptor> ToolCatalog { get; }
+    ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default);
 
-    IReadOnlyList<AITool> Tools { get; }
-
-    AgentSkillsProvider? SkillsProvider { get; }
+    Task InvalidateAsync(CancellationToken cancellationToken);
 }
-

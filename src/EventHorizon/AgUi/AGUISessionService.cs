@@ -42,7 +42,8 @@ public sealed class AGUISessionService : IAGUISessionService
 {
     private const int MaxSummaryLength = 240;
     private readonly IConversationSessionStore _conversationSessionStore;
-    private readonly AppOptions _options;
+    private readonly AppOptions _appOptions;
+    private readonly ProvidersOptions _providersOptions;
     private readonly WorkspaceContext _workspaceContext;
     private readonly IProviderResolutionService _providerResolutionService;
     private readonly ISessionTitleGenerator _sessionTitleGenerator;
@@ -50,14 +51,16 @@ public sealed class AGUISessionService : IAGUISessionService
 
     public AGUISessionService(
         IConversationSessionStore conversationSessionStore,
-        IOptions<AppOptions> options,
+        IOptions<AppOptions> appOptions,
+        IOptions<ProvidersOptions> providersOptions,
         WorkspaceContext workspaceContext,
         IProviderResolutionService providerResolutionService,
         ISessionTitleGenerator sessionTitleGenerator,
         IConversationAgentManager conversationAgentManager)
     {
         _conversationSessionStore = conversationSessionStore;
-        _options = options.Value;
+        _appOptions = appOptions.Value;
+        _providersOptions = providersOptions.Value;
         _workspaceContext = workspaceContext;
         _providerResolutionService = providerResolutionService;
         _sessionTitleGenerator = sessionTitleGenerator;
@@ -253,13 +256,14 @@ public sealed class AGUISessionService : IAGUISessionService
                 Model = model,
             });
 
+        var activeProvider = resolved?.Provider ?? new ProviderOptions();
         var document = new ConversationSessionDocument
         {
             Name = BuildInitialTitle(initialMessage),
             Status = AGUIRunStates.Idle,
             ProviderName = resolved?.ProviderName ?? providerName,
-            ProviderType = resolved?.ProviderType ?? _options.Provider.Type ?? string.Empty,
-            Model = resolved?.Model ?? model ?? _options.Provider.Model ?? string.Empty,
+            ProviderType = resolved?.ProviderType ?? activeProvider.Type ?? string.Empty,
+            Model = resolved?.Model ?? model ?? activeProvider.Model ?? string.Empty,
             WorkspaceRoot = workspaceRoot,
             CreatedAt = now,
             UpdatedAt = now,

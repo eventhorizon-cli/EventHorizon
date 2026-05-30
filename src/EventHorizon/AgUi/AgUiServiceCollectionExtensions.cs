@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using EventHorizon.Diff;
-using EventHorizon.EntryPoints;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EventHorizon.AGUI;
@@ -21,7 +20,6 @@ public static class AGUIServiceCollectionExtensions
         services.AddSingleton<ISessionTitleGenerator, SessionTitleGenerator>();
         services.AddSingleton<DiffService>();
         services.AddSingleton<RunService>();
-        services.AddSingleton<IAGUIServerRunner, AGUIServerRunner>();
         return services;
     }
 }

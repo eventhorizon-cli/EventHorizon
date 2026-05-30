@@ -2,10 +2,19 @@ namespace EventHorizon.Configuration;
 
 public interface IAppConfigurationService
 {
-    AppOptions Get();
+    AppOptions GetAppOptions();
 
-    Task<AppOptions> SaveAsync(AppOptions options, CancellationToken cancellationToken);
+    ProvidersOptions GetProvidersOptions();
 
-    Task<AppOptions> SetDefaultProviderAsync(string? providerName, CancellationToken cancellationToken);
+    McpOptions GetMcpOptions();
+
+    SkillsOptions GetSkillsOptions();
+
+    Task SaveAsync(
+        ProvidersOptions providers,
+        McpOptions mcp,
+        SkillsOptions skills,
+        CancellationToken cancellationToken);
+
+    Task SetDefaultProviderAsync(string? providerName, CancellationToken cancellationToken);
 }
-

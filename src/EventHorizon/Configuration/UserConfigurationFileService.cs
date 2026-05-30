@@ -45,13 +45,13 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
         EnsureExists();
 
         var root = ReadRoot();
-        root.Remove(nameof(AppOptions.CurrentDefaultProvider));
-        root.Remove(nameof(AppOptions.CurrentProvider));
-        root.Remove(nameof(AppOptions.Provider));
-        root.Remove(nameof(AppOptions.Providers));
+        root.Remove(nameof(ProvidersOptions.CurrentDefaultProvider));
+        root.Remove(nameof(ProvidersOptions.Providers));
+        root.Remove(nameof(McpOptions.Servers));
+        root.Remove(nameof(SkillsOptions.Imported));
+        root.Remove(nameof(SkillsOptions.StoragePath));
 
-        var optionsToPersist = CloneForPersistence(options);
-        var persisted = JsonSerializer.SerializeToNode(optionsToPersist, EventHorizonJsonContext.Default.AppOptions)?.AsObject() ?? [];
+        var persisted = JsonSerializer.SerializeToNode(options, EventHorizonJsonContext.Default.AppOptions)?.AsObject() ?? [];
         foreach (var pair in persisted)
         {
             root[pair.Key] = pair.Value?.DeepClone();
@@ -98,12 +98,11 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
         {
             var root = JsonNode.Parse(initialContent)?.AsObject() ?? [];
 
-            // The bundled appsettings.json is treated as a user config template.
-            // Provider selections and credentials must not be pre-populated into ~/.eventhorizon/appsettings.json.
-            root.Remove(nameof(AppOptions.CurrentDefaultProvider));
-            root.Remove(nameof(AppOptions.CurrentProvider));
-            root.Remove(nameof(AppOptions.Provider));
-            root[nameof(AppOptions.Providers)] = new JsonObject();
+            root.Remove(nameof(ProvidersOptions.CurrentDefaultProvider));
+            root.Remove(nameof(ProvidersOptions.Providers));
+            root.Remove(nameof(McpOptions.Servers));
+            root.Remove(nameof(SkillsOptions.Imported));
+            root.Remove(nameof(SkillsOptions.StoragePath));
 
             return root.ToJsonString(JsonOptions) + Environment.NewLine;
         }
@@ -141,42 +140,4 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
             throw;
         }
     }
-
-    private static AppOptions CloneForPersistence(AppOptions options)
-        => new()
-        {
-            AGUI = options.AGUI,
-            Agent = options.Agent,
-            Provider = new ProviderOptions(),
-            CurrentDefaultProvider = null,
-            Providers = new Dictionary<string, ProviderOptions>(StringComparer.OrdinalIgnoreCase),
-            Pricing = options.Pricing,
-            Conversation = options.Conversation,
-            McpServers = options.McpServers.Select(CloneMcpServer).ToList(),
-            Skills = new SkillCatalogOptions
-            {
-                StoragePath = options.Skills.StoragePath,
-                Imported = options.Skills.Imported
-                    .Select(static item => new ImportedSkillOptions
-                    {
-                        Name = item.Name,
-                        Path = item.Path,
-                        Description = item.Description,
-                        ImportedAt = item.ImportedAt,
-                    })
-                    .ToList(),
-            },
-            CurrentProvider = null,
-        };
-
-    private static McpServerOptions CloneMcpServer(McpServerOptions server)
-        => new()
-        {
-            Name = server.Name,
-            Command = server.Command,
-            Arguments = [.. server.Arguments],
-            Url = server.Url,
-            EnvironmentVariables = new Dictionary<string, string>(server.EnvironmentVariables, StringComparer.OrdinalIgnoreCase),
-            Enabled = server.Enabled,
-        };
 }

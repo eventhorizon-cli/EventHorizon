@@ -2,7 +2,6 @@ using EventHorizon.AGUI;
 using EventHorizon.Configuration;
 using EventHorizon.Context;
 using EventHorizon.Conversations;
-using EventHorizon.EntryPoints;
 using EventHorizon.Execution;
 using EventHorizon.Pricing;
 using EventHorizon.Prompting;
@@ -15,15 +14,8 @@ using Microsoft.Extensions.Options;
 
 namespace EventHorizon;
 
-internal sealed class Startup
+internal sealed class Startup(IConfiguration configuration)
 {
-    private readonly IConfiguration _configuration;
-
-    public Startup(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
-
     public void ConfigureServices(IServiceCollection services)
     {
         var pathEnvironment = ResolvePathEnvironment();
@@ -36,17 +28,11 @@ internal sealed class Startup
             .AddEventHorizonProviders()
             .AddEventHorizonPricing()
             .AddEventHorizonExecution()
-            .AddEventHorizonAGUI()
-            .AddEventHorizonEntryPoints();
+            .AddEventHorizonAGUI();
     }
 
     public void Configure(WebApplication app)
     {
-        var runtimeInitializer = app.Services.GetRequiredService<IEventHorizonRuntimeInitializer>();
-        runtimeInitializer.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
-
-        app.MapControllers();
-
         var options = app.Services.GetRequiredService<IOptions<AppOptions>>().Value;
         if (options.AGUI.Urls is null || options.AGUI.Urls.Count == 0)
         {
@@ -60,11 +46,11 @@ internal sealed class Startup
         }
 
         var runtime = app.Services.GetRequiredService<IEventHorizonRuntime>();
-        AGUI.AGUIEndpoints.Map(app, options.AGUI, runtime);
+        AGUIEndpoints.Map(app, options.AGUI, runtime);
     }
 
     private IPathEnvironment ResolvePathEnvironment()
-        => _configuration.GetSection(nameof(PathEnvironment)).Get<ConfiguredPathEnvironment>()?.ToPathEnvironment()
+        => configuration.GetSection(nameof(PathEnvironment)).Get<ConfiguredPathEnvironment>()?.ToPathEnvironment()
            ?? new PathEnvironment();
 
     private sealed class ConfiguredPathEnvironment
@@ -76,7 +62,9 @@ internal sealed class Startup
         public IPathEnvironment ToPathEnvironment()
             => new ConfiguredPathEnvironmentValue(
                 string.IsNullOrWhiteSpace(CurrentDirectory) ? Environment.CurrentDirectory : CurrentDirectory,
-                string.IsNullOrWhiteSpace(HomeDirectory) ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) : HomeDirectory);
+                string.IsNullOrWhiteSpace(HomeDirectory)
+                    ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                    : HomeDirectory);
     }
 
     private sealed class ConfiguredPathEnvironmentValue : IPathEnvironment

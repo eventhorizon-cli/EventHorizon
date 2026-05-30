@@ -71,7 +71,10 @@ public sealed class ControllerCreationResponseTests
             new AGUICodeAgentEventMapper(),
             new FakeProviderResolutionService(),
             new FakeProviderAgentFactory(),
+            new FakeSkillProviderFactory(),
             new FakeConversationAgentManager(),
+            new FakeOptionsMonitor<AppOptions>(new AppOptions()),
+            new ServiceCollection().BuildServiceProvider(),
             new Microsoft.Extensions.Logging.Abstractions.NullLogger<RunService>());
 
     private sealed class InMemorySessionService(string workspaceRoot) : IAGUISessionService
@@ -140,24 +143,14 @@ public sealed class ControllerCreationResponseTests
 
     private sealed class FakeRuntime : IEventHorizonRuntime
     {
-        public AIAgent Agent => throw new NotSupportedException();
-
         public string ModelName => "fake-model";
-
-        public string Instructions => string.Empty;
-
-        public IServiceProvider Services => new ServiceCollection().BuildServiceProvider();
-
-        public SessionContextSnapshot ContextSnapshot => new("today", Directory.GetCurrentDirectory(), string.Empty, string.Empty, string.Empty);
-
-        public IReadOnlyList<ToolDescriptor> ToolCatalog => [];
-
-        public IReadOnlyList<AITool> Tools => [];
-
-        public AgentSkillsProvider? SkillsProvider => null;
-
-        public ValueTask DisposeAsync()
-            => ValueTask.CompletedTask;
+        public ValueTask<string> GetInstructionsAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult(string.Empty);
+        public ValueTask<SessionContextSnapshot> GetContextSnapshotAsync(CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new SessionContextSnapshot("today", Directory.GetCurrentDirectory(), string.Empty, string.Empty, string.Empty));
+        public ValueTask<IReadOnlyList<ToolDescriptor>> GetToolCatalogAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<IReadOnlyList<ToolDescriptor>>([]);
+        public ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<IReadOnlyList<AITool>>([]);
+        public Task InvalidateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class FakeModelPriceCatalogService : IModelPriceCatalogService
@@ -218,6 +211,18 @@ public sealed class ControllerCreationResponseTests
         public void MarkTranscriptCount(string sessionId, int transcriptCount)
         {
         }
+    }
+
+    private sealed class FakeSkillProviderFactory : ISkillProviderFactory
+    {
+        public AgentSkillsProvider? Create(AppOptions options, IServiceProvider services, ConversationSessionDocument? sessionDocument = null) => null;
+    }
+
+    private sealed class FakeOptionsMonitor<T>(T value) : Microsoft.Extensions.Options.IOptionsMonitor<T>
+    {
+        public T CurrentValue => value;
+        public T Get(string? name) => value;
+        public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
 
     private sealed class TemporaryWorkspace : IDisposable

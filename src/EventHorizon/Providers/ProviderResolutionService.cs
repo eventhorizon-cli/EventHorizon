@@ -6,10 +6,10 @@ namespace EventHorizon.Providers;
 
 internal sealed class ProviderResolutionService : IProviderResolutionService
 {
-    private readonly AppOptions _options;
+    private readonly ProvidersOptions _options;
     private readonly IProviderConfigurationService _providerConfigurationService;
 
-    public ProviderResolutionService(IOptions<AppOptions> options, IProviderConfigurationService providerConfigurationService)
+    public ProviderResolutionService(IOptions<ProvidersOptions> options, IProviderConfigurationService providerConfigurationService)
     {
         _options = options.Value;
         _providerConfigurationService = providerConfigurationService;
@@ -44,9 +44,10 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
 
     private ResolvedProviderContext? TryResolveDefaultWithModel(string? model)
     {
-        if (HasConfiguredProvider(_options.Provider))
+        var activeProvider = _providerConfigurationService.GetActiveProvider();
+        if (HasConfiguredProvider(activeProvider))
         {
-            var provider = Clone(_options.CurrentDefaultProvider, _options.Provider);
+            var provider = Clone(_options.CurrentDefaultProvider, activeProvider);
             ApplyModelOverride(provider, model);
             return new ResolvedProviderContext(_options.CurrentDefaultProvider, provider.Type ?? "openai", provider.Model ?? string.Empty, provider, ChatRequestOverrides.Empty);
         }

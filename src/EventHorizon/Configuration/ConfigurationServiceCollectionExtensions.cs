@@ -11,9 +11,23 @@ public static class ConfigurationServiceCollectionExtensions
         services.AddSingleton(pathEnvironment);
         services.AddSingleton<IUserConfigurationFileService, UserConfigurationFileService>();
         services.AddSingleton<IUserProvidersFileService, UserProvidersFileService>();
+        services.AddSingleton<IUserMcpFileService, UserMcpFileService>();
+        services.AddSingleton<IUserSkillsFileService, UserSkillsFileService>();
+
+        services.AddSingleton<IOptionsNormalizer, OptionsNormalizer>();
+
         services.AddOptions<AppOptions>().BindConfiguration(string.Empty);
-        services.AddSingleton<IAppOptionsInitializer, AppOptionsInitializer>();
         services.AddSingleton<IPostConfigureOptions<AppOptions>, AppOptionsPostConfigure>();
+
+        services.AddOptions<ProvidersOptions>().BindConfiguration(string.Empty);
+        services.AddSingleton<IPostConfigureOptions<ProvidersOptions>, ProvidersOptionsPostConfigure>();
+
+        services.AddOptions<McpOptions>().BindConfiguration(string.Empty);
+        services.AddSingleton<IPostConfigureOptions<McpOptions>, McpOptionsPostConfigure>();
+
+        services.AddOptions<SkillsOptions>().BindConfiguration(string.Empty);
+        services.AddSingleton<IPostConfigureOptions<SkillsOptions>, SkillsOptionsPostConfigure>();
+
         services.AddSingleton<IAppConfigurationService, AppConfigurationService>();
         services.AddSingleton<IProviderTestingService, ProviderTestingService>();
         services.AddSingleton<IMcpService, McpService>();

@@ -7,7 +7,8 @@ namespace EventHorizon.Pricing;
 public sealed class SessionUsageTracker : ISessionUsageTracker
 {
     private readonly IModelPriceCatalogService _priceCatalogService;
-    private readonly IEventHorizonRuntime _runtime;
+    private readonly IEventHorizonRuntime? _runtime;
+    private string? _modelName;
 
     public SessionUsageTracker(
         IModelPriceCatalogService priceCatalogService,
@@ -15,6 +16,14 @@ public sealed class SessionUsageTracker : ISessionUsageTracker
     {
         _priceCatalogService = priceCatalogService;
         _runtime = runtime;
+    }
+
+    public SessionUsageTracker(
+        IModelPriceCatalogService priceCatalogService,
+        string modelName)
+    {
+        _priceCatalogService = priceCatalogService;
+        _modelName = modelName;
     }
 
     private ModelPriceCatalog? GetCatalog()
@@ -30,6 +39,12 @@ public sealed class SessionUsageTracker : ISessionUsageTracker
     public UsageCost TotalCost { get; private set; }
 
     public UsageCost LastTurnCost { get; private set; }
+
+    public void InitializeModelName()
+    {
+        if (_runtime is not null)
+            _modelName = _runtime.ModelName;
+    }
 
     public void StartTurn()
     {
@@ -63,11 +78,10 @@ public sealed class SessionUsageTracker : ISessionUsageTracker
         }
 
         var catalog = GetCatalog();
-        if (catalog != null)
+        if (catalog != null && _modelName != null)
         {
-            LastTurnCost = catalog.EstimateCost(_runtime.ModelName, LastTurnUsage);
-            TotalCost = catalog.EstimateCost(_runtime.ModelName, TotalUsage);
+            LastTurnCost = catalog.EstimateCost(_modelName, LastTurnUsage);
+            TotalCost = catalog.EstimateCost(_modelName, TotalUsage);
         }
     }
 }
-

@@ -10,7 +10,7 @@ public sealed class SaveAppConfigurationRequestDTO
 
     public List<McpServerOptions> McpServers { get; set; } = [];
 
-    public SkillCatalogOptions Skills { get; set; } = new();
+    public SkillsOptions Skills { get; set; } = new();
 }
 
 public sealed class NamedProviderConfigurationDTO

@@ -1,21 +1,37 @@
 using System.Runtime.CompilerServices;
+using EventHorizon.Configuration;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Execution;
 
 public sealed class QueryEngine
 {
     private readonly IEventHorizonRuntime _runtime;
+    private readonly IProviderAgentFactory _providerAgentFactory;
+    private readonly ISkillProviderFactory _skillProviderFactory;
+    private readonly IOptionsMonitor<AppOptions> _appOptionsMonitor;
+    private readonly IServiceProvider _services;
     private readonly ISessionUsageTracker _usageTracker;
     private readonly List<ConversationEntry> _history = [];
     private AgentSession? _session;
 
-    public QueryEngine(IEventHorizonRuntime runtime, ISessionUsageTracker usageTracker)
+    public QueryEngine(
+        IEventHorizonRuntime runtime,
+        IProviderAgentFactory providerAgentFactory,
+        ISkillProviderFactory skillProviderFactory,
+        IOptionsMonitor<AppOptions> appOptionsMonitor,
+        IServiceProvider services,
+        ISessionUsageTracker usageTracker)
     {
         _runtime = runtime;
+        _providerAgentFactory = providerAgentFactory;
+        _skillProviderFactory = skillProviderFactory;
+        _appOptionsMonitor = appOptionsMonitor;
+        _services = services;
         _usageTracker = usageTracker;
     }
 
@@ -30,12 +46,13 @@ public sealed class QueryEngine
 
     public async IAsyncEnumerable<QueryEvent> SubmitAsync(string prompt, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        _session ??= await _runtime.Agent.CreateSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var agent = await BuildAgentAsync(cancellationToken).ConfigureAwait(false);
+        _session ??= await agent.CreateSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         _history.Add(new ConversationEntry(ChatRole.User, prompt));
         yield return new QueryEvent(QueryEventKind.UserMessage, prompt);
 
         var completedAssistantText = string.Empty;
-        QueryLoop turnLoop = new(_runtime.Agent, _usageTracker);
+        QueryLoop turnLoop = new(agent, _usageTracker);
         await foreach (var queryEvent in turnLoop.RunAsync(prompt, _session, cancellationToken).ConfigureAwait(false))
         {
             if (queryEvent.Kind == QueryEventKind.Completed)
@@ -53,8 +70,16 @@ public sealed class QueryEngine
     {
         _history.Clear();
         _usageTracker.Reset();
-        _session = await _runtime.Agent.CreateSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var agent = await BuildAgentAsync(cancellationToken).ConfigureAwait(false);
+        _session = await agent.CreateSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<AIAgent> BuildAgentAsync(CancellationToken cancellationToken)
+    {
+        var appOptions = _appOptionsMonitor.CurrentValue;
+        var instructions = await _runtime.GetInstructionsAsync(cancellationToken).ConfigureAwait(false);
+        var tools = await _runtime.GetToolsAsync(cancellationToken).ConfigureAwait(false);
+        var skillsProvider = _skillProviderFactory.Create(appOptions, _services);
+        return _providerAgentFactory.CreateAgent(appOptions, instructions, tools, skillsProvider, _services);
     }
 }
-
-

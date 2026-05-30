@@ -12,5 +12,5 @@ public sealed class AppConfigurationResponseDTO
 
     public IReadOnlyList<McpServerOptions> McpServers { get; set; } = Array.Empty<McpServerOptions>();
 
-    public SkillCatalogOptions Skills { get; set; } = new();
+    public SkillsOptions Skills { get; set; } = new();
 }

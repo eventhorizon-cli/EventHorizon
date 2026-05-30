@@ -1,52 +1,20 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using EventHorizon.Configuration;
-using EventHorizon.EntryPoints;
 using EventHorizon.Providers;
-using EventHorizon.Workspace;
-using Microsoft.Agents.AI.Hosting.AGUI.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 
 namespace EventHorizon.AGUI;
 
 public static class AGUIEndpoints
 {
-    public static void Map(WebApplication app, AGUIOptions options, IEventHorizonRuntime runtime)
+    public static void Map(WebApplication app, AGUIOptions options)
     {
         var apiBasePath = NormalizePath(options.ApiBasePath);
         var rawEndpointPath = NormalizePath(options.RawEndpointPath);
-        try
-        {
-            app.MapAGUI(rawEndpointPath, runtime.Agent);
-        }
-        catch (InvalidOperationException)
-        {
-            app.Map(rawEndpointPath, static async context =>
-            {
-                context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-                context.Response.ContentType = "application/json; charset=utf-8";
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    error = "Agent runtime is not ready. Configure a valid provider and try again.",
-                }, context.RequestAborted).ConfigureAwait(false);
-            });
-        }
 
         MapStaticFiles(app, apiBasePath, rawEndpointPath);
-
-        app.Lifetime.ApplicationStarted.Register(() =>
-        {
-            _ = Task.Run(async () =>
-            {
-                using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                var initializer = app.Services.GetRequiredService<IEventHorizonRuntimeInitializer>();
-                await initializer.InitializeAsync(cancellationTokenSource.Token).ConfigureAwait(false);
-            });
-        });
     }
 
     private static void MapStaticFiles(WebApplication app, string apiBasePath, string rawEndpointPath)

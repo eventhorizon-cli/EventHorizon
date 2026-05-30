@@ -10,21 +10,24 @@ namespace EventHorizon.Configuration;
 internal sealed class SkillService : ISkillService
 {
     private static readonly Regex DangerousScriptPattern = new("(rm\\s+-rf|curl\\s+.+\\|\\s*sh|powershell\\s+-enc)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private readonly AppOptions _options;
-    private readonly IUserConfigurationFileService _userConfigurationFileService;
+    private readonly SkillsOptions _options;
+    private readonly AppOptions _appOptions;
+    private readonly IUserSkillsFileService _userSkillsFileService;
     private readonly IConversationSessionStore _conversationSessionStore;
     private readonly IConversationAgentManager _conversationAgentManager;
     private readonly WorkspaceContext _workspaceContext;
 
     public SkillService(
-        IOptions<AppOptions> options,
-        IUserConfigurationFileService userConfigurationFileService,
+        IOptions<SkillsOptions> options,
+        IOptions<AppOptions> appOptions,
+        IUserSkillsFileService userSkillsFileService,
         IConversationSessionStore conversationSessionStore,
         IConversationAgentManager conversationAgentManager,
         WorkspaceContext workspaceContext)
     {
         _options = options.Value;
-        _userConfigurationFileService = userConfigurationFileService;
+        _appOptions = appOptions.Value;
+        _userSkillsFileService = userSkillsFileService;
         _conversationSessionStore = conversationSessionStore;
         _conversationAgentManager = conversationAgentManager;
         _workspaceContext = workspaceContext;
@@ -84,10 +87,10 @@ internal sealed class SkillService : ISkillService
             };
         }
 
-        _options.Skills.StoragePath ??= ResolveGlobalSkillsRoot();
-        Directory.CreateDirectory(_options.Skills.StoragePath);
-        var importedSkill = ImportToCatalog(sourcePath, _options.Skills.StoragePath, _options.Skills);
-        _userConfigurationFileService.Save(_options);
+        _options.StoragePath ??= ResolveGlobalSkillsRoot();
+        Directory.CreateDirectory(_options.StoragePath);
+        var importedSkill = ImportToCatalog(sourcePath, _options.StoragePath, _options);
+        _userSkillsFileService.Save(_options);
 
         return new SkillImportResponseDTO
         {
@@ -111,7 +114,7 @@ internal sealed class SkillService : ISkillService
             });
         }
 
-        var skill = _options.Skills.Imported.FirstOrDefault(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
+        var skill = _options.Imported.FirstOrDefault(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
         if (skill is null)
         {
             return Task.FromResult(new SkillRemoveResponseDTO
@@ -123,8 +126,8 @@ internal sealed class SkillService : ISkillService
         }
 
         DeleteSkillDirectory(skill.Path);
-        _options.Skills.Imported.RemoveAll(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
-        _userConfigurationFileService.Save(_options);
+        _options.Imported.RemoveAll(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
+        _userSkillsFileService.Save(_options);
 
         return Task.FromResult(new SkillRemoveResponseDTO
         {
@@ -183,7 +186,7 @@ internal sealed class SkillService : ISkillService
         };
     }
 
-    private static ImportedSkillOptions ImportToCatalog(string sourcePath, string targetRoot, SkillCatalogOptions catalog)
+    private static ImportedSkillOptions ImportToCatalog(string sourcePath, string targetRoot, SkillsOptions catalog)
     {
         var skillName = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         var targetPath = Path.Combine(targetRoot, skillName);
@@ -207,15 +210,15 @@ internal sealed class SkillService : ISkillService
     }
 
     private string ResolveGlobalSkillsRoot()
-        => _options.Skills.StoragePath
+        => _options.StoragePath
            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".eventhorizon", "skills");
 
     private string ResolveSessionSkillsRoot(string sessionId)
         => Path.Combine(ResolveConversationStorageRoot(), sessionId, "skills");
 
     private string ResolveConversationStorageRoot()
-        => !string.IsNullOrWhiteSpace(_options.Conversation.StoragePath)
-            ? Path.GetFullPath(_options.Conversation.StoragePath)
+        => !string.IsNullOrWhiteSpace(_appOptions.Conversation.StoragePath)
+            ? Path.GetFullPath(_appOptions.Conversation.StoragePath)
             : Path.Combine(_workspaceContext.WorkspaceRoot, ".eventhorizon", "sessions");
 
     private static void DeleteSkillDirectory(string path)

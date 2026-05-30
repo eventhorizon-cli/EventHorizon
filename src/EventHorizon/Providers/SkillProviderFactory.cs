@@ -4,11 +4,19 @@ using EventHorizon.Workspace;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Providers;
 
 internal sealed class SkillProviderFactory : ISkillProviderFactory
 {
+    private readonly IOptionsMonitor<SkillsOptions> _skillsOptionsMonitor;
+
+    public SkillProviderFactory(IOptionsMonitor<SkillsOptions> skillsOptionsMonitor)
+    {
+        _skillsOptionsMonitor = skillsOptionsMonitor;
+    }
+
     public AgentSkillsProvider? Create(AppOptions options, IServiceProvider services, ConversationSessionDocument? sessionDocument = null)
     {
         if (!options.Agent.EnableSkills)
@@ -19,7 +27,7 @@ internal sealed class SkillProviderFactory : ISkillProviderFactory
         var builder = new AgentSkillsProviderBuilder()
             .UseSkill(services.GetRequiredService<WorkspaceSkill>());
 
-        var skillDirectories = GetSkillDirectories(options, sessionDocument)
+        var skillDirectories = GetSkillDirectories(sessionDocument)
             .Where(Directory.Exists)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -38,11 +46,13 @@ internal sealed class SkillProviderFactory : ISkillProviderFactory
         return builder.Build();
     }
 
-    private static IEnumerable<string> GetSkillDirectories(AppOptions options, ConversationSessionDocument? sessionDocument)
+    private IEnumerable<string> GetSkillDirectories(ConversationSessionDocument? sessionDocument)
     {
-        if (!string.IsNullOrWhiteSpace(options.Skills.StoragePath))
+        var skillsOptions = _skillsOptionsMonitor.CurrentValue;
+
+        if (!string.IsNullOrWhiteSpace(skillsOptions.StoragePath))
         {
-            yield return Path.GetFullPath(options.Skills.StoragePath);
+            yield return Path.GetFullPath(skillsOptions.StoragePath);
         }
 
         if (!string.IsNullOrWhiteSpace(sessionDocument?.SessionSkills.StoragePath))

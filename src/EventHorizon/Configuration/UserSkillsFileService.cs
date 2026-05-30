@@ -3,15 +3,18 @@ using System.Text.Json.Nodes;
 
 namespace EventHorizon.Configuration;
 
-public sealed class UserProvidersFileService : IUserProvidersFileService
+public sealed class UserSkillsFileService : IUserSkillsFileService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
     };
 
-    public UserProvidersFileService(IPathEnvironment pathEnvironment)
+    private readonly IPathEnvironment _pathEnvironment;
+
+    public UserSkillsFileService(IPathEnvironment pathEnvironment)
     {
+        _pathEnvironment = pathEnvironment;
         FilePath = GetDefaultFilePath(pathEnvironment);
     }
 
@@ -26,31 +29,39 @@ public sealed class UserProvidersFileService : IUserProvidersFileService
         }
     }
 
-    public void Save(ProvidersOptions options)
+    public void Save(SkillsOptions options)
     {
         EnsureExists();
 
         var persisted = new JsonObject
         {
-            [nameof(ProvidersOptions.CurrentDefaultProvider)] = options.CurrentDefaultProvider,
-            [nameof(ProvidersOptions.Providers)] = JsonSerializer.SerializeToNode(
-                options.Providers.ToDictionary(
-                    static pair => pair.Key,
-                    static pair => CloneProvider(pair.Value),
-                    StringComparer.OrdinalIgnoreCase),
-                EventHorizonJsonContext.Default.DictionaryStringProviderOptions),
+            [nameof(SkillsOptions.StoragePath)] = options.StoragePath ?? GetDefaultStoragePath(),
+            [nameof(SkillsOptions.Imported)] = JsonSerializer.SerializeToNode(
+                options.Imported
+                    .Select(static item => new ImportedSkillOptions
+                    {
+                        Name = item.Name,
+                        Path = item.Path,
+                        Description = item.Description,
+                        ImportedAt = item.ImportedAt,
+                    })
+                    .ToList(),
+                EventHorizonJsonContext.Default.ListImportedSkillOptions),
         };
 
         SafeWrite(persisted.ToJsonString(JsonOptions) + Environment.NewLine);
     }
 
     public static string GetDefaultFilePath(IPathEnvironment pathEnvironment)
-        => Path.Combine(pathEnvironment.HomeDirectory, ".eventhorizon", "providers.json");
+        => Path.Combine(pathEnvironment.HomeDirectory, ".eventhorizon", "skills.json");
+
+    private string GetDefaultStoragePath()
+        => Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "skills");
 
     private static string CreateInitialContent()
         => new JsonObject
         {
-            [nameof(ProvidersOptions.Providers)] = new JsonObject(),
+            [nameof(SkillsOptions.Imported)] = new JsonArray(),
         }.ToJsonString(JsonOptions) + Environment.NewLine;
 
     private void SafeWrite(string content)
@@ -81,17 +92,4 @@ public sealed class UserProvidersFileService : IUserProvidersFileService
             throw;
         }
     }
-
-    private static ProviderOptions CloneProvider(ProviderOptions provider)
-        => new()
-        {
-            Name = provider.Name,
-            Type = provider.Type,
-            Model = provider.Model,
-            Models = [.. provider.Models],
-            ApiKey = provider.ApiKey,
-            Endpoint = provider.Endpoint,
-            Deployment = provider.Deployment,
-            UseDefaultAzureCredential = provider.UseDefaultAzureCredential,
-        };
 }

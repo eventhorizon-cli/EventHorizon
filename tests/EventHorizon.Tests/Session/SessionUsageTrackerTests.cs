@@ -60,19 +60,18 @@ public sealed class SessionUsageTrackerTests
 
     private sealed class FakeRuntimeForTracker : IEventHorizonRuntime
     {
-        public AIAgent Agent => null!;
         public string ModelName => "demo-model";
-        public string Instructions => "instructions";
-        public IServiceProvider Services => null!;
-        public SessionContextSnapshot ContextSnapshot => new(
-            CurrentDate: "Today's date is 2026-05-21.",
-            WorkspaceRoot: "/tmp/workspace",
-            WorkspaceSummary: "summary",
-            GitStatus: "clean",
-            ProjectInstructions: "instructions");
-        public IReadOnlyList<ToolDescriptor> ToolCatalog => [];
-        public IReadOnlyList<AITool> Tools => [];
-        public AgentSkillsProvider? SkillsProvider => null;
+        public ValueTask<string> GetInstructionsAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult("instructions");
+        public ValueTask<SessionContextSnapshot> GetContextSnapshotAsync(CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new SessionContextSnapshot(
+                CurrentDate: "Today's date is 2026-05-21.",
+                WorkspaceRoot: "/tmp/workspace",
+                WorkspaceSummary: "summary",
+                GitStatus: "clean",
+                ProjectInstructions: "instructions"));
+        public ValueTask<IReadOnlyList<ToolDescriptor>> GetToolCatalogAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<IReadOnlyList<ToolDescriptor>>([]);
+        public ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<IReadOnlyList<AITool>>([]);
+        public Task InvalidateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

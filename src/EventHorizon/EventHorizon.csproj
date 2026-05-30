@@ -43,4 +43,8 @@
     <EmbeddedResource Include="wwwroot\**\*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="EntryPoints\" />
+  </ItemGroup>
+
 </Project>

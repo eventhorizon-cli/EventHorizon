@@ -3,14 +3,14 @@ using System.Text.Json.Nodes;
 
 namespace EventHorizon.Configuration;
 
-public sealed class UserProvidersFileService : IUserProvidersFileService
+public sealed class UserMcpFileService : IUserMcpFileService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
     };
 
-    public UserProvidersFileService(IPathEnvironment pathEnvironment)
+    public UserMcpFileService(IPathEnvironment pathEnvironment)
     {
         FilePath = GetDefaultFilePath(pathEnvironment);
     }
@@ -26,31 +26,27 @@ public sealed class UserProvidersFileService : IUserProvidersFileService
         }
     }
 
-    public void Save(ProvidersOptions options)
+    public void Save(McpOptions options)
     {
         EnsureExists();
 
         var persisted = new JsonObject
         {
-            [nameof(ProvidersOptions.CurrentDefaultProvider)] = options.CurrentDefaultProvider,
-            [nameof(ProvidersOptions.Providers)] = JsonSerializer.SerializeToNode(
-                options.Providers.ToDictionary(
-                    static pair => pair.Key,
-                    static pair => CloneProvider(pair.Value),
-                    StringComparer.OrdinalIgnoreCase),
-                EventHorizonJsonContext.Default.DictionaryStringProviderOptions),
+            [nameof(McpOptions.Servers)] = JsonSerializer.SerializeToNode(
+                options.Servers.Select(CloneMcpServer).ToList(),
+                EventHorizonJsonContext.Default.ListMcpServerOptions),
         };
 
         SafeWrite(persisted.ToJsonString(JsonOptions) + Environment.NewLine);
     }
 
     public static string GetDefaultFilePath(IPathEnvironment pathEnvironment)
-        => Path.Combine(pathEnvironment.HomeDirectory, ".eventhorizon", "providers.json");
+        => Path.Combine(pathEnvironment.HomeDirectory, ".eventhorizon", "mcp.json");
 
     private static string CreateInitialContent()
         => new JsonObject
         {
-            [nameof(ProvidersOptions.Providers)] = new JsonObject(),
+            [nameof(McpOptions.Servers)] = new JsonArray(),
         }.ToJsonString(JsonOptions) + Environment.NewLine;
 
     private void SafeWrite(string content)
@@ -82,16 +78,14 @@ public sealed class UserProvidersFileService : IUserProvidersFileService
         }
     }
 
-    private static ProviderOptions CloneProvider(ProviderOptions provider)
+    private static McpServerOptions CloneMcpServer(McpServerOptions server)
         => new()
         {
-            Name = provider.Name,
-            Type = provider.Type,
-            Model = provider.Model,
-            Models = [.. provider.Models],
-            ApiKey = provider.ApiKey,
-            Endpoint = provider.Endpoint,
-            Deployment = provider.Deployment,
-            UseDefaultAzureCredential = provider.UseDefaultAzureCredential,
+            Name = server.Name,
+            Command = server.Command,
+            Arguments = [.. server.Arguments],
+            Url = server.Url,
+            EnvironmentVariables = new Dictionary<string, string>(server.EnvironmentVariables, StringComparer.OrdinalIgnoreCase),
+            Enabled = server.Enabled,
         };
 }

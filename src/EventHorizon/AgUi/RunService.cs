@@ -1,5 +1,6 @@
 using System.Text.Json;
 using EventHorizon.AGUI.DTOs;
+using EventHorizon.Configuration;
 using EventHorizon.Diff;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
@@ -7,6 +8,7 @@ using EventHorizon.Workspace;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace EventHorizon.AGUI;
 
@@ -24,7 +26,10 @@ public sealed class RunService
     private readonly AGUICodeAgentEventMapper _codeAgentEventMapper;
     private readonly IProviderResolutionService _providerResolutionService;
     private readonly IProviderAgentFactory _providerAgentFactory;
+    private readonly ISkillProviderFactory _skillProviderFactory;
     private readonly IConversationAgentManager _conversationAgentManager;
+    private readonly IOptionsMonitor<AppOptions> _appOptionsMonitor;
+    private readonly IServiceProvider _services;
     private readonly ILogger<RunService> _logger;
 
     public RunService(
@@ -39,7 +44,10 @@ public sealed class RunService
         AGUICodeAgentEventMapper codeAgentEventMapper,
         IProviderResolutionService providerResolutionService,
         IProviderAgentFactory providerAgentFactory,
+        ISkillProviderFactory skillProviderFactory,
         IConversationAgentManager conversationAgentManager,
+        IOptionsMonitor<AppOptions> appOptionsMonitor,
+        IServiceProvider services,
         ILogger<RunService> logger)
     {
         _runStore = runStore;
@@ -53,7 +61,10 @@ public sealed class RunService
         _codeAgentEventMapper = codeAgentEventMapper;
         _providerResolutionService = providerResolutionService;
         _providerAgentFactory = providerAgentFactory;
+        _skillProviderFactory = skillProviderFactory;
         _conversationAgentManager = conversationAgentManager;
+        _appOptionsMonitor = appOptionsMonitor;
+        _services = services;
         _logger = logger;
     }
 
@@ -64,7 +75,6 @@ public sealed class RunService
             throw new ArgumentException("Task is required.", nameof(request));
         }
 
-        // 如果没有提供 workingDirectory 但有 sessionId，从 session 中获取工作目录
         var workingDirectory = request.WorkingDirectory;
         if (string.IsNullOrWhiteSpace(workingDirectory) && !string.IsNullOrWhiteSpace(request.SessionId))
         {
@@ -155,7 +165,6 @@ public sealed class RunService
     {
         var run = entry.Run;
         var context = new AGUIRunExecutionContext();
-        var usageTracker = default(SessionUsageTracker);
 
         try
         {
@@ -189,6 +198,11 @@ public sealed class RunService
             }
             else
             {
+                var appOptions = _appOptionsMonitor.CurrentValue;
+                var runtimeInstructions = await _runtime.GetInstructionsAsync(entry.CancellationTokenSource.Token).ConfigureAwait(false);
+                var runtimeTools = await _runtime.GetToolsAsync(entry.CancellationTokenSource.Token).ConfigureAwait(false);
+                var runtimeSkillsProvider = _skillProviderFactory.Create(appOptions, _services);
+
                 var runtimeOptions = new Configuration.AppOptions
                 {
                     AGUI = new Configuration.AGUIOptions
@@ -199,40 +213,27 @@ public sealed class RunService
                     },
                     Agent = new Configuration.AgentOptions
                     {
-                        Name = _runtime.Agent.Name ?? string.Empty,
-                        Description = _runtime.Agent.Description ?? string.Empty,
+                        Name = appOptions.Agent.Name,
+                        Description = appOptions.Agent.Description,
                         EnableSkills = true,
                         EnableShell = true,
                         EnableMcpTools = true,
                         AdditionalSystemPrompts = [],
                     },
                     Provider = resolvedProvider.Provider,
-                    CurrentDefaultProvider = resolvedProvider.ProviderName,
-                    Providers = new Dictionary<string, Configuration.ProviderOptions>(StringComparer.OrdinalIgnoreCase),
                     Pricing = new Configuration.PricingOptions(),
                     Conversation = new Configuration.ConversationOptions(),
-                    McpServers = [],
                 };
 
                 agent = _providerAgentFactory.CreateAgent(
                     runtimeOptions,
-                    _runtime.Instructions,
-                    _runtime.Tools,
-                    _runtime.SkillsProvider,
-                    _runtime.Services);
+                    runtimeInstructions,
+                    runtimeTools,
+                    runtimeSkillsProvider,
+                    _services);
             }
 
-            var usageRuntime = new EventHorizonRuntime(
-                agent,
-                _runtime.Services,
-                resolvedProvider.Model,
-                _runtime.Instructions,
-                _runtime.ContextSnapshot,
-                _runtime.ToolCatalog,
-                _runtime.Tools,
-                _runtime.SkillsProvider,
-                []);
-            usageTracker = new SessionUsageTracker(_priceCatalogService, usageRuntime);
+            var usageTracker = new SessionUsageTracker(_priceCatalogService, resolvedProvider.Model);
 
             Publish(entry, _eventMapper.CreateRunStarted(run, resolvedProvider.Model, run.WorkingDirectory, options));
             Publish(entry, _eventMapper.CreateUserMessage(run));

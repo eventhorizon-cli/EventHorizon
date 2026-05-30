@@ -1,3 +1,4 @@
+using EventHorizon.Configuration;
 
 namespace EventHorizon.Tests.EntryPoints;
 
@@ -5,36 +6,25 @@ namespace EventHorizon.Tests.EntryPoints;
 public class ProgramEntryTests
 {
     [Fact]
-    public void EnsureNoArguments_Allows_Empty_Arguments()
+    public void BuildHost_Accepts_CommandLine_Arguments()
     {
-        Program.EnsureNoArguments([]);
+        using var host = global::EventHorizon.Program.BuildHost(
+            ["--urls", "http://127.0.0.1:0"],
+            new TestPathEnvironment(Path.GetTempPath(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+
+        Assert.NotNull(host.Services);
     }
 
-    [Fact]
-    public void EnsureNoArguments_Rejects_Any_Arguments()
+    private sealed class TestPathEnvironment : IPathEnvironment
     {
-        var error = Assert.Throws<InvalidOperationException>(() => Program.EnsureNoArguments(["--config", "foo.json"]));
-
-        Assert.Contains("Unsupported arguments", error.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task RunAsync_Help_Returns_Zero_And_Writes_Help_Text()
-    {
-        StringWriter writer = new();
-        var originalOut = Console.Out;
-        Console.SetOut(writer);
-
-        try
+        public TestPathEnvironment(string currentDirectory, string homeDirectory)
         {
-            var exitCode = await Program.RunAsync(["--help"]);
+            CurrentDirectory = currentDirectory;
+            HomeDirectory = homeDirectory;
+        }
 
-            Assert.Equal(0, exitCode);
-            Assert.Contains("Usage:", writer.ToString(), StringComparison.Ordinal);
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-        }
+        public string CurrentDirectory { get; }
+
+        public string HomeDirectory { get; }
     }
 }

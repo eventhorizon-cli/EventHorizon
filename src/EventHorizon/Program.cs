@@ -1,10 +1,8 @@
 using EventHorizon.Configuration;
-using EventHorizon.EntryPoints;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 
@@ -12,77 +10,11 @@ namespace EventHorizon;
 
 public static class Program
 {
-    private sealed class StartupLogger { }
-
-    public static Task<int> Main(string[] args)
-        => RunAsync(args);
-
-    internal static async Task<int> RunAsync(string[] args)
+    public static void Main(string[] args)
     {
-        using var cancellationTokenSource = new CancellationTokenSource();
-        var cancellationToken = cancellationTokenSource.Token;
-        ConsoleCancelEventHandler cancelHandler = (_, e) =>
-        {
-            e.Cancel = true;
-            cancellationTokenSource.Cancel();
-        };
-
-        Console.CancelKeyPress += cancelHandler;
-        IHost? host = null;
-
-        try
-        {
-            if (args.Any(static arg => string.Equals(arg, "--help", StringComparison.Ordinal) ||
-                                       string.Equals(arg, "-h", StringComparison.Ordinal)))
-            {
-                Console.WriteLine(GetHelpText());
-                return 0;
-            }
-
-            EnsureNoArguments(args);
-            host = BuildHost(args, new PathEnvironment());
-            await host.StartAsync(cancellationToken).ConfigureAwait(false);
-            await host.Services.GetRequiredService<IEventHorizonApplication>().RunAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            return 0;
-        }
-        catch (OperationCanceledException)
-        {
-            Console.WriteLine();
-            Console.WriteLine("Operation canceled.");
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            var logger = host?.Services.GetService<ILogger<StartupLogger>>();
-            logger?.LogError(ex, "Startup failed. Args: {Args}", string.Join(' ', args));
-
-            await Console.Error.WriteLineAsync("Startup failed. See logs for details.");
-            await Console.Error.WriteLineAsync(ex.Message);
-            return 1;
-        }
-        finally
-        {
-            if (host is not null)
-            {
-                await StopHostAsync(host).ConfigureAwait(false);
-            }
-
-            Console.CancelKeyPress -= cancelHandler;
-        }
+        using var host = BuildHost(args, new PathEnvironment());
+        host.Run();
     }
-
-    internal static void EnsureNoArguments(string[] args)
-    {
-        if (args.Length > 0)
-        {
-            throw new InvalidOperationException($"Unsupported arguments: {string.Join(' ', args)}.");
-        }
-    }
-
-    private static string GetHelpText()
-        => "Usage: EventHorizon\nStarts the AGUI server.";
 
     internal static IHost BuildHost(string[] args, IPathEnvironment pathEnvironment)
     {
@@ -98,29 +30,23 @@ public static class Program
         return app;
     }
 
-    private static async Task StopHostAsync(IHost host)
-    {
-        try
-        {
-            await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-        finally
-        {
-            host.Dispose();
-        }
-    }
-
     private static void ConfigureConfiguration(ConfigurationManager configuration, IPathEnvironment pathEnvironment)
     {
         var userConfigFilePath = UserConfigurationFileService.GetDefaultFilePath(pathEnvironment);
         var userProvidersFilePath = UserProvidersFileService.GetDefaultFilePath(pathEnvironment);
+        var userMcpFilePath = UserMcpFileService.GetDefaultFilePath(pathEnvironment);
+        var userSkillsFilePath = UserSkillsFileService.GetDefaultFilePath(pathEnvironment);
         EnsureUserConfigExists(userConfigFilePath);
         EnsureUserProvidersConfigExists(userProvidersFilePath);
+        EnsureUserMcpConfigExists(userMcpFilePath);
+        EnsureUserSkillsConfigExists(userSkillsFilePath);
 
         configuration.SetBasePath(pathEnvironment.CurrentDirectory);
-        configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: false, reloadOnChange: false);
-        configuration.AddJsonFile(userConfigFilePath, optional: false, reloadOnChange: false);
-        configuration.AddJsonFile(userProvidersFilePath, optional: false, reloadOnChange: false);
+        configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: false, reloadOnChange: true);
+        configuration.AddJsonFile(userConfigFilePath, optional: false, reloadOnChange: true);
+        configuration.AddJsonFile(userProvidersFilePath, optional: false, reloadOnChange: true);
+        configuration.AddJsonFile(userMcpFilePath, optional: false, reloadOnChange: true);
+        configuration.AddJsonFile(userSkillsFilePath, optional: false, reloadOnChange: true);
 
         configuration[nameof(PathEnvironment) + ":CurrentDirectory"] = pathEnvironment.CurrentDirectory;
         configuration[nameof(PathEnvironment) + ":HomeDirectory"] = pathEnvironment.HomeDirectory;
@@ -188,10 +114,11 @@ public static class Program
         {
             var root = System.Text.Json.Nodes.JsonNode.Parse(initialContent)?.AsObject() ?? [];
 
-            root.Remove(nameof(AppOptions.CurrentDefaultProvider));
-            root.Remove(nameof(AppOptions.CurrentProvider));
-            root.Remove(nameof(AppOptions.Provider));
-            root[nameof(AppOptions.Providers)] = new System.Text.Json.Nodes.JsonObject();
+            root.Remove(nameof(ProvidersOptions.CurrentDefaultProvider));
+            root.Remove(nameof(ProvidersOptions.Providers));
+            root.Remove(nameof(McpOptions.Servers));
+            root.Remove(nameof(SkillsOptions.Imported));
+            root.Remove(nameof(SkillsOptions.StoragePath));
 
             return root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, }) +
                    Environment.NewLine;
@@ -206,6 +133,42 @@ public static class Program
     private static string CreateUserProvidersConfigTemplate()
         => new System.Text.Json.Nodes.JsonObject
         {
-            [nameof(AppOptions.Providers)] = new System.Text.Json.Nodes.JsonObject(),
+            [nameof(ProvidersOptions.Providers)] = new System.Text.Json.Nodes.JsonObject(),
+        }.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, }) + Environment.NewLine;
+
+    private static void EnsureUserMcpConfigExists(string userMcpFilePath)
+    {
+        var directory = Path.GetDirectoryName(userMcpFilePath)!;
+        Directory.CreateDirectory(directory);
+        if (File.Exists(userMcpFilePath))
+        {
+            return;
+        }
+
+        File.WriteAllText(userMcpFilePath, CreateUserMcpConfigTemplate());
+    }
+
+    private static void EnsureUserSkillsConfigExists(string userSkillsFilePath)
+    {
+        var directory = Path.GetDirectoryName(userSkillsFilePath)!;
+        Directory.CreateDirectory(directory);
+        if (File.Exists(userSkillsFilePath))
+        {
+            return;
+        }
+
+        File.WriteAllText(userSkillsFilePath, CreateUserSkillsConfigTemplate());
+    }
+
+    private static string CreateUserMcpConfigTemplate()
+        => new System.Text.Json.Nodes.JsonObject
+        {
+            [nameof(McpOptions.Servers)] = new System.Text.Json.Nodes.JsonArray(),
+        }.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, }) + Environment.NewLine;
+
+    private static string CreateUserSkillsConfigTemplate()
+        => new System.Text.Json.Nodes.JsonObject
+        {
+            [nameof(SkillsOptions.Imported)] = new System.Text.Json.Nodes.JsonArray(),
         }.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, }) + Environment.NewLine;
 }

@@ -1,6 +1,5 @@
 using EventHorizon.AGUI.DTOs;
 using EventHorizon.Configuration;
-using EventHorizon.EntryPoints;
 using EventHorizon.Providers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,30 +11,33 @@ public sealed class ConfigurationController : ControllerBase
 {
     private readonly IAppConfigurationService _appConfigurationService;
     private readonly IUserConfigurationFileService _userConfigurationFileService;
-    private readonly IEventHorizonRuntimeInitializer _runtimeInitializer;
+    private readonly IEventHorizonRuntime _runtime;
     private readonly IConversationAgentManager _conversationAgentManager;
 
     public ConfigurationController(
         IAppConfigurationService appConfigurationService,
         IUserConfigurationFileService userConfigurationFileService,
-        IEventHorizonRuntimeInitializer runtimeInitializer,
+        IEventHorizonRuntime runtime,
         IConversationAgentManager conversationAgentManager)
     {
         _appConfigurationService = appConfigurationService;
         _userConfigurationFileService = userConfigurationFileService;
-        _runtimeInitializer = runtimeInitializer;
+        _runtime = runtime;
         _conversationAgentManager = conversationAgentManager;
     }
 
     [HttpGet]
     public ActionResult<AppConfigurationResponseDTO> Get()
     {
-        var options = _appConfigurationService.Get();
+        var providers = _appConfigurationService.GetProvidersOptions();
+        var mcp = _appConfigurationService.GetMcpOptions();
+        var skills = _appConfigurationService.GetSkillsOptions();
+
         return Ok(new AppConfigurationResponseDTO
         {
             FilePath = _userConfigurationFileService.FilePath,
-            CurrentDefaultProvider = options.CurrentDefaultProvider,
-            Providers = options.Providers
+            CurrentDefaultProvider = providers.CurrentDefaultProvider,
+            Providers = providers.Providers
                 .OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(static pair => new ApiProviderViewModel
                 {
@@ -49,35 +51,44 @@ public sealed class ConfigurationController : ControllerBase
                     UseDefaultAzureCredential = pair.Value.UseDefaultAzureCredential,
                 })
                 .ToArray(),
-            McpServers = [.. options.McpServers],
-            Skills = options.Skills,
+            McpServers = [.. mcp.Servers],
+            Skills = skills,
         });
     }
 
     [HttpPut]
     public async Task<ActionResult<AppConfigurationResponseDTO>> SaveAsync(SaveAppConfigurationRequestDTO request, CancellationToken cancellationToken)
     {
-        var current = _appConfigurationService.Get();
-        var next = new AppOptions
+        var providers = new ProvidersOptions
         {
-            AGUI = current.AGUI,
-            Agent = current.Agent,
-            Provider = current.Provider,
             CurrentDefaultProvider = request.CurrentDefaultProvider,
             Providers = request.Providers.ToDictionary(static item => item.Name, static item => item.Provider, StringComparer.OrdinalIgnoreCase),
-            Pricing = current.Pricing,
-            Conversation = current.Conversation,
-            McpServers = [.. request.McpServers],
-            Skills = request.Skills,
         };
-        var saved = await _appConfigurationService.SaveAsync(next, cancellationToken).ConfigureAwait(false);
+
+        var mcp = new McpOptions
+        {
+            Servers = [.. request.McpServers],
+        };
+
+        var skills = new SkillsOptions
+        {
+            StoragePath = request.Skills.StoragePath,
+            Imported = [.. request.Skills.Imported],
+        };
+
+        await _appConfigurationService.SaveAsync(providers, mcp, skills, cancellationToken).ConfigureAwait(false);
         await _conversationAgentManager.InvalidateAllAsync(cancellationToken).ConfigureAwait(false);
-        await _runtimeInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await _runtime.InvalidateAsync(cancellationToken).ConfigureAwait(false);
+
+        var savedProviders = _appConfigurationService.GetProvidersOptions();
+        var savedMcp = _appConfigurationService.GetMcpOptions();
+        var savedSkills = _appConfigurationService.GetSkillsOptions();
+
         return Ok(new AppConfigurationResponseDTO
         {
             FilePath = _userConfigurationFileService.FilePath,
-            CurrentDefaultProvider = saved.CurrentDefaultProvider,
-            Providers = saved.Providers.Select(static pair => new ApiProviderViewModel
+            CurrentDefaultProvider = savedProviders.CurrentDefaultProvider,
+            Providers = savedProviders.Providers.Select(static pair => new ApiProviderViewModel
             {
                 Name = pair.Key,
                 Type = pair.Value.Type ?? "openai",
@@ -88,8 +99,8 @@ public sealed class ConfigurationController : ControllerBase
                 Deployment = pair.Value.Deployment,
                 UseDefaultAzureCredential = pair.Value.UseDefaultAzureCredential,
             }).ToArray(),
-            McpServers = [.. saved.McpServers],
-            Skills = saved.Skills,
+            McpServers = [.. savedMcp.Servers],
+            Skills = savedSkills,
         });
     }
 }

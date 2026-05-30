@@ -9,30 +9,33 @@ namespace EventHorizon.Providers;
 
 internal sealed class ConversationAgentManager : IConversationAgentManager
 {
-    private readonly AppOptions _options;
+    private readonly IOptionsMonitor<AppOptions> _appOptionsMonitor;
     private readonly IProviderResolutionService _providerResolutionService;
     private readonly IProviderAgentFactory _providerAgentFactory;
     private readonly IEventHorizonRuntime _runtime;
     private readonly ISkillProviderFactory _skillProviderFactory;
     private readonly IConversationSessionSerializer _sessionSerializer;
+    private readonly IServiceProvider _services;
     private readonly ILogger<ConversationAgentManager> _logger;
     private readonly ConcurrentDictionary<string, CachedConversationAgent> _cache = new(StringComparer.Ordinal);
 
     public ConversationAgentManager(
-        IOptions<AppOptions> options,
+        IOptionsMonitor<AppOptions> appOptionsMonitor,
         IProviderResolutionService providerResolutionService,
         IProviderAgentFactory providerAgentFactory,
         IEventHorizonRuntime runtime,
         ISkillProviderFactory skillProviderFactory,
         IConversationSessionSerializer sessionSerializer,
+        IServiceProvider services,
         ILogger<ConversationAgentManager> logger)
     {
-        _options = options.Value;
+        _appOptionsMonitor = appOptionsMonitor;
         _providerResolutionService = providerResolutionService;
         _providerAgentFactory = providerAgentFactory;
         _runtime = runtime;
         _skillProviderFactory = skillProviderFactory;
         _sessionSerializer = sessionSerializer;
+        _services = services;
         _logger = logger;
     }
 
@@ -59,13 +62,17 @@ internal sealed class ConversationAgentManager : IConversationAgentManager
         var resolved = _providerResolutionService.TryResolveForSession(document, overrides)
             ?? throw new InvalidOperationException("No provider is configured for the current session.");
         var runtimeOptions = CloneRuntimeOptions(resolved);
-        var skillsProvider = _skillProviderFactory.Create(runtimeOptions, _runtime.Services, document);
+        var skillsProvider = _skillProviderFactory.Create(runtimeOptions, _services, document);
+        var instructions = await _runtime.GetInstructionsAsync(cancellationToken).ConfigureAwait(false);
+        var tools = await _runtime.GetToolsAsync(cancellationToken).ConfigureAwait(false);
+
         var agent = _providerAgentFactory.CreateAgent(
             runtimeOptions,
-            _runtime.Instructions,
-            _runtime.Tools,
+            instructions,
+            tools,
             skillsProvider,
-            _runtime.Services);
+            _services);
+
         var session = RestoreSession(document) ?? await agent.CreateSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var cached = new CachedConversationAgent(document.Id, agent, session, resolved, 0);
         _cache[document.Id] = cached;
@@ -135,15 +142,11 @@ internal sealed class ConversationAgentManager : IConversationAgentManager
     private AppOptions CloneRuntimeOptions(ResolvedProviderContext resolved)
         => new()
         {
-            AGUI = _options.AGUI,
-            Agent = _options.Agent,
+            AGUI = _appOptionsMonitor.CurrentValue.AGUI,
+            Agent = _appOptionsMonitor.CurrentValue.Agent,
             Provider = resolved.Provider,
-            CurrentDefaultProvider = resolved.ProviderName ?? _options.CurrentDefaultProvider,
-            Providers = _options.Providers,
-            Pricing = _options.Pricing,
-            Conversation = _options.Conversation,
-            McpServers = _options.McpServers,
-            Skills = _options.Skills,
+            Pricing = _appOptionsMonitor.CurrentValue.Pricing,
+            Conversation = _appOptionsMonitor.CurrentValue.Conversation,
         };
 
     private static ConversationAgentRuntime ToRuntime(CachedConversationAgent cached, bool wasReused)

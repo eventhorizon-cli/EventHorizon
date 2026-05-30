@@ -1,10 +1,10 @@
 namespace EventHorizon.Configuration;
 
-public interface IUserProvidersFileService
+public interface IUserSkillsFileService
 {
     string FilePath { get; }
 
     void EnsureExists();
 
-    void Save(ProvidersOptions options);
+    void Save(SkillsOptions options);
 }

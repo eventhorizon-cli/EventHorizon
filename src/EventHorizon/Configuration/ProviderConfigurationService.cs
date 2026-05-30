@@ -13,21 +13,23 @@ public interface IProviderConfigurationService
     void SetCurrentProvider(string providerName, bool persist);
 
     Task EnsureCurrentProviderAsync(CancellationToken cancellationToken);
+
+    ProviderOptions GetActiveProvider();
 }
 
 internal sealed class ProviderConfigurationService : IProviderConfigurationService
 {
-    private readonly AppOptions _options;
-    private readonly IAppOptionsInitializer _initializer;
+    private readonly ProvidersOptions _options;
+    private readonly IOptionsNormalizer _normalizer;
     private readonly IUserProvidersFileService _userProvidersFileService;
 
     public ProviderConfigurationService(
-        IOptions<AppOptions> options,
-        IAppOptionsInitializer initializer,
+        IOptions<ProvidersOptions> options,
+        IOptionsNormalizer normalizer,
         IUserProvidersFileService userProvidersFileService)
     {
         _options = options.Value;
-        _initializer = initializer;
+        _normalizer = normalizer;
         _userProvidersFileService = userProvidersFileService;
     }
 
@@ -50,6 +52,9 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
         return _options.Providers.Count == 1 ? _options.Providers.Keys.Single() : null;
     }
 
+    public ProviderOptions GetActiveProvider()
+        => _normalizer.ResolveActiveProvider(_options);
+
     public void SetCurrentProvider(string providerName, bool persist)
     {
         if (!_options.Providers.ContainsKey(providerName))
@@ -59,7 +64,7 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
         }
 
         _options.CurrentDefaultProvider = providerName;
-        _initializer.RefreshActiveProvider(_options);
+        _normalizer.NormalizeProviders(_options);
 
         if (persist)
         {
@@ -69,7 +74,7 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
 
     public Task EnsureCurrentProviderAsync(CancellationToken cancellationToken)
     {
-        _initializer.RefreshActiveProvider(_options);
+        _normalizer.NormalizeProviders(_options);
 
         if (_options.Providers.Count == 0)
         {

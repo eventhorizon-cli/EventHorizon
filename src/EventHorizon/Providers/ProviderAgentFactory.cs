@@ -86,11 +86,8 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
                 AdditionalSystemPrompts = [instructions],
             },
             Provider = options.Provider,
-            CurrentProvider = options.CurrentProvider,
-            Providers = options.Providers,
             Pricing = options.Pricing,
             Conversation = options.Conversation,
-            McpServers = options.McpServers,
         };
     }
 }

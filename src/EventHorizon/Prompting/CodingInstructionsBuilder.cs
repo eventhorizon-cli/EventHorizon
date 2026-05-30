@@ -1,4 +1,6 @@
+using EventHorizon.Configuration;
 using EventHorizon.Workspace;
+using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Prompting;
 
@@ -10,10 +12,12 @@ public interface ICodingInstructionsBuilder
 public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
 {
     private readonly WorkspaceContext _workspaceContext;
+    private readonly McpOptions _mcpOptions;
 
-    public CodingInstructionsBuilder(WorkspaceContext workspaceContext)
+    public CodingInstructionsBuilder(WorkspaceContext workspaceContext, IOptions<McpOptions> mcpOptions)
     {
         _workspaceContext = workspaceContext;
+        _mcpOptions = mcpOptions.Value;
     }
 
     public string Build(Configuration.AppOptions options)
@@ -35,7 +39,7 @@ public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
             sections.Add("A workspace skill is available for browsing files, reading content, editing content, searching code, and running shell commands across many project types.");
         }
 
-        if (options.Agent.EnableMcpTools && options.McpServers.Count > 0)
+        if (options.Agent.EnableMcpTools && _mcpOptions.Servers.Count > 0)
         {
             sections.Add("Additional MCP tools are connected. Use them when they provide specialized capabilities beyond local workspace operations.");
         }
@@ -50,4 +54,3 @@ public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
         return string.Join("\n\n", sections);
     }
 }
-

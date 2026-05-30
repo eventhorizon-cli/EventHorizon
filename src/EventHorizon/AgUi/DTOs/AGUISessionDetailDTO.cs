@@ -16,5 +16,5 @@ public sealed record AGUISessionDetailDTO(
     int ChangedFilesCount,
     bool IsTitleGenerated,
     string? WorkspaceRoot,
-    SkillCatalogOptions SessionSkills,
+    SkillsOptions SessionSkills,
     IReadOnlyList<AGUIChatMessageDTO> Messages);

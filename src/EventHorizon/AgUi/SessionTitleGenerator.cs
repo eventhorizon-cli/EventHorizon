@@ -47,8 +47,8 @@ internal sealed class SessionTitleGenerator : ISessionTitleGenerator
             var client = _chatClientFactory.CreateChatClient(resolved.Provider);
             var messages = new List<ChatMessage>
             {
-                new(ChatRole.System, "请根据下面这段对话内容，为这个会话生成一个简短标题。要求：只输出标题，不要解释。标题要简洁明确。中文标题控制在 8 到 20 个字左右。不要使用引号。不要包含“标题：”前缀。"),
-                new(ChatRole.User, $"对话内容：\n{excerpt}"),
+                new(ChatRole.System, "Based on the following conversation excerpt, generate a concise title for this session. Requirements: Output only the title without any explanation. The title should be clear and to the point. For Chinese titles, aim for around 8 to 20 characters. Do not use quotation marks or include a 'Title:' prefix."),
+                new(ChatRole.User, $"Conversation excerpt:\n{excerpt}"),
             };
             var response = await client.GetResponseAsync(messages, new ChatOptions { ModelId = resolved.Model }, cancellationToken).ConfigureAwait(false);
             var title = response.Text?.Trim();
