@@ -15,7 +15,11 @@ internal sealed class EventHorizonRuntimeWrapper : IEventHorizonRuntime
         _holder = holder;
     }
 
-    private IEventHorizonRuntime Runtime => _holder.Runtime ?? throw new InvalidOperationException("Runtime not initialized");
+    private IEventHorizonRuntime Runtime
+        => _holder.Runtime
+           ?? throw new InvalidOperationException(
+               _holder.InitializationError?.Message ?? "Runtime not initialized.",
+               _holder.InitializationError);
 
     public AIAgent Agent => Runtime.Agent;
     public string ModelName => Runtime.ModelName;
@@ -28,6 +32,9 @@ internal sealed class EventHorizonRuntimeWrapper : IEventHorizonRuntime
 
     public async ValueTask DisposeAsync()
     {
-        await Runtime.DisposeAsync().ConfigureAwait(false);
+        if (_holder.Runtime is not null)
+        {
+            await _holder.Runtime.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }

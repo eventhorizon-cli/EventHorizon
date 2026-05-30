@@ -4,7 +4,7 @@ namespace EventHorizon.Configuration;
 
 public sealed class AppOptions
 {
-    public AGUIOptions AgUi { get; set; } = new();
+    public AGUIOptions AGUI { get; set; } = new();
 
     public AgentOptions Agent { get; set; } = new();
 

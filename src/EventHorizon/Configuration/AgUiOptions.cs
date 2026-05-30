@@ -6,6 +6,6 @@ public sealed class AGUIOptions
 
     public string RawEndpointPath { get; set; } = "/agui";
 
-    public List<string> Urls { get; set; } = ["http://127.0.0.1:9527"];
+    public HashSet<string>? Urls { get; set; }
 }
 

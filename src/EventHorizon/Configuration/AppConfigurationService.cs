@@ -39,7 +39,7 @@ internal sealed class AppConfigurationService : IAppConfigurationService
 
     private static void CopyInto(AppOptions target, AppOptions source)
     {
-        target.AgUi = source.AgUi;
+        target.AGUI = source.AGUI;
         target.Agent = source.Agent;
         target.Provider = source.Provider;
         target.CurrentDefaultProvider = source.CurrentDefaultProvider;

@@ -49,7 +49,7 @@ public sealed class ConfigurationController : ControllerBase
         var current = _appConfigurationService.Get();
         var next = new AppOptions
         {
-            AgUi = current.AgUi,
+            AGUI = current.AGUI,
             Agent = current.Agent,
             Provider = current.Provider,
             CurrentDefaultProvider = request.CurrentDefaultProvider,

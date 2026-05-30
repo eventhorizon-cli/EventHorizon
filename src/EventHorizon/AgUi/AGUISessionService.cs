@@ -1,3 +1,4 @@
+using EventHorizon.AGUI.DTOs;
 using EventHorizon.Configuration;
 using EventHorizon.Conversations;
 using EventHorizon.Providers;
@@ -7,15 +8,15 @@ namespace EventHorizon.AGUI;
 
 public interface IAGUISessionService
 {
-    Task<IReadOnlyList<AGUISessionSummary>> ListAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<AGUISessionSummaryDTO>> ListAsync(CancellationToken cancellationToken);
 
-    Task<AGUISessionDetail?> GetAsync(string sessionId, CancellationToken cancellationToken);
+    Task<AGUISessionDetailDTO?> GetAsync(string sessionId, CancellationToken cancellationToken);
 
     Task<ConversationSessionDocument?> GetDocumentAsync(string sessionId, CancellationToken cancellationToken);
 
-    Task<AGUISessionSummary> CreateAsync(CreateAGUISessionRequest request, CancellationToken cancellationToken);
+    Task<AGUISessionSummaryDTO> CreateAsync(CreateAGUISessionRequestDTO request, CancellationToken cancellationToken);
 
-    Task<AGUISessionSummary?> UpdateAsync(string sessionId, UpdateAGUISessionRequest request, CancellationToken cancellationToken);
+    Task<AGUISessionSummaryDTO?> UpdateAsync(string sessionId, UpdateAGUISessionRequestDTO request, CancellationToken cancellationToken);
 
     Task<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken);
 
@@ -62,12 +63,12 @@ public sealed class AGUISessionService : IAGUISessionService
         _conversationAgentManager = conversationAgentManager;
     }
 
-    public async Task<IReadOnlyList<AGUISessionSummary>> ListAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AGUISessionSummaryDTO>> ListAsync(CancellationToken cancellationToken)
         => (await _conversationSessionStore.ListAsync(cancellationToken).ConfigureAwait(false))
             .Select(MapSummary)
             .ToArray();
 
-    public async Task<AGUISessionDetail?> GetAsync(string sessionId, CancellationToken cancellationToken)
+    public async Task<AGUISessionDetailDTO?> GetAsync(string sessionId, CancellationToken cancellationToken)
     {
         var document = await _conversationSessionStore.LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
         return document is null ? null : MapDetail(document);
@@ -76,7 +77,7 @@ public sealed class AGUISessionService : IAGUISessionService
     public Task<ConversationSessionDocument?> GetDocumentAsync(string sessionId, CancellationToken cancellationToken)
         => _conversationSessionStore.LoadAsync(sessionId, cancellationToken);
 
-    public async Task<AGUISessionSummary> CreateAsync(CreateAGUISessionRequest request, CancellationToken cancellationToken)
+    public async Task<AGUISessionSummaryDTO> CreateAsync(CreateAGUISessionRequestDTO request, CancellationToken cancellationToken)
     {
         var initialMessage = request.InitialMessage?.Trim();
         var workspaceRoot = string.IsNullOrWhiteSpace(request.WorkspaceRoot) ? _workspaceContext.WorkspaceRoot : Path.GetFullPath(request.WorkspaceRoot);
@@ -85,7 +86,7 @@ public sealed class AGUISessionService : IAGUISessionService
         return MapSummary(document);
     }
 
-    public async Task<AGUISessionSummary?> UpdateAsync(string sessionId, UpdateAGUISessionRequest request, CancellationToken cancellationToken)
+    public async Task<AGUISessionSummaryDTO?> UpdateAsync(string sessionId, UpdateAGUISessionRequestDTO request, CancellationToken cancellationToken)
     {
         var document = await _conversationSessionStore.LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
         if (document is null)
@@ -310,7 +311,7 @@ public sealed class AGUISessionService : IAGUISessionService
         });
     }
 
-    private static AGUISessionSummary MapSummary(ConversationSessionSummary summary)
+    private static AGUISessionSummaryDTO MapSummary(ConversationSessionSummary summary)
         => new(
             summary.Id,
             summary.Name,
@@ -326,7 +327,7 @@ public sealed class AGUISessionService : IAGUISessionService
             summary.IsTitleGenerated,
             summary.WorkspaceRoot);
 
-    private static AGUISessionSummary MapSummary(ConversationSessionDocument document)
+    private static AGUISessionSummaryDTO MapSummary(ConversationSessionDocument document)
         => new(
             document.Id,
             document.Name,
@@ -342,7 +343,7 @@ public sealed class AGUISessionService : IAGUISessionService
             document.IsTitleGenerated,
             document.WorkspaceRoot);
 
-    private static AGUISessionDetail MapDetail(ConversationSessionDocument document)
+    private static AGUISessionDetailDTO MapDetail(ConversationSessionDocument document)
         => new(
             document.Id,
             document.Name,
@@ -358,7 +359,7 @@ public sealed class AGUISessionService : IAGUISessionService
             document.IsTitleGenerated,
             document.WorkspaceRoot,
             document.Transcript
-                .Select((entry, index) => new AGUIChatMessage(
+                .Select((entry, index) => new AGUIChatMessageDTO(
                     $"msg_{document.Id}_{index + 1}",
                     document.Id,
                     NormalizeRole(entry.Role),
@@ -390,4 +391,3 @@ public sealed class AGUISessionService : IAGUISessionService
     private static string Truncate(string value, int maxLength)
         => value.Length <= maxLength ? value : value[..maxLength].TrimEnd() + "…";
 }
-

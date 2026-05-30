@@ -1,6 +1,6 @@
-namespace EventHorizon.AGUI;
+namespace EventHorizon.AGUI.DTOs;
 
-public sealed class UpdateAGUISessionRequest
+public sealed class UpdateAGUISessionRequestDTO
 {
     public string? Title { get; set; }
 
@@ -8,4 +8,3 @@ public sealed class UpdateAGUISessionRequest
 
     public string? Model { get; set; }
 }
-

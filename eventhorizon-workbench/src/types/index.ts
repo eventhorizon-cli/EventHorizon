@@ -2,9 +2,10 @@ export type RunStatus = "idle" | "running" | "completed" | "failed" | "cancelled
 export type SessionStatus = RunStatus;
 export type ThemeMode = "light" | "dark" | "system";
 export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "disconnected";
-export type ContextView = "overview" | "files" | "diff" | "logs" | "details";
+export type ContextView = "overview" | "files" | "diff" | "logs" | "settings";
 export type AgentPhase = "idle" | "understanding" | "inspecting" | "planning" | "editing" | "validating" | "summarizing" | "completed" | "failed" | "cancelled";
 export type FileChangeStatus = "added" | "modified" | "deleted" | "renamed";
+export type ProviderType = "openai" | "openai-compatible" | "azure-openai" | "anthropic" | "gemini";
 
 export type DirectoryItem = {
   path: string;
@@ -13,12 +14,79 @@ export type DirectoryItem = {
   parentPath?: string;
 };
 
+export type ProviderConfig = {
+  type?: ProviderType;
+  model?: string;
+  models: string[];
+  endpoint?: string;
+  apiKeyMasked?: string;
+  apiKey?: string;
+  deployment?: string;
+  useDefaultAzureCredential: boolean;
+};
+
+export type ProviderEntry = {
+  name: string;
+  provider: ProviderConfig;
+};
+
+export type McpServerConfig = {
+  name?: string;
+  command?: string;
+  arguments: string[];
+  url?: string;
+  environmentVariables: Record<string, string>;
+  enabled: boolean;
+};
+
+export type ImportedSkill = {
+  name: string;
+  path: string;
+  description?: string;
+  importedAt?: string;
+};
+
+export type SkillCatalog = {
+  storagePath?: string;
+  imported: ImportedSkill[];
+};
+
+export type AppConfiguration = {
+  filePath: string;
+  currentDefaultProvider?: string;
+  providers: ProviderEntry[];
+  mcpServers: McpServerConfig[];
+  skills: SkillCatalog;
+};
+
+export type ProviderTestResult = {
+  success: boolean;
+  message: string;
+  models: string[];
+};
+
+export type McpTestResult = {
+  success: boolean;
+  message: string;
+  tools: string[];
+};
+
+export type SkillImportResult = {
+  success: boolean;
+  message: string;
+  skill?: ImportedSkill;
+  errors: string[];
+};
+
 export type AgentSession = {
   id: string;
   title: string;
   status: SessionStatus;
   createdAt: string;
   updatedAt: string;
+   providerName?: string;
+   providerType?: string;
+   model?: string;
   lastRunId?: string;
   summary?: string;
   changedFilesCount?: number;
@@ -41,13 +109,25 @@ export type AgentSessionDetail = AgentSession & {
 
 export type AgentRun = {
   id: string;
+  threadId: string;
   sessionId?: string;
   status: RunStatus;
   task: string;
+  workingDirectory?: string;
+  providerName?: string;
+  model?: string;
   createdAt: string;
   updatedAt?: string;
   detailedStatus?: string;
   error?: string;
+};
+
+export type ConversationModelSelection = {
+  conversationId: string;
+  providerName?: string;
+  providerType: string;
+  modelId: string;
+  warnings: string[];
 };
 
 export type AgentEvent = {
@@ -102,4 +182,3 @@ export type LogItem = {
   summary: string;
   event: AgentEvent;
 };
-

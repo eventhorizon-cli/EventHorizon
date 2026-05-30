@@ -1,6 +1,6 @@
-namespace EventHorizon.AGUI;
+namespace EventHorizon.AGUI.DTOs;
 
-public sealed record AGUISessionSummary(
+public sealed record AGUISessionDetailDTO(
     string Id,
     string Title,
     string Status,
@@ -13,5 +13,5 @@ public sealed record AGUISessionSummary(
     string? Summary,
     int ChangedFilesCount,
     bool IsTitleGenerated,
-    string? WorkspaceRoot);
-
+    string? WorkspaceRoot,
+    IReadOnlyList<AGUIChatMessageDTO> Messages);

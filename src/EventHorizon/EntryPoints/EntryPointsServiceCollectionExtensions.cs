@@ -10,8 +10,8 @@ public static class EntryPointsServiceCollectionExtensions
         services.AddSingleton<IEventHorizonApplication, EventHorizonApplication>();
         services.AddSingleton<EventHorizonRuntimeHolder>();
         services.AddSingleton<IEventHorizonRuntime, EventHorizonRuntimeWrapper>();
+        services.AddSingleton<IEventHorizonRuntimeInitializer, EventHorizonRuntimeInitializer>();
         services.AddHostedService<RuntimeInitializationHostedService>();
         return services;
     }
 }
-

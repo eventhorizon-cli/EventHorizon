@@ -130,7 +130,7 @@ internal sealed class ConversationAgentManager : IConversationAgentManager
     private AppOptions CloneRuntimeOptions(ResolvedProviderContext resolved)
         => new()
         {
-            AgUi = _options.AgUi,
+            AGUI = _options.AGUI,
             Agent = _options.Agent,
             Provider = resolved.Provider,
             CurrentDefaultProvider = resolved.ProviderName ?? _options.CurrentDefaultProvider,

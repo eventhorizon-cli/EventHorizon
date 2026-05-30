@@ -472,10 +472,19 @@ public sealed class WorkspaceService
             Content = new StringContent(JsonSerializer.Serialize(request, JsonSerializerOptions.Web), Encoding.UTF8, "application/json"),
         };
 
-        using var response = await OsvHttpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        var payload = JsonSerializer.Deserialize<OsvBatchQueryResponse>(content, JsonSerializerOptions.Web);
+        OsvBatchQueryResponse? payload;
+        try
+        {
+            using var response = await OsvHttpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            payload = JsonSerializer.Deserialize<OsvBatchQueryResponse>(content, JsonSerializerOptions.Web);
+        }
+        catch (HttpRequestException)
+        {
+            return "Unable to reach the OSV service right now. Please try again later.";
+        }
+
         if (payload?.Results is null || payload.Results.Length == 0)
         {
             return "No vulnerability data was returned.";
@@ -993,4 +1002,3 @@ public sealed class WorkspaceService
 
     private sealed record OsvEvent(string? Introduced, string? Fixed);
 }
-

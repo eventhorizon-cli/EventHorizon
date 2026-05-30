@@ -1,6 +1,6 @@
-namespace EventHorizon.AGUI;
+namespace EventHorizon.AGUI.DTOs;
 
-public sealed class ConversationModelResponse
+public sealed class ConversationModelResponseDTO
 {
     public string ConversationId { get; set; } = string.Empty;
 
@@ -12,4 +12,3 @@ public sealed class ConversationModelResponse
 
     public IReadOnlyList<string> Warnings { get; set; } = Array.Empty<string>();
 }
-

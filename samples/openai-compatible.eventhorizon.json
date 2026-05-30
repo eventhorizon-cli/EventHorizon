@@ -7,7 +7,7 @@
     "EnableMcpTools": true,
     "AdditionalSystemPrompts": []
   },
-  "CurrentProvider": "compatible",
+  "CurrentDefaultProvider": "compatible",
   "Providers": {
     "compatible": {
       "Type": "openai-compatible",
@@ -18,10 +18,12 @@
       "UseDefaultAzureCredential": false
     }
   },
-  "Protocol": {
-    "Url": "http://127.0.0.1:8787",
-    "Path": "/agui",
-    "ClientUrl": "http://127.0.0.1:8787/agui"
+  "AGUI": {
+    "ApiBasePath": "/api",
+    "RawEndpointPath": "/agui",
+    "Urls": [
+      "http://127.0.0.1:9527"
+    ]
   },
   "Pricing": {
     "CatalogUrl": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json",
@@ -35,4 +37,3 @@
   },
   "McpServers": []
 }
-

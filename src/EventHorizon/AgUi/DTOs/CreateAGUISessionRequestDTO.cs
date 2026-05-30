@@ -1,6 +1,6 @@
-namespace EventHorizon.AGUI;
+namespace EventHorizon.AGUI.DTOs;
 
-public sealed class CreateAGUISessionRequest
+public sealed class CreateAGUISessionRequestDTO
 {
     public string? InitialMessage { get; set; }
 
@@ -10,4 +10,3 @@ public sealed class CreateAGUISessionRequest
 
     public string? WorkspaceRoot { get; set; }
 }
-

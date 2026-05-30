@@ -29,7 +29,7 @@ public sealed class AppOptionsLoaderTests : IDisposable
         var configFilePath = GetDefaultConfigFilePath();
 
         Assert.True(File.Exists(configFilePath));
-        Assert.Contains("\"AgUi\"", File.ReadAllText(configFilePath), StringComparison.Ordinal);
+        Assert.Contains("\"AGUI\"", File.ReadAllText(configFilePath), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -55,6 +55,57 @@ public sealed class AppOptionsLoaderTests : IDisposable
         Assert.Equal("openai", options.Provider.Type);
         Assert.Equal("gpt-home", options.Provider.Model);
         Assert.Contains(options.Providers, static pair => pair.Key == "home");
+    }
+
+    [Fact]
+    public void Create_Applies_Config_Precedence_BuiltIn_Home_External_Then_Environment()
+    {
+        WriteHomeConfig("""
+        {
+          "CurrentDefaultProvider": "home",
+          "Providers": {
+            "home": {
+              "Type": "openai",
+              "Model": "home-model"
+            },
+            "external": {
+              "Type": "openai",
+              "Model": "external-model"
+            }
+          }
+        }
+        """);
+
+        var externalConfigPath = Path.Combine(_root, "external.json");
+        File.WriteAllText(externalConfigPath, """
+        {
+          "CurrentDefaultProvider": "external",
+          "Providers": {
+            "external": {
+              "Type": "openai",
+              "Model": "external-model"
+            }
+          }
+        }
+        """);
+
+        const string environmentKey = "EVENTHORIZON__Providers__external__Model";
+        var originalValue = Environment.GetEnvironmentVariable(environmentKey);
+        Environment.SetEnvironmentVariable(environmentKey, "environment-model");
+
+        try
+        {
+            using var host = CreateHost(new EffectiveCommandOptions { ConfigFile = externalConfigPath });
+            var options = host.Services.GetRequiredService<IOptions<AppOptions>>().Value;
+
+            Assert.Equal("external", options.CurrentDefaultProvider);
+            Assert.Equal("environment-model", options.Providers["external"].Model);
+            Assert.Equal("environment-model", options.Provider.Model);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(environmentKey, originalValue);
+        }
     }
 
     [Fact]
@@ -192,4 +243,3 @@ public sealed class AppOptionsLoaderTests : IDisposable
         public string HomeDirectory { get; }
     }
 }
-

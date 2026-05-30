@@ -7,7 +7,14 @@
     "EnableMcpTools": true,
     "AdditionalSystemPrompts": []
   },
-  "CurrentProvider": "openai",
+  "CurrentDefaultProvider": "openai",
+  "AGUI": {
+    "ApiBasePath": "/api",
+    "RawEndpointPath": "/agui",
+    "Urls": [
+      "http://127.0.0.1:9527"
+    ]
+  },
   "Providers": {
     "openai": {
       "Type": "openai",
@@ -30,4 +37,3 @@
   },
   "McpServers": []
 }
-

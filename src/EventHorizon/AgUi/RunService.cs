@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EventHorizon.AGUI.DTOs;
 using EventHorizon.Diff;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
@@ -55,7 +56,7 @@ public sealed class RunService
         _logger = logger;
     }
 
-    public async Task<AGUIRun> CreateAsync(CreateAGUIRunRequest request, CancellationToken cancellationToken)
+    public async Task<AGUIRunDTO> CreateAsync(CreateAGUIRunRequestDTO request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Task))
         {
@@ -100,11 +101,11 @@ public sealed class RunService
         var entry = _runStore.Add(new RunStoreEntry(run, fileStateTracker, new CancellationTokenSource()));
         var options = request.Options?.Clone();
         _ = Task.Run(() => ExecuteRunAsync(entry, options), CancellationToken.None);
-        return run;
+        return MapRun(run);
     }
 
-    public AGUIRun? Get(string runId)
-        => _runStore.TryGet(runId, out var entry) && entry is not null ? entry.Run : null;
+    public AGUIRunDTO? Get(string runId)
+        => _runStore.TryGet(runId, out var entry) && entry is not null ? MapRun(entry.Run) : null;
 
     public bool Cancel(string runId)
     {
@@ -184,16 +185,16 @@ public sealed class RunService
         {
             var runtimeOptions = new Configuration.AppOptions
             {
-                AgUi = new Configuration.AGUIOptions
+                AGUI = new Configuration.AGUIOptions
                 {
                     ApiBasePath = string.Empty,
                     RawEndpointPath = string.Empty,
-                    Urls = [],
+                    Urls = new(),
                 },
                 Agent = new Configuration.AgentOptions
                 {
-                    Name = _runtime.Agent.Name,
-                    Description = _runtime.Agent.Description,
+                    Name = _runtime.Agent.Name ?? string.Empty,
+                    Description = _runtime.Agent.Description ?? string.Empty,
                     EnableSkills = true,
                     EnableShell = true,
                     EnableMcpTools = true,
@@ -428,6 +429,23 @@ public sealed class RunService
             ["The run was cancelled before completion."],
             ["Stopped streaming once cancellation was requested."]);
 
+    private static AGUIRunDTO MapRun(AGUIRun run)
+        => new()
+        {
+            Id = run.Id,
+            ThreadId = run.ThreadId,
+            SessionId = run.SessionId,
+            Task = run.Task,
+            WorkingDirectory = run.WorkingDirectory,
+            ProviderName = run.ProviderName,
+            Model = run.Model,
+            Status = run.Status,
+            DetailedStatus = run.DetailedStatus,
+            CreatedAt = run.CreatedAt,
+            UpdatedAt = run.UpdatedAt,
+            Error = run.Error,
+        };
+
     private void Publish(RunStoreEntry entry, AGUIEventEnvelope @event)
         => entry.Publish(@event);
 
@@ -458,16 +476,7 @@ public sealed class RunService
         var candidate = Path.IsPathRooted(workingDirectory)
             ? Path.GetFullPath(workingDirectory)
             : Path.GetFullPath(Path.Combine(workspaceRoot, workingDirectory));
-        var normalizedRoot = workspaceRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? workspaceRoot
-            : workspaceRoot + Path.DirectorySeparatorChar;
-        if (!candidate.Equals(workspaceRoot, StringComparison.Ordinal) &&
-            !candidate.StartsWith(normalizedRoot, StringComparison.Ordinal))
-        {
-            throw new ArgumentException("workingDirectory must stay inside the configured workspace.", nameof(workingDirectory));
-        }
 
-        return Path.GetRelativePath(workspaceRoot, candidate).Replace('\\', '/');
+        return candidate;
     }
 }
-

@@ -1,8 +1,13 @@
 using EventHorizon.Configuration;
+using EventHorizon.EntryPoints;
+using EventHorizon.Providers;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
+using Serilog.Events;
 
 namespace EventHorizon;
 
@@ -13,35 +18,35 @@ public static class EventHorizonHost
 
     public static IHost Create(string[] args, EffectiveCommandOptions commandOptions, IPathEnvironment pathEnvironment)
     {
-        var builder = Host.CreateApplicationBuilder(args);
+        var builder = WebApplication.CreateBuilder(args);
 
         ConfigureConfiguration(builder.Configuration, commandOptions, pathEnvironment);
         ConfigureLogging(builder, pathEnvironment);
 
         builder.Services.AddEventHorizon(commandOptions, pathEnvironment);
+        builder.WebHost.UseSetting(WebHostDefaults.ServerUrlsKey, string.Join(';', GetUrls(builder.Configuration)));
 
-        return builder.Build();
+        var app = builder.Build();
+        ConfigureWebApplication(app);
+        return app;
     }
 
-    private static void ConfigureLogging(HostApplicationBuilder builder, IPathEnvironment pathEnvironment)
+    private static void ConfigureLogging(WebApplicationBuilder builder, IPathEnvironment pathEnvironment)
     {
         var logDirectory = GetLogDirectory(pathEnvironment);
         Directory.CreateDirectory(logDirectory);
 
         var logFilePath = Path.Combine(logDirectory, "error.log");
 
-        // Remove default providers to prevent console logging.
-        builder.Logging.ClearProviders();
-
         var logger = new LoggerConfiguration()
-            // Only write Error and higher severity logs.
             .MinimumLevel.Error()
             .Enrich.FromLogContext()
             .WriteTo.File(
                 path: logFilePath,
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
-                shared: true)
+                shared: true,
+                restrictedToMinimumLevel: LogEventLevel.Error)
             .CreateLogger();
 
         Log.Logger = logger;
@@ -92,6 +97,22 @@ public static class EventHorizonHost
         }
 
         configuration.AddEnvironmentVariables(prefix: "EVENTHORIZON__");
+    }
+
+    private static string[] GetUrls(IConfiguration configuration)
+        => configuration.GetSection("AGUI:Urls").Get<HashSet<string>>()?.ToArray()
+            ?? throw new InvalidOperationException("AGUI:Urls configuration is required.");
+
+    private static void ConfigureWebApplication(WebApplication app)
+    {
+        var runtimeInitializer = app.Services.GetRequiredService<IEventHorizonRuntimeInitializer>();
+        runtimeInitializer.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+        app.MapControllers();
+
+        var options = app.Services.GetRequiredService<AppOptions>();
+        var runtime = app.Services.GetRequiredService<IEventHorizonRuntime>();
+        AGUI.AGUIEndpoints.Map(app, options.AGUI, runtime);
     }
 
     private static void EnsureUserConfigExists(string userConfigFilePath)

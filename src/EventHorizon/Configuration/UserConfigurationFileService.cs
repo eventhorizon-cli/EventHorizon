@@ -111,7 +111,7 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
     private static AppOptions CloneForPersistence(AppOptions options)
         => new()
         {
-            AgUi = options.AgUi,
+            AGUI = options.AGUI,
             Agent = options.Agent,
             Provider = options.Provider,
             CurrentDefaultProvider = options.CurrentDefaultProvider,

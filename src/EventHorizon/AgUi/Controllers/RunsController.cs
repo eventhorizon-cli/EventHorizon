@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EventHorizon.AGUI.DTOs;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventHorizon.AGUI.Controllers;
@@ -21,24 +23,24 @@ public sealed class RunsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<AGUIRun>> CreateAsync(CreateAGUIRunRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<AGUIRunDTO>> CreateAsync(CreateAGUIRunRequestDTO request, CancellationToken cancellationToken)
     {
         try
         {
             var run = await _runService.CreateAsync(request, cancellationToken).ConfigureAwait(false);
-            return CreatedAtAction(nameof(GetAsync), new { runId = run.Id }, run);
+            return Created($"/api/runs/{run.Id}", run);
         }
         catch (ArgumentException ex)
         {
-            return ValidationProblem(new Dictionary<string, string[]>
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>
             {
                 ["request"] = [ex.Message],
-            });
+            }));
         }
     }
 
     [HttpGet("{runId}")]
-    public ActionResult<AGUIRun> GetAsync(string runId)
+    public ActionResult<AGUIRunDTO> GetAsync(string runId)
     {
         var run = _runService.Get(runId);
         return run is null ? NotFound() : Ok(run);
@@ -69,10 +71,10 @@ public sealed class RunsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return ValidationProblem(new Dictionary<string, string[]>
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>
             {
                 ["path"] = ["Query string parameter 'path' is required."],
-            });
+            }));
         }
 
         var run = _runService.Get(runId);
@@ -122,4 +124,3 @@ public sealed class RunsController : ControllerBase
         return long.TryParse(values.ToString(), out var value) ? value : null;
     }
 }
-

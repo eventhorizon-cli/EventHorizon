@@ -1,86 +1,68 @@
 # Samples
 
-This directory contains sample configuration files for all supported provider types.
+These samples match the current shared-host AGUI server startup model.
 
-## Available Samples
-
-| File | Provider Type | Description |
-|------|--------------|-------------|
-| `openai-api-key.eventhorizon.json` | `openai` | Official OpenAI API |
-| `openai-compatible.eventhorizon.json` | `openai-compatible` | Custom OpenAI-compatible endpoint (proxy, gateway, Ollama) |
-| `azure-openai.eventhorizon.json` | `azure-openai` | Azure OpenAI Service |
-| `anthropic.eventhorizon.json` | `anthropic` | Anthropic Claude API |
-| `gemini.eventhorizon.json` | `gemini` | Google Gemini API |
-
-## Quick Start with TUI
-
-Run the interactive terminal workbench with any sample config:
+## Run With External Config
 
 ```zsh
-dotnet run --project src/EventHorizon -- tui --config samples/openai-compatible.eventhorizon.json
+dotnet run --project src/EventHorizon -- --config samples/openai-compatible.eventhorizon.json
 ```
 
-## Sample Configurations
+## Notes
 
-### OpenAI API
+- Use `CurrentDefaultProvider`, not `CurrentProvider`
+- Conversation-level provider and model selections are persisted separately from app config
+- UI/API configuration changes are written to `~/.eventhorizon/appsettings.json`
 
-```zsh
-dotnet run --project src/EventHorizon -- tui --config samples/openai-api-key.eventhorizon.json
-```
+## Included Samples
 
-### OpenAI-Compatible
+- `openai-api-key.eventhorizon.json`
+- `openai-compatible.eventhorizon.json`
+- `azure-openai.eventhorizon.json`
+- `anthropic.eventhorizon.json`
+- `gemini.eventhorizon.json`
 
-```zsh
-dotnet run --project src/EventHorizon -- tui --config samples/openai-compatible.eventhorizon.json
-```
-
-### Azure OpenAI
-
-```zsh
-dotnet run --project src/EventHorizon -- tui --config samples/azure-openai.eventhorizon.json
-```
-
-### Anthropic Claude
-
-```zsh
-dotnet run --project src/EventHorizon -- tui --config samples/anthropic.eventhorizon.json
-```
-
-### Google Gemini
-
-```zsh
-dotnet run --project src/EventHorizon -- tui --config samples/gemini.eventhorizon.json
-```
-
-## Configuration Reference
-
-`WorkspaceRoot` is resolved from the directory where EventHorizon starts. Use `--workspace <path>` to override it for a single run.
-
-Named providers live under `Providers`, and `CurrentProvider` selects which entry is active by default.
-
-### Provider Options
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `Type` | string | ✓ | `openai`, `azure-openai`, `anthropic`, `gemini`, or `openai-compatible` |
-| `Model` | string | ✓ | Model name |
-| `ApiKey` | string | ✓ for openai/anthropic/gemini | API key |
-| `Endpoint` | string | ✓ for azure-openai/openai-compatible | Endpoint URL |
-| `Deployment` | string | ✓ for azure-openai | Azure deployment name |
-| `UseDefaultAzureCredential` | bool | - | Use Azure AD credentials |
-
-Example:
+## Multi-Provider Example
 
 ```json
 {
-  "CurrentProvider": "openai",
+  "CurrentDefaultProvider": "openai",
   "Providers": {
-	"openai": {
-	  "Type": "openai",
-	  "Model": "gpt-4.1-mini",
-	  "ApiKey": "..."
-	}
+    "openai": {
+      "Type": "openai",
+      "Model": "gpt-4.1-mini",
+      "ApiKey": "sk-..."
+    },
+    "anthropic": {
+      "Type": "anthropic",
+      "Model": "claude-sonnet-4-20250514",
+      "ApiKey": "sk-ant-..."
+    }
   }
 }
 ```
 
+## MCP Example
+
+```json
+{
+  "McpServers": [
+    {
+      "Name": "filesystem",
+      "Command": "npx",
+      "Arguments": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      "Enabled": true
+    }
+  ]
+}
+```
+
+## Skill Folder Example
+
+```text
+my-skill/
+  SKILL.md
+  prompt.txt
+```
+
+`SKILL.md` is required for import validation.

@@ -1,3 +1,4 @@
+using EventHorizon.AGUI.DTOs;
 using EventHorizon.Workspace;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,41 +9,49 @@ namespace EventHorizon.AGUI.Controllers;
 public sealed class ConversationsController : ControllerBase
 {
     private readonly IAGUISessionService _sessionService;
+    private readonly IConversationModelService _conversationModelService;
     private readonly WorkspaceContext _workspaceContext;
 
-    public ConversationsController(IAGUISessionService sessionService, WorkspaceContext workspaceContext)
+    public ConversationsController(
+        IAGUISessionService sessionService,
+        IConversationModelService conversationModelService,
+        WorkspaceContext workspaceContext)
     {
         _sessionService = sessionService;
+        _conversationModelService = conversationModelService;
         _workspaceContext = workspaceContext;
     }
 
     [HttpGet]
-    public Task<IReadOnlyList<AGUISessionSummary>> ListAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<AGUISessionSummaryDTO>> ListAsync(CancellationToken cancellationToken)
         => _sessionService.ListAsync(cancellationToken);
 
     [HttpGet("{conversationId}")]
-    public async Task<ActionResult<AGUISessionDetail>> GetAsync(string conversationId, CancellationToken cancellationToken)
+    public async Task<ActionResult<AGUISessionDetailDTO>> GetAsync(string conversationId, CancellationToken cancellationToken)
     {
         var session = await _sessionService.GetAsync(conversationId, cancellationToken).ConfigureAwait(false);
         return session is null ? NotFound() : Ok(session);
     }
 
     [HttpPost]
-    public async Task<ActionResult<AGUISessionSummary>> CreateAsync(CreateAGUISessionRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<AGUISessionSummaryDTO>> CreateAsync(CreateAGUISessionRequestDTO request, CancellationToken cancellationToken)
     {
+        var workspaceRoot = ResolveWorkspacePath(request.WorkspaceRoot);
+        Directory.CreateDirectory(workspaceRoot);
+        request.WorkspaceRoot = workspaceRoot;
         var session = await _sessionService.CreateAsync(request, cancellationToken).ConfigureAwait(false);
-        return CreatedAtAction(nameof(GetAsync), new { conversationId = session.Id }, session);
+        return Created($"/api/conversations/{session.Id}", session);
     }
 
     [HttpPatch("{conversationId}")]
-    public async Task<ActionResult<AGUISessionSummary>> UpdateAsync(string conversationId, UpdateAGUISessionRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<AGUISessionSummaryDTO>> UpdateAsync(string conversationId, UpdateAGUISessionRequestDTO request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title) && request.ProviderName is null && request.Model is null)
         {
-            return ValidationProblem(new Dictionary<string, string[]>
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>
             {
                 [nameof(request.Title)] = ["At least one update field is required."],
-            });
+            }));
         }
 
         var session = await _sessionService.UpdateAsync(conversationId, request, cancellationToken).ConfigureAwait(false);
@@ -50,32 +59,37 @@ public sealed class ConversationsController : ControllerBase
     }
 
     [HttpPut("{conversationId}/model")]
-    public async Task<ActionResult<ConversationModelResponse>> UpdateModelAsync(
+    public async Task<ActionResult<ConversationModelResponseDTO>> UpdateModelAsync(
         string conversationId,
-        UpdateConversationModelRequest request,
+        UpdateConversationModelRequestDTO request,
         CancellationToken cancellationToken)
     {
-        var session = await _sessionService.UpdateAsync(
-            conversationId,
-            new UpdateAGUISessionRequest
+        try
+        {
+            var result = await _conversationModelService
+                .UpdateAsync(conversationId, request.ProviderName, request.ModelId, cancellationToken)
+                .ConfigureAwait(false);
+            if (result is null)
             {
-                ProviderName = request.ProviderName,
-                Model = request.ModelId,
-            },
-            cancellationToken).ConfigureAwait(false);
-        if (session is null)
-        {
-            return NotFound();
-        }
+                return NotFound();
+            }
 
-        return Ok(new ConversationModelResponse
+            return Ok(new ConversationModelResponseDTO
+            {
+                ConversationId = result.ConversationId,
+                ProviderName = result.ProviderName,
+                ProviderType = result.ProviderType,
+                ModelId = result.ModelId,
+                Warnings = result.Warnings,
+            });
+        }
+        catch (ConversationModelUpdateException ex)
         {
-            ConversationId = session.Id,
-            ProviderName = session.ProviderName,
-            ProviderType = session.ProviderType ?? string.Empty,
-            ModelId = session.Model ?? string.Empty,
-            Warnings = Array.Empty<string>(),
-        });
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [nameof(request.ModelId)] = [ex.Message],
+            }));
+        }
     }
 
     [HttpDelete("{conversationId}")]
@@ -86,36 +100,31 @@ public sealed class ConversationsController : ControllerBase
     }
 
     [HttpGet("directories")]
-    public ActionResult<IReadOnlyList<DirectoryItem>> GetDirectories([FromQuery] string? path = null)
+    public ActionResult<IReadOnlyList<DirectoryItemDTO>> GetDirectories([FromQuery] string? path = null)
     {
-        var targetPath = string.IsNullOrWhiteSpace(path)
-            ? _workspaceContext.WorkspaceRoot
-            : Path.GetFullPath(path);
-
+        var targetPath = ResolveWorkspacePath(path);
         if (!Directory.Exists(targetPath))
         {
             return NotFound();
         }
 
-        List<DirectoryItem> items = [];
+        List<DirectoryItemDTO> items = [];
         var parent = Path.GetDirectoryName(targetPath);
         if (!string.IsNullOrWhiteSpace(parent) && Directory.Exists(parent))
         {
-            var isAtRoot = OperatingSystem.IsWindows()
-                ? targetPath.Length <= 3 && targetPath.EndsWith(':')
-                : targetPath == "/";
-            if (!isAtRoot)
-            {
-                items.Add(new DirectoryItem(parent, "..", true, parent));
-            }
+            items.Add(new DirectoryItemDTO(parent, "..", true, parent));
         }
 
         foreach (var entry in Directory.EnumerateFileSystemEntries(targetPath).OrderBy(static value => value, StringComparer.OrdinalIgnoreCase))
         {
-            items.Add(new DirectoryItem(entry, Path.GetFileName(entry), Directory.Exists(entry), targetPath));
+            items.Add(new DirectoryItemDTO(entry, Path.GetFileName(entry), Directory.Exists(entry), targetPath));
         }
 
         return Ok(items);
     }
-}
 
+    private string ResolveWorkspacePath(string? path)
+        => string.IsNullOrWhiteSpace(path)
+            ? _workspaceContext.WorkspaceRoot
+            : Path.GetFullPath(path);
+}

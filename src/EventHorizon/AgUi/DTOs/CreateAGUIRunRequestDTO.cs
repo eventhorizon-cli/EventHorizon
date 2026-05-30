@@ -1,8 +1,8 @@
 using System.Text.Json;
 
-namespace EventHorizon.AGUI;
+namespace EventHorizon.AGUI.DTOs;
 
-public sealed class CreateAGUIRunRequest
+public sealed class CreateAGUIRunRequestDTO
 {
     public string? SessionId { get; set; }
 
