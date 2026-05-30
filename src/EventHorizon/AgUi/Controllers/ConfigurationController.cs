@@ -1,4 +1,7 @@
+using EventHorizon.AGUI.DTOs;
 using EventHorizon.Configuration;
+using EventHorizon.EntryPoints;
+using EventHorizon.Providers;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventHorizon.AGUI.Controllers;
@@ -9,18 +12,26 @@ public sealed class ConfigurationController : ControllerBase
 {
     private readonly IAppConfigurationService _appConfigurationService;
     private readonly IUserConfigurationFileService _userConfigurationFileService;
+    private readonly IEventHorizonRuntimeInitializer _runtimeInitializer;
+    private readonly IConversationAgentManager _conversationAgentManager;
 
-    public ConfigurationController(IAppConfigurationService appConfigurationService, IUserConfigurationFileService userConfigurationFileService)
+    public ConfigurationController(
+        IAppConfigurationService appConfigurationService,
+        IUserConfigurationFileService userConfigurationFileService,
+        IEventHorizonRuntimeInitializer runtimeInitializer,
+        IConversationAgentManager conversationAgentManager)
     {
         _appConfigurationService = appConfigurationService;
         _userConfigurationFileService = userConfigurationFileService;
+        _runtimeInitializer = runtimeInitializer;
+        _conversationAgentManager = conversationAgentManager;
     }
 
     [HttpGet]
-    public ActionResult<AppConfigurationResponse> Get()
+    public ActionResult<AppConfigurationResponseDTO> Get()
     {
         var options = _appConfigurationService.Get();
-        return Ok(new AppConfigurationResponse
+        return Ok(new AppConfigurationResponseDTO
         {
             FilePath = _userConfigurationFileService.FilePath,
             CurrentDefaultProvider = options.CurrentDefaultProvider,
@@ -33,7 +44,7 @@ public sealed class ConfigurationController : ControllerBase
                     Model = pair.Value.Model,
                     Models = [.. pair.Value.Models],
                     Endpoint = pair.Value.Endpoint,
-                    ApiKeyMasked = Mask(pair.Value.ApiKey),
+                    ApiKey = pair.Value.ApiKey,
                     Deployment = pair.Value.Deployment,
                     UseDefaultAzureCredential = pair.Value.UseDefaultAzureCredential,
                 })
@@ -44,7 +55,7 @@ public sealed class ConfigurationController : ControllerBase
     }
 
     [HttpPut]
-    public async Task<ActionResult<AppConfigurationResponse>> SaveAsync(SaveAppConfigurationRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<AppConfigurationResponseDTO>> SaveAsync(SaveAppConfigurationRequestDTO request, CancellationToken cancellationToken)
     {
         var current = _appConfigurationService.Get();
         var next = new AppOptions
@@ -60,7 +71,9 @@ public sealed class ConfigurationController : ControllerBase
             Skills = request.Skills,
         };
         var saved = await _appConfigurationService.SaveAsync(next, cancellationToken).ConfigureAwait(false);
-        return Ok(new AppConfigurationResponse
+        await _conversationAgentManager.InvalidateAllAsync(cancellationToken).ConfigureAwait(false);
+        await _runtimeInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        return Ok(new AppConfigurationResponseDTO
         {
             FilePath = _userConfigurationFileService.FilePath,
             CurrentDefaultProvider = saved.CurrentDefaultProvider,
@@ -71,7 +84,7 @@ public sealed class ConfigurationController : ControllerBase
                 Model = pair.Value.Model,
                 Models = [.. pair.Value.Models],
                 Endpoint = pair.Value.Endpoint,
-                ApiKeyMasked = Mask(pair.Value.ApiKey),
+                ApiKey = pair.Value.ApiKey,
                 Deployment = pair.Value.Deployment,
                 UseDefaultAzureCredential = pair.Value.UseDefaultAzureCredential,
             }).ToArray(),
@@ -79,17 +92,4 @@ public sealed class ConfigurationController : ControllerBase
             Skills = saved.Skills,
         });
     }
-
-    private static string? Mask(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return value;
-        }
-
-        return value.Length <= 8
-            ? new string('*', value.Length)
-            : string.Concat(value[..2], new string('*', value.Length - 4), value[^2..]);
-    }
 }
-

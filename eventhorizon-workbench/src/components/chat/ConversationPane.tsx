@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import { useEffect, useRef } from "react";
 import { Loader2, Play, Square } from "lucide-react";
 import { ModifiedFilesCard } from "@/components/chat/ModifiedFilesCard";
 import { cn } from "@/utils/cn";
@@ -45,6 +46,11 @@ export function ConversationPane({
   onOpenDiff,
 }: ConversationPaneProps) {
   const canSubmit = composerValue.trim().length > 0 && currentRun?.status !== "running";
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [currentSession?.messages, composerValue]);
 
   return (
     <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">
@@ -95,31 +101,34 @@ export function ConversationPane({
         ) : (
           <div className="flex w-full flex-col gap-4">
             {currentSession.messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "rounded-3xl border p-4 shadow-sm",
-                  message.role === "user"
-                    ? "ml-auto max-w-[min(780px,88%)] border-primary/20 bg-primary text-primary-foreground"
-                    : "w-full border-border/70 bg-card",
+              <div key={message.id} className="flex flex-col gap-1">
+                {message.role === "assistant" && (
+                  <div className="text-sm font-medium text-muted-foreground">🤖 Assistant</div>
                 )}
-              >
-                <div className="mb-2 text-[11px] uppercase tracking-wide opacity-70">{message.role}</div>
-
-                {message.role === "assistant" ? (
-                  <div className="markdown max-w-none">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                {message.role === "user" ? (
+                  <div className="ml-auto flex flex-col gap-1">
+                    <div className="relative rounded-2xl bg-primary px-3 py-1.5 text-primary-foreground shadow-sm">
+                      <div className="whitespace-pre-wrap text-sm leading-6">{message.content}</div>
+                    </div>
+                    <div className="text-[11px] opacity-60 text-right">
+                      {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+                      {message.status === "streaming" ? " · streaming" : null}
+                    </div>
                   </div>
                 ) : (
-                  <div className="whitespace-pre-wrap text-sm leading-7">{message.content}</div>
+                  <>
+                    <div className="markdown max-w-none">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                    <div className="text-[11px] opacity-60">
+                      {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+                      {message.status === "streaming" ? " · streaming" : null}
+                    </div>
+                  </>
                 )}
-
-                <div className="mt-3 text-[11px] opacity-60">
-                  {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
-                  {message.status === "streaming" ? " · streaming" : null}
-                </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
 
             {currentRun?.status === "running" ? (
               <div className="w-full rounded-3xl border border-primary/20 bg-card p-4 shadow-sm">

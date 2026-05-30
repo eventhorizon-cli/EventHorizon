@@ -12,6 +12,7 @@ namespace EventHorizon.AGUI;
 
 public sealed class RunService
 {
+    private static readonly TimeSpan SessionInitializationTimeout = TimeSpan.FromSeconds(30);
     private readonly RunStore _runStore;
     private readonly IEventHorizonRuntime _runtime;
     private readonly IModelPriceCatalogService _priceCatalogService;
@@ -154,82 +155,85 @@ public sealed class RunService
     {
         var run = entry.Run;
         var context = new AGUIRunExecutionContext();
-        var sessionDocument = string.IsNullOrWhiteSpace(run.SessionId)
-            ? null
-            : await _sessionService.GetDocumentAsync(run.SessionId, CancellationToken.None).ConfigureAwait(false);
-        var overrides = new ChatRequestOverrides
-        {
-            ProviderName = run.ProviderName,
-            Model = run.Model,
-        };
-        var resolvedProvider = _providerResolutionService.TryResolveForSession(sessionDocument, overrides);
-
-        if (resolvedProvider is null)
-        {
-            throw new InvalidOperationException("No provider is configured. Please open settings and configure a provider before sending messages.");
-        }
-
-        ConversationAgentRuntime? conversationRuntime = null;
-        AIAgent agent;
-        AgentSession? session = null;
-
-        if (sessionDocument is not null && !string.IsNullOrWhiteSpace(run.SessionId))
-        {
-            conversationRuntime = await _conversationAgentManager
-                .GetOrCreateAsync(sessionDocument, overrides, entry.CancellationTokenSource.Token)
-                .ConfigureAwait(false);
-            agent = conversationRuntime.Agent;
-            session = conversationRuntime.Session;
-        }
-        else
-        {
-            var runtimeOptions = new Configuration.AppOptions
-            {
-                AGUI = new Configuration.AGUIOptions
-                {
-                    ApiBasePath = string.Empty,
-                    RawEndpointPath = string.Empty,
-                    Urls = new(),
-                },
-                Agent = new Configuration.AgentOptions
-                {
-                    Name = _runtime.Agent.Name ?? string.Empty,
-                    Description = _runtime.Agent.Description ?? string.Empty,
-                    EnableSkills = true,
-                    EnableShell = true,
-                    EnableMcpTools = true,
-                    AdditionalSystemPrompts = [],
-                },
-                Provider = resolvedProvider.Provider,
-                CurrentDefaultProvider = resolvedProvider.ProviderName,
-                Providers = new Dictionary<string, Configuration.ProviderOptions>(StringComparer.OrdinalIgnoreCase),
-                Pricing = new Configuration.PricingOptions(),
-                Conversation = new Configuration.ConversationOptions(),
-                McpServers = [],
-            };
-
-            agent = _providerAgentFactory.CreateAgent(
-                runtimeOptions,
-                _runtime.Instructions,
-                _runtime.Tools,
-                _runtime.SkillsProvider,
-                _runtime.Services);
-        }
-
-        var usageRuntime = new EventHorizonRuntime(
-            agent,
-            _runtime.Services,
-            resolvedProvider.Model,
-            _runtime.Instructions,
-            _runtime.ContextSnapshot,
-            _runtime.ToolCatalog,
-            _runtime.Tools,
-            _runtime.SkillsProvider,
-            []);
-        var usageTracker = new SessionUsageTracker(_priceCatalogService, usageRuntime);
+        var usageTracker = default(SessionUsageTracker);
 
         try
         {
+            var sessionDocument = string.IsNullOrWhiteSpace(run.SessionId)
+                ? null
+                : await _sessionService.GetDocumentAsync(run.SessionId, CancellationToken.None).ConfigureAwait(false);
+            var overrides = new ChatRequestOverrides
+            {
+                ProviderName = run.ProviderName,
+                Model = run.Model,
+            };
+            var resolvedProvider = _providerResolutionService.TryResolveForSession(sessionDocument, overrides);
+
+            if (resolvedProvider is null)
+            {
+                throw new InvalidOperationException("No provider is configured. Please open settings and configure a provider before sending messages.");
+            }
+
+            ConversationAgentRuntime? conversationRuntime = null;
+            AIAgent agent;
+            AgentSession? session = null;
+
+            if (sessionDocument is not null && !string.IsNullOrWhiteSpace(run.SessionId))
+            {
+                conversationRuntime = await WithSessionInitializationTimeout(
+                    _conversationAgentManager.GetOrCreateAsync(sessionDocument, overrides, entry.CancellationTokenSource.Token),
+                    "Timed out while initializing the conversation agent.",
+                    entry.CancellationTokenSource.Token).ConfigureAwait(false);
+                agent = conversationRuntime.Agent;
+                session = conversationRuntime.Session;
+            }
+            else
+            {
+                var runtimeOptions = new Configuration.AppOptions
+                {
+                    AGUI = new Configuration.AGUIOptions
+                    {
+                        ApiBasePath = string.Empty,
+                        RawEndpointPath = string.Empty,
+                        Urls = new(),
+                    },
+                    Agent = new Configuration.AgentOptions
+                    {
+                        Name = _runtime.Agent.Name ?? string.Empty,
+                        Description = _runtime.Agent.Description ?? string.Empty,
+                        EnableSkills = true,
+                        EnableShell = true,
+                        EnableMcpTools = true,
+                        AdditionalSystemPrompts = [],
+                    },
+                    Provider = resolvedProvider.Provider,
+                    CurrentDefaultProvider = resolvedProvider.ProviderName,
+                    Providers = new Dictionary<string, Configuration.ProviderOptions>(StringComparer.OrdinalIgnoreCase),
+                    Pricing = new Configuration.PricingOptions(),
+                    Conversation = new Configuration.ConversationOptions(),
+                    McpServers = [],
+                };
+
+                agent = _providerAgentFactory.CreateAgent(
+                    runtimeOptions,
+                    _runtime.Instructions,
+                    _runtime.Tools,
+                    _runtime.SkillsProvider,
+                    _runtime.Services);
+            }
+
+            var usageRuntime = new EventHorizonRuntime(
+                agent,
+                _runtime.Services,
+                resolvedProvider.Model,
+                _runtime.Instructions,
+                _runtime.ContextSnapshot,
+                _runtime.ToolCatalog,
+                _runtime.Tools,
+                _runtime.SkillsProvider,
+                []);
+            usageTracker = new SessionUsageTracker(_priceCatalogService, usageRuntime);
+
             Publish(entry, _eventMapper.CreateRunStarted(run, resolvedProvider.Model, run.WorkingDirectory, options));
             Publish(entry, _eventMapper.CreateUserMessage(run));
             Publish(entry, _eventMapper.CreatePlanUpdated(run, BuildPlan(), []));
@@ -238,7 +242,10 @@ public sealed class RunService
 
             run.MarkRunning(AGUIRunStates.Executing);
             using var fileTrackingScope = _fileStateTrackerAccessor.BeginScope(entry.FileStateTracker);
-            session ??= await agent.CreateSessionAsync(cancellationToken: entry.CancellationTokenSource.Token).ConfigureAwait(false);
+            session ??= await WithSessionInitializationTimeout(
+                agent.CreateSessionAsync(cancellationToken: entry.CancellationTokenSource.Token).AsTask(),
+                "Timed out while creating the provider session.",
+                entry.CancellationTokenSource.Token).ConfigureAwait(false);
             usageTracker.StartTurn();
 
             var messages = conversationRuntime is not null && !conversationRuntime.WasReused
@@ -326,6 +333,18 @@ public sealed class RunService
             entry.Complete();
             entry.CancellationTokenSource.Dispose();
         }
+    }
+
+    private static async Task<T> WithSessionInitializationTimeout<T>(Task<T> task, string timeoutMessage, CancellationToken cancellationToken)
+    {
+        var completedTask = await Task.WhenAny(task, Task.Delay(SessionInitializationTimeout, cancellationToken)).ConfigureAwait(false);
+        if (completedTask == task)
+        {
+            return await task.ConfigureAwait(false);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new TimeoutException(timeoutMessage);
     }
 
     private void PublishWorkspaceChanges(RunStoreEntry entry, AGUIRun run)

@@ -23,7 +23,7 @@ public sealed class SharedHostTests : IDisposable
     [Fact]
     public void Create_Registers_AGUI_And_Runtime_Services_In_Same_Host()
     {
-        using var host = EventHorizonHost.Create([], new EffectiveCommandOptions(), new TestPathEnvironment(_workspaceDirectory, _homeDirectory));
+        using var host = global::EventHorizon.Program.BuildHost([], new TestPathEnvironment(_workspaceDirectory, _homeDirectory));
 
         var application = host.Services.GetRequiredService<IEventHorizonApplication>();
         var runner = host.Services.GetRequiredService<IAGUIServerRunner>();

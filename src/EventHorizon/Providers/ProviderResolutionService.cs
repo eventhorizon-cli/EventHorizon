@@ -1,5 +1,6 @@
 using EventHorizon.Configuration;
 using EventHorizon.Conversations;
+using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Providers;
 
@@ -8,9 +9,9 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
     private readonly AppOptions _options;
     private readonly IProviderConfigurationService _providerConfigurationService;
 
-    public ProviderResolutionService(AppOptions options, IProviderConfigurationService providerConfigurationService)
+    public ProviderResolutionService(IOptions<AppOptions> options, IProviderConfigurationService providerConfigurationService)
     {
-        _options = options;
+        _options = options.Value;
         _providerConfigurationService = providerConfigurationService;
     }
 
@@ -103,4 +104,3 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
     private static string? FirstNonEmpty(params string?[] values)
         => values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value));
 }
-

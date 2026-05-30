@@ -18,6 +18,7 @@ public sealed class ConversationSessionDocument
     public bool IsTitleManuallyEdited { get; set; }
     public string? SerializedSession { get; set; }
     public string? ConversationId { get; set; }
+    public EventHorizon.Configuration.SkillCatalogOptions SessionSkills { get; set; } = new();
     public List<ConversationTranscriptEntry> Transcript { get; set; } = [];
     public ConversationUsageSnapshot Usage { get; set; } = new();
 }

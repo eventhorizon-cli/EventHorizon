@@ -14,12 +14,16 @@ export type DirectoryItem = {
   parentPath?: string;
 };
 
+export type DirectoryListing = {
+  currentPath: string;
+  items: DirectoryItem[];
+};
+
 export type ProviderConfig = {
   type?: ProviderType;
   model?: string;
   models: string[];
   endpoint?: string;
-  apiKeyMasked?: string;
   apiKey?: string;
   deployment?: string;
   useDefaultAzureCredential: boolean;
@@ -105,6 +109,7 @@ export type ChatMessage = {
 
 export type AgentSessionDetail = AgentSession & {
   messages: ChatMessage[];
+  sessionSkills: SkillCatalog;
 };
 
 export type AgentRun = {

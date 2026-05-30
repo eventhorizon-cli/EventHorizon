@@ -6,6 +6,7 @@ type DirectoryPickerDialogProps = {
   open: boolean;
   title: string;
   confirmLabel: string;
+  zIndexClassName?: string;
   currentPath?: string;
   selectedPath?: string;
   pathInput: string;
@@ -25,6 +26,7 @@ export function DirectoryPickerDialog({
   open,
   title,
   confirmLabel,
+  zIndexClassName = "z-50",
   currentPath,
   selectedPath,
   pathInput,
@@ -44,7 +46,7 @@ export function DirectoryPickerDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className={`fixed inset-0 ${zIndexClassName} flex items-center justify-center p-4`}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
       <div className="relative z-10 w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-3xl border border-border bg-background shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
@@ -68,7 +70,7 @@ export function DirectoryPickerDialog({
         <div className="border-b border-border px-6 py-3">
           <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
             <ChevronRight className="h-4 w-4" />
-            <span className="truncate font-mono">{currentPath || "Root"}</span>
+            <span className="truncate font-mono">{currentPath || pathInput || "Loading..."}</span>
           </div>
           <div className="flex items-center gap-2">
             <input

@@ -1,23 +1,21 @@
 using EventHorizon.Configuration;
 using EventHorizon.Pricing;
+using Microsoft.Extensions.Options;
 
 namespace EventHorizon.EntryPoints;
 
 internal sealed class EventHorizonApplication : IEventHorizonApplication
 {
     private readonly AppOptions _options;
-    private readonly EffectiveCommandOptions _command;
     private readonly IModelPriceCatalogService _priceService;
     private readonly IAGUIServerRunner _aguiServerRunner;
 
     public EventHorizonApplication(
-        AppOptions options,
-        EffectiveCommandOptions command,
+        IOptions<AppOptions> options,
         IModelPriceCatalogService priceService,
         IAGUIServerRunner aguiServerRunner)
     {
-        _options = options;
-        _command = command;
+        _options = options.Value;
         _priceService = priceService;
         _aguiServerRunner = aguiServerRunner;
     }
@@ -25,14 +23,7 @@ internal sealed class EventHorizonApplication : IEventHorizonApplication
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         _ = LoadPricingInBackgroundAsync(cancellationToken);
-
-        var task = _command.Command switch
-        {
-            "serve" => _aguiServerRunner.RunAsync(cancellationToken).ConfigureAwait(false),
-            _ => throw new InvalidOperationException($"Unsupported startup mode '{_command.Command}'. Only '{EffectiveCommandOptions.StartupMode}' is supported."),
-        };
-
-        await task;
+        await _aguiServerRunner.RunAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task LoadPricingInBackgroundAsync(CancellationToken cancellationToken)

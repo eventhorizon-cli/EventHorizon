@@ -1,6 +1,7 @@
 import { apiRequest } from "@/api/client";
 import type {
   AppConfiguration,
+  ImportedSkill,
   McpServerConfig,
   McpTestResult,
   ProviderConfig,
@@ -17,7 +18,7 @@ type ApiProviderPayload = {
   model?: string;
   models?: string[];
   endpoint?: string;
-  apiKeyMasked?: string;
+  apiKey?: string;
   deployment?: string;
   useDefaultAzureCredential?: boolean;
 };
@@ -48,7 +49,7 @@ function mapProvider(payload: ApiProviderPayload): ProviderEntry {
       model: payload.model,
       models: payload.models ?? [],
       endpoint: payload.endpoint,
-      apiKeyMasked: payload.apiKeyMasked,
+      apiKey: payload.apiKey,
       deployment: payload.deployment,
       useDefaultAzureCredential: payload.useDefaultAzureCredential ?? false,
     },
@@ -125,8 +126,28 @@ export async function testMcp(server: McpServerConfig): Promise<McpTestResult> {
 }
 
 export async function importSkill(path: string): Promise<SkillImportResult> {
+  return importSkillToTarget({ path, target: "global" });
+}
+
+export async function importSkillToTarget(input: {
+  path: string;
+  target: "global" | "session";
+  sessionId?: string;
+}): Promise<SkillImportResult> {
   return apiRequest<SkillImportResult>("/api/skills/import", {
     method: "POST",
-    body: JSON.stringify({ path }),
+    body: JSON.stringify(input),
+  });
+}
+
+export async function removeGlobalSkill(skillName: string): Promise<{ success: boolean; message: string; errors: string[] }> {
+  return apiRequest(`/api/skills/global/${encodeURIComponent(skillName)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function removeSessionSkill(sessionId: string, skillName: string): Promise<{ success: boolean; message: string; errors: string[] }> {
+  return apiRequest(`/api/skills/sessions/${encodeURIComponent(sessionId)}/${encodeURIComponent(skillName)}`, {
+    method: "DELETE",
   });
 }

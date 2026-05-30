@@ -1,7 +1,8 @@
+using EventHorizon.AGUI.DTOs;
+
 namespace EventHorizon.Configuration;
 
 public interface IMcpService
 {
-    Task<McpTestResponse> TestAsync(McpTestRequest request, CancellationToken cancellationToken);
+    Task<McpTestResponseDTO> TestAsync(McpTestRequestDTO request, CancellationToken cancellationToken);
 }
-

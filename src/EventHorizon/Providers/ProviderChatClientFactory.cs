@@ -25,7 +25,7 @@ public sealed class ProviderChatClientFactory : IProviderChatClientFactory
 
     private static IChatClient CreateOpenAiChatClient(Configuration.ProviderOptions options)
     {
-        var apiKey = options.ApiKey ?? throw new InvalidOperationException("OPENAI_API_KEY is required for the openai provider.");
+        var apiKey = options.ApiKey ?? throw new InvalidOperationException("Provider.ApiKey is required for the openai provider.");
         var model = options.Model ?? throw new InvalidOperationException("A model is required for the openai provider.");
         return new OpenAIClient(apiKey).GetChatClient(model).AsIChatClient();
     }
@@ -40,8 +40,8 @@ public sealed class ProviderChatClientFactory : IProviderChatClientFactory
 
     private static IChatClient CreateAzureOpenAiChatClient(Configuration.ProviderOptions options)
     {
-        var endpoint = options.Endpoint ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT is required for the azure-openai provider.");
-        var deployment = options.Deployment ?? options.Model ?? throw new InvalidOperationException("AZURE_OPENAI_DEPLOYMENT_NAME is required for the azure-openai provider.");
+        var endpoint = options.Endpoint ?? throw new InvalidOperationException("Provider.Endpoint is required for the azure-openai provider.");
+        var deployment = options.Deployment ?? options.Model ?? throw new InvalidOperationException("Provider.Deployment or Provider.Model is required for the azure-openai provider.");
         var client = string.IsNullOrWhiteSpace(options.ApiKey)
             ? new AzureOpenAIClient(new Uri(endpoint), new DefaultAzureCredential())
             : new AzureOpenAIClient(new Uri(endpoint), new ApiKeyCredential(options.ApiKey));
@@ -50,9 +50,8 @@ public sealed class ProviderChatClientFactory : IProviderChatClientFactory
 
     private static IChatClient CreateGeminiChatClient(Configuration.ProviderOptions options)
     {
-        var apiKey = options.ApiKey ?? throw new InvalidOperationException("GOOGLE_GENAI_API_KEY is required for the gemini provider.");
+        var apiKey = options.ApiKey ?? throw new InvalidOperationException("Provider.ApiKey is required for the gemini provider.");
         var model = options.Model ?? throw new InvalidOperationException("A model is required for the gemini provider.");
         return new Client(vertexAI: false, apiKey: apiKey).AsIChatClient(model);
     }
 }
-

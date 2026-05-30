@@ -10,6 +10,8 @@ public interface IUserConfigurationFileService
     void EnsureExists();
 
     void Save(AppOptions options);
+
+    string CreateInitialContent();
 }
 
 public sealed class UserConfigurationFileService : IUserConfigurationFileService
@@ -34,10 +36,7 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         if (!File.Exists(FilePath))
         {
-            var initialContent = File.Exists(_bundledDefaultFilePath)
-                ? File.ReadAllText(_bundledDefaultFilePath)
-                : "{}";
-            SafeWrite(initialContent.TrimEnd() + Environment.NewLine);
+            SafeWrite(CreateInitialContent());
         }
     }
 
@@ -46,7 +45,10 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
         EnsureExists();
 
         var root = ReadRoot();
+        root.Remove(nameof(AppOptions.CurrentDefaultProvider));
         root.Remove(nameof(AppOptions.CurrentProvider));
+        root.Remove(nameof(AppOptions.Provider));
+        root.Remove(nameof(AppOptions.Providers));
 
         var optionsToPersist = CloneForPersistence(options);
         var persisted = JsonSerializer.SerializeToNode(optionsToPersist, EventHorizonJsonContext.Default.AppOptions)?.AsObject() ?? [];
@@ -76,6 +78,38 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
         catch (JsonException ex)
         {
             throw new InvalidOperationException($"The configuration file '{FilePath}' is not valid JSON.", ex);
+        }
+    }
+
+    public string CreateInitialContent()
+    {
+        if (!File.Exists(_bundledDefaultFilePath))
+        {
+            return "{}" + Environment.NewLine;
+        }
+
+        var initialContent = File.ReadAllText(_bundledDefaultFilePath);
+        if (string.IsNullOrWhiteSpace(initialContent))
+        {
+            return "{}" + Environment.NewLine;
+        }
+
+        try
+        {
+            var root = JsonNode.Parse(initialContent)?.AsObject() ?? [];
+
+            // The bundled appsettings.json is treated as a user config template.
+            // Provider selections and credentials must not be pre-populated into ~/.eventhorizon/appsettings.json.
+            root.Remove(nameof(AppOptions.CurrentDefaultProvider));
+            root.Remove(nameof(AppOptions.CurrentProvider));
+            root.Remove(nameof(AppOptions.Provider));
+            root[nameof(AppOptions.Providers)] = new JsonObject();
+
+            return root.ToJsonString(JsonOptions) + Environment.NewLine;
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"The bundled configuration template '{_bundledDefaultFilePath}' is not valid JSON.", ex);
         }
     }
 
@@ -113,12 +147,9 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
         {
             AGUI = options.AGUI,
             Agent = options.Agent,
-            Provider = options.Provider,
-            CurrentDefaultProvider = options.CurrentDefaultProvider,
-            Providers = options.Providers.ToDictionary(
-                static pair => pair.Key,
-                static pair => CloneProvider(pair.Value),
-                StringComparer.OrdinalIgnoreCase),
+            Provider = new ProviderOptions(),
+            CurrentDefaultProvider = null,
+            Providers = new Dictionary<string, ProviderOptions>(StringComparer.OrdinalIgnoreCase),
             Pricing = options.Pricing,
             Conversation = options.Conversation,
             McpServers = options.McpServers.Select(CloneMcpServer).ToList(),
@@ -138,19 +169,6 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
             CurrentProvider = null,
         };
 
-    private static ProviderOptions CloneProvider(ProviderOptions provider)
-        => new()
-        {
-            Name = provider.Name,
-            Type = provider.Type,
-            Model = provider.Model,
-            Models = [.. provider.Models],
-            ApiKey = provider.ApiKey,
-            Endpoint = provider.Endpoint,
-            Deployment = provider.Deployment,
-            UseDefaultAzureCredential = provider.UseDefaultAzureCredential,
-        };
-
     private static McpServerOptions CloneMcpServer(McpServerOptions server)
         => new()
         {
@@ -162,4 +180,3 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
             Enabled = server.Enabled,
         };
 }
-

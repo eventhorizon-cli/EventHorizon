@@ -22,11 +22,18 @@ type ContextPanelProps = {
   configurationDraft?: AppConfiguration;
   detailsMessage?: string;
   detailsError?: string;
+  sessionSettingsMessage?: string;
+  sessionSettingsError?: string;
   isUpdatingConversation: boolean;
+  isImportingSkill: boolean;
   sessionTitleInput: string;
+  skillImportPath: string;
+  skillImportTarget: "global" | "session";
   selectedProviderName?: string;
   selectedProviderType?: string;
   availableModels: string[];
+  conversationModelWarning?: string;
+  selectedProviderDefaultModel?: string;
   changes: FileChange[];
   selectedFile?: string;
   currentDiff?: FileDiff;
@@ -35,10 +42,15 @@ type ContextPanelProps = {
   resolvedTheme: "light" | "dark";
   onContextViewChange: (view: ContextView) => void;
   onSessionTitleInputChange: (value: string) => void;
+  onSkillImportPathChange: (value: string) => void;
+  onSkillImportTargetChange: (target: "global" | "session") => void;
   onSaveConversationTitle: () => Promise<void> | void;
   onDeleteConversation: () => Promise<void> | void;
   onChangeConversationProvider: (providerName: string) => Promise<void> | void;
   onChangeConversationModel: (model: string) => Promise<void> | void;
+  onOpenSkillDirectoryPicker: () => Promise<void> | void;
+  onImportSkill: () => Promise<void> | void;
+  onRemoveSessionSkill: (skillName: string) => Promise<void> | void;
   onOpenDiff: (change: FileChange) => Promise<void> | void;
 };
 
@@ -50,11 +62,18 @@ export function ContextPanel({
   configurationDraft,
   detailsMessage,
   detailsError,
+  sessionSettingsMessage,
+  sessionSettingsError,
   isUpdatingConversation,
+  isImportingSkill,
   sessionTitleInput,
+  skillImportPath,
+  skillImportTarget,
   selectedProviderName,
   selectedProviderType,
   availableModels,
+  conversationModelWarning,
+  selectedProviderDefaultModel,
   changes,
   selectedFile,
   currentDiff,
@@ -63,10 +82,15 @@ export function ContextPanel({
   resolvedTheme,
   onContextViewChange,
   onSessionTitleInputChange,
+  onSkillImportPathChange,
+  onSkillImportTargetChange,
   onSaveConversationTitle,
   onDeleteConversation,
   onChangeConversationProvider,
   onChangeConversationModel,
+  onOpenSkillDirectoryPicker,
+  onImportSkill,
+  onRemoveSessionSkill,
   onOpenDiff,
 }: ContextPanelProps) {
   return (
@@ -188,6 +212,16 @@ export function ContextPanel({
               <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-red-700 dark:text-red-300">{detailsError}</div>
             ) : null}
 
+            {sessionSettingsMessage ? (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-700 dark:text-emerald-300">
+                {sessionSettingsMessage}
+              </div>
+            ) : null}
+
+            {sessionSettingsError ? (
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-red-700 dark:text-red-300">{sessionSettingsError}</div>
+            ) : null}
+
             <section className="rounded-2xl border border-border bg-background/50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -260,12 +294,108 @@ export function ContextPanel({
                       </option>
                     ))}
                   </select>
+                  {conversationModelWarning ? (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                      <span>{conversationModelWarning}</span>
+                      <button
+                        type="button"
+                        onClick={() => selectedProviderDefaultModel ? void onChangeConversationModel(selectedProviderDefaultModel) : undefined}
+                        disabled={!selectedProviderDefaultModel || isUpdatingConversation}
+                        className="shrink-0 rounded-lg border border-amber-500/30 px-2.5 py-1 font-medium transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Use provider default
+                      </button>
+                    </div>
+                  ) : null}
                 </label>
 
                 <div className="grid gap-1 text-xs text-muted-foreground">
                   <div>Workspace: {currentSession?.workspaceRoot ?? "Not selected"}</div>
                   <div>Resolved provider: {selectedProviderName ?? "None"}</div>
                   <div>Provider type: {currentSession?.providerType ?? selectedProviderType ?? "Unknown"}</div>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-background/50 p-4">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Skills</div>
+                <div className="mt-1 text-base font-medium">Global and session skills</div>
+              </div>
+
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-2">
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Import skill path</span>
+                  <div className="flex gap-2">
+                    <input
+                      value={skillImportPath}
+                      onChange={(event) => onSkillImportPathChange(event.target.value)}
+                      placeholder="/path/to/skill-folder"
+                      className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void onOpenSkillDirectoryPicker()}
+                      className="rounded-xl border border-border px-3 py-2 text-xs font-medium transition hover:bg-muted"
+                    >
+                      Browse
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void onImportSkill()}
+                      disabled={!skillImportPath.trim() || isImportingSkill || !currentSession || currentSession.id.startsWith("draft_")}
+                      className="rounded-xl border border-border px-3 py-2 text-xs font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isImportingSkill ? "Importing..." : "Import"}
+                    </button>
+                  </div>
+                </label>
+
+                <div className="grid gap-2 md:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Global skills</div>
+                    <div className="mt-3 grid gap-3">
+                      {(configuration?.skills.imported ?? []).length ? (
+                        (configuration?.skills.imported ?? []).map((skill) => (
+                          <div key={`global-${skill.path}`} className="rounded-xl border border-border bg-background/60 p-3">
+                            <div className="text-sm font-medium">{skill.name}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">{skill.path}</div>
+                            {skill.description ? <div className="mt-2 text-sm text-muted-foreground">{skill.description}</div> : null}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">No global skills.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Session skills</div>
+                    <div className="mt-3 grid gap-3">
+                      {(currentSession?.sessionSkills.imported ?? []).length ? (
+                        (currentSession?.sessionSkills.imported ?? []).map((skill) => (
+                          <div key={`session-${skill.path}`} className="rounded-xl border border-border bg-background/60 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium">{skill.name}</div>
+                                <div className="mt-1 text-xs text-muted-foreground">{skill.path}</div>
+                                {skill.description ? <div className="mt-2 text-sm text-muted-foreground">{skill.description}</div> : null}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => void onRemoveSessionSkill(skill.name)}
+                                className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">No session skills.</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 namespace EventHorizon.Configuration;
 
 internal sealed class AppConfigurationService : IAppConfigurationService
@@ -5,15 +7,18 @@ internal sealed class AppConfigurationService : IAppConfigurationService
     private readonly AppOptions _options;
     private readonly IAppOptionsInitializer _initializer;
     private readonly IUserConfigurationFileService _userConfigurationFileService;
+    private readonly IUserProvidersFileService _userProvidersFileService;
 
     public AppConfigurationService(
-        AppOptions options,
+        IOptions<AppOptions> options,
         IAppOptionsInitializer initializer,
-        IUserConfigurationFileService userConfigurationFileService)
+        IUserConfigurationFileService userConfigurationFileService,
+        IUserProvidersFileService userProvidersFileService)
     {
-        _options = options;
+        _options = options.Value;
         _initializer = initializer;
         _userConfigurationFileService = userConfigurationFileService;
+        _userProvidersFileService = userProvidersFileService;
     }
 
     public AppOptions Get()
@@ -25,6 +30,7 @@ internal sealed class AppConfigurationService : IAppConfigurationService
         CopyInto(_options, options);
         _initializer.Initialize(_options);
         _userConfigurationFileService.Save(_options);
+        _userProvidersFileService.Save(_options);
         return Task.FromResult(_options);
     }
 
@@ -33,7 +39,7 @@ internal sealed class AppConfigurationService : IAppConfigurationService
         cancellationToken.ThrowIfCancellationRequested();
         _options.CurrentDefaultProvider = string.IsNullOrWhiteSpace(providerName) ? null : providerName.Trim();
         _initializer.Initialize(_options);
-        _userConfigurationFileService.Save(_options);
+        _userProvidersFileService.Save(_options);
         return Task.FromResult(_options);
     }
 
@@ -43,12 +49,27 @@ internal sealed class AppConfigurationService : IAppConfigurationService
         target.Agent = source.Agent;
         target.Provider = source.Provider;
         target.CurrentDefaultProvider = source.CurrentDefaultProvider;
-        target.Providers = new Dictionary<string, ProviderOptions>(source.Providers, StringComparer.OrdinalIgnoreCase);
+        target.Providers = source.Providers.ToDictionary(
+            static pair => pair.Key,
+            pair => MergeProvider(pair.Value, target.Providers.TryGetValue(pair.Key, out var existingProvider) ? existingProvider : null),
+            StringComparer.OrdinalIgnoreCase);
         target.Pricing = source.Pricing;
         target.Conversation = source.Conversation;
         target.McpServers = [.. source.McpServers];
         target.Skills = source.Skills;
         target.CurrentProvider = null;
     }
-}
 
+    private static ProviderOptions MergeProvider(ProviderOptions source, ProviderOptions? existing)
+        => new()
+        {
+            Name = source.Name,
+            Type = source.Type,
+            Model = source.Model,
+            Models = [.. source.Models],
+            ApiKey = string.IsNullOrWhiteSpace(source.ApiKey) ? existing?.ApiKey : source.ApiKey,
+            Endpoint = source.Endpoint,
+            Deployment = source.Deployment,
+            UseDefaultAzureCredential = source.UseDefaultAzureCredential,
+        };
+}

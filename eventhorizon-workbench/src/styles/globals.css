@@ -3,39 +3,57 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 20% 96%;
-  --foreground: 222 47% 11%;
+  --background: 210 15% 92%;
+  --foreground: 222 35% 18%;
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --muted: 210 16% 93%;
-  --muted-foreground: 215 16% 40%;
-  --border: 214 18% 88%;
-  --input: 214 18% 88%;
+  --card-foreground: 222 35% 18%;
+  --muted: 210 15% 88%;
+  --muted-foreground: 215 15% 45%;
+  --border: 214 15% 82%;
+  --input: 214 15% 82%;
   --primary: 221 83% 53%;
   --primary-foreground: 210 40% 98%;
-  --accent: 210 16% 93%;
-  --accent-foreground: 222 47% 11%;
+  --accent: 210 15% 88%;
+  --accent-foreground: 222 35% 18%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 210 40% 98%;
   --ring: 221 83% 53%;
 }
 
 .dark {
-  --background: 222 24% 9%;
-  --foreground: 210 20% 92%;
-  --card: 222 18% 12%;
-  --card-foreground: 210 20% 92%;
-  --muted: 222 16% 16%;
-  --muted-foreground: 215 20% 67%;
-  --border: 222 16% 20%;
-  --input: 222 16% 20%;
-  --primary: 199 89% 48%;
-  --primary-foreground: 222 47% 11%;
-  --accent: 222 16% 16%;
-  --accent-foreground: 210 20% 92%;
+  --background: 225 25% 9%;
+  --foreground: 220 10% 85%;
+  --card: 220 20% 12%;
+  --card-foreground: 220 10% 85%;
+  --muted: 220 18% 18%;
+  --muted-foreground: 220 10% 55%;
+  --border: 220 18% 18%;
+  --input: 220 18% 18%;
+  --primary: 212 62% 60%;
+  --primary-foreground: 225 25% 9%;
+  --accent: 220 18% 18%;
+  --accent-foreground: 220 10% 85%;
   --destructive: 0 63% 54%;
-  --destructive-foreground: 210 40% 98%;
-  --ring: 199 89% 48%;
+  --destructive-foreground: 220 10% 95%;
+  --ring: 212 62% 60%;
+}
+
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #171b26;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #262a37;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #32363f;
 }
 
 @layer base {

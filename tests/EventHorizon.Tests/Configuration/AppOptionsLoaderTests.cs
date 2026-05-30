@@ -1,4 +1,8 @@
+using EventHorizon.AGUI.Controllers;
+using EventHorizon.AGUI.DTOs;
 using EventHorizon.Configuration;
+using EventHorizon.EntryPoints;
+using EventHorizon.Providers;
 using EventHorizon.Workspace;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -27,9 +31,12 @@ public sealed class AppOptionsLoaderTests : IDisposable
         using var host = CreateHost();
 
         var configFilePath = GetDefaultConfigFilePath();
+        var content = File.ReadAllText(configFilePath);
 
         Assert.True(File.Exists(configFilePath));
-        Assert.Contains("\"AGUI\"", File.ReadAllText(configFilePath), StringComparison.Ordinal);
+        Assert.Contains("\"AGUI\"", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"CurrentDefaultProvider\"", content, StringComparison.Ordinal);
+        Assert.Contains("\"Providers\": {}", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -58,7 +65,7 @@ public sealed class AppOptionsLoaderTests : IDisposable
     }
 
     [Fact]
-    public void Create_Applies_Config_Precedence_BuiltIn_Home_External_Then_Environment()
+    public void Create_Applies_Config_Precedence_BuiltIn_Then_Home_File()
     {
         WriteHomeConfig("""
         {
@@ -76,36 +83,12 @@ public sealed class AppOptionsLoaderTests : IDisposable
         }
         """);
 
-        var externalConfigPath = Path.Combine(_root, "external.json");
-        File.WriteAllText(externalConfigPath, """
-        {
-          "CurrentDefaultProvider": "external",
-          "Providers": {
-            "external": {
-              "Type": "openai",
-              "Model": "external-model"
-            }
-          }
-        }
-        """);
+        using var host = CreateHost();
+        var options = host.Services.GetRequiredService<IOptions<AppOptions>>().Value;
 
-        const string environmentKey = "EVENTHORIZON__Providers__external__Model";
-        var originalValue = Environment.GetEnvironmentVariable(environmentKey);
-        Environment.SetEnvironmentVariable(environmentKey, "environment-model");
-
-        try
-        {
-            using var host = CreateHost(new EffectiveCommandOptions { ConfigFile = externalConfigPath });
-            var options = host.Services.GetRequiredService<IOptions<AppOptions>>().Value;
-
-            Assert.Equal("external", options.CurrentDefaultProvider);
-            Assert.Equal("environment-model", options.Providers["external"].Model);
-            Assert.Equal("environment-model", options.Provider.Model);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(environmentKey, originalValue);
-        }
+        Assert.Equal("home", options.CurrentDefaultProvider);
+        Assert.Equal("home-model", options.Providers["home"].Model);
+        Assert.Equal("home-model", options.Provider.Model);
     }
 
     [Fact]
@@ -168,18 +151,6 @@ public sealed class AppOptionsLoaderTests : IDisposable
     }
 
     [Fact]
-    public void Create_Allows_Command_Line_Workspace_Override()
-    {
-        var overrideDirectory = Path.Combine(_root, "override-workspace");
-        Directory.CreateDirectory(overrideDirectory);
-
-        using var host = CreateHost(new EffectiveCommandOptions { WorkspaceRoot = overrideDirectory });
-
-        var workspaceContext = host.Services.GetRequiredService<WorkspaceContext>();
-        Assert.Equal(Path.GetFullPath(overrideDirectory), workspaceContext.WorkspaceRoot);
-    }
-
-    [Fact]
     public void ProviderConfigurationService_Persists_CurrentDefaultProvider_To_Home_Config()
     {
         WriteHomeConfig("""
@@ -207,6 +178,158 @@ public sealed class AppOptionsLoaderTests : IDisposable
         Assert.DoesNotContain("\"CurrentProvider\"", persisted, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task SaveAsync_Does_Not_Create_Legacy_Default_Provider_When_Named_Providers_Are_Present()
+    {
+        using var host = CreateHost();
+        var configurationService = host.Services.GetRequiredService<IAppConfigurationService>();
+
+        var saved = await configurationService.SaveAsync(new AppOptions
+        {
+            AGUI = new AGUIOptions(),
+            Agent = new AgentOptions(),
+            Provider = new ProviderOptions
+            {
+                Type = "openai",
+                Model = "gpt-4.1-mini",
+            },
+            CurrentDefaultProvider = "custom-openai",
+            Providers = new Dictionary<string, ProviderOptions>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["custom-openai"] = new()
+                {
+                    Type = "openai-compatible",
+                    Model = "my-model",
+                    Endpoint = "https://example.com/v1",
+                },
+            },
+            Pricing = new PricingOptions(),
+            Conversation = new ConversationOptions(),
+            Skills = new SkillCatalogOptions(),
+        }, CancellationToken.None);
+
+        Assert.Equal(["custom-openai"], saved.Providers.Keys.OrderBy(static key => key, StringComparer.OrdinalIgnoreCase));
+        Assert.DoesNotContain(saved.Providers, static pair => pair.Key.Equals("default", StringComparison.OrdinalIgnoreCase));
+
+        var persisted = File.ReadAllText(GetDefaultConfigFilePath());
+        Assert.Contains("\"custom-openai\"", persisted, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"default\"", persisted, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"gpt-4.1-mini\"", persisted, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SaveAsync_Preserves_Existing_ApiKey_When_Request_Does_Not_Provide_One()
+    {
+        using var host = CreateHost();
+        var configurationService = host.Services.GetRequiredService<IAppConfigurationService>();
+
+        await configurationService.SaveAsync(new AppOptions
+        {
+            AGUI = new AGUIOptions(),
+            Agent = new AgentOptions(),
+            Provider = new ProviderOptions(),
+            CurrentDefaultProvider = "openai",
+            Providers = new Dictionary<string, ProviderOptions>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["openai"] = new()
+                {
+                    Type = "openai",
+                    Model = "gpt-4.1-mini",
+                    ApiKey = "secret-key",
+                },
+            },
+            Pricing = new PricingOptions(),
+            Conversation = new ConversationOptions(),
+            Skills = new SkillCatalogOptions(),
+        }, CancellationToken.None);
+
+        var saved = await configurationService.SaveAsync(new AppOptions
+        {
+            AGUI = new AGUIOptions(),
+            Agent = new AgentOptions(),
+            Provider = new ProviderOptions(),
+            CurrentDefaultProvider = "openai",
+            Providers = new Dictionary<string, ProviderOptions>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["openai"] = new()
+                {
+                    Type = "openai",
+                    Model = "gpt-4.1-mini",
+                    ApiKey = null,
+                },
+            },
+            Pricing = new PricingOptions(),
+            Conversation = new ConversationOptions(),
+            Skills = new SkillCatalogOptions(),
+        }, CancellationToken.None);
+
+        Assert.Equal("secret-key", saved.Providers["openai"].ApiKey);
+
+        var persisted = File.ReadAllText(GetDefaultConfigFilePath());
+        Assert.Contains("\"ApiKey\": \"secret-key\"", persisted, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Create_Loads_Provider_ApiKey_From_Configuration_Response_Model()
+    {
+        WriteHomeConfig("""
+        {
+          "CurrentDefaultProvider": "openai",
+          "Providers": {
+            "openai": {
+              "Type": "openai",
+              "Model": "gpt-4.1-mini",
+              "ApiKey": "secret-key"
+            }
+          }
+        }
+        """);
+
+        using var host = CreateHost();
+        var options = host.Services.GetRequiredService<IOptions<AppOptions>>().Value;
+
+        Assert.Equal("secret-key", options.Providers["openai"].ApiKey);
+    }
+
+    [Fact]
+    public async Task SaveAsync_Initializes_Runtime_After_Provider_Is_Configured_Post_Startup()
+    {
+        using var host = CreateHost();
+        var runtime = host.Services.GetRequiredService<IEventHorizonRuntime>();
+
+        _ = Assert.Throws<InvalidOperationException>(() => _ = runtime.Agent);
+
+        var controller = new ConfigurationController(
+            host.Services.GetRequiredService<IAppConfigurationService>(),
+            host.Services.GetRequiredService<IUserConfigurationFileService>(),
+            host.Services.GetRequiredService<IEventHorizonRuntimeInitializer>(),
+            host.Services.GetRequiredService<IConversationAgentManager>());
+
+        await controller.SaveAsync(new SaveAppConfigurationRequestDTO
+        {
+            CurrentDefaultProvider = "openai",
+            Providers =
+            [
+                new NamedProviderConfigurationDTO
+                {
+                    Name = "openai",
+                    Provider = new ProviderOptions
+                    {
+                        Type = "openai-compatible",
+                        Model = "gpt-4.1-mini",
+                        ApiKey = "test-key",
+                        Endpoint = "https://example.com/v1",
+                        UseDefaultAzureCredential = false,
+                    },
+                },
+            ],
+            McpServers = [],
+            Skills = new SkillCatalogOptions(),
+        }, CancellationToken.None);
+
+        Assert.NotNull(runtime.Agent);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root))
@@ -215,8 +338,8 @@ public sealed class AppOptionsLoaderTests : IDisposable
         }
     }
 
-    private global::Microsoft.Extensions.Hosting.IHost CreateHost(EffectiveCommandOptions? commandOptions = null)
-        => EventHorizonHost.Create([], commandOptions ?? new EffectiveCommandOptions(), new TestPathEnvironment(_workspaceDirectory, _homeDirectory));
+    private global::Microsoft.Extensions.Hosting.IHost CreateHost()
+        => global::EventHorizon.Program.BuildHost([], new TestPathEnvironment(_workspaceDirectory, _homeDirectory));
 
     private string GetDefaultConfigFilePath()
         => Path.Combine(_homeDirectory, ".eventhorizon", "appsettings.json");

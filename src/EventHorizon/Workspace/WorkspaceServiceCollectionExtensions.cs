@@ -12,13 +12,8 @@ public static class WorkspaceServiceCollectionExtensions
         services.AddSingleton(new ShellCommandRunner());
         services.AddSingleton(serviceProvider =>
         {
-            var commandOptions = serviceProvider.GetRequiredService<Configuration.EffectiveCommandOptions>();
             var pathEnvironment = serviceProvider.GetRequiredService<Configuration.IPathEnvironment>();
-            var workspaceRoot = string.IsNullOrWhiteSpace(commandOptions.WorkspaceRoot)
-                ? pathEnvironment.CurrentDirectory
-                : commandOptions.WorkspaceRoot;
-
-            return new WorkspaceContext(workspaceRoot);
+            return new WorkspaceContext(pathEnvironment.CurrentDirectory);
         });
         services.AddSingleton(serviceProvider =>
             new FileSnapshotService(serviceProvider.GetRequiredService<WorkspaceContext>().WorkspaceRoot));
@@ -36,4 +31,3 @@ public static class WorkspaceServiceCollectionExtensions
         return services;
     }
 }
-

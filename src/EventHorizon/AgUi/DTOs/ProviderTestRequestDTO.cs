@@ -1,13 +1,15 @@
-namespace EventHorizon.Configuration;
+using EventHorizon.Configuration;
 
-public sealed class ProviderTestRequest
+namespace EventHorizon.AGUI.DTOs;
+
+public sealed class ProviderTestRequestDTO
 {
     public string Name { get; set; } = string.Empty;
 
     public ProviderOptions Provider { get; set; } = new();
 }
 
-public sealed class ProviderTestResponse
+public sealed class ProviderTestResponseDTO
 {
     public bool Success { get; set; }
 
@@ -15,4 +17,3 @@ public sealed class ProviderTestResponse
 
     public IReadOnlyList<string> Models { get; set; } = Array.Empty<string>();
 }
-

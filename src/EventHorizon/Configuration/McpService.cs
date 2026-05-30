@@ -1,3 +1,4 @@
+using EventHorizon.AGUI.DTOs;
 using EventHorizon.Protocols.Mcp;
 
 namespace EventHorizon.Configuration;
@@ -11,7 +12,7 @@ internal sealed class McpService : IMcpService
         _mcpToolConnector = mcpToolConnector;
     }
 
-    public async Task<McpTestResponse> TestAsync(McpTestRequest request, CancellationToken cancellationToken)
+    public async Task<McpTestResponseDTO> TestAsync(McpTestRequestDTO request, CancellationToken cancellationToken)
     {
         try
         {
@@ -22,7 +23,7 @@ internal sealed class McpService : IMcpService
                 await resource.DisposeAsync().ConfigureAwait(false);
             }
 
-            return new McpTestResponse
+            return new McpTestResponseDTO
             {
                 Success = true,
                 Message = tools.Length == 0 ? "Connected successfully, but no tools were exposed." : "Connected successfully.",
@@ -31,7 +32,7 @@ internal sealed class McpService : IMcpService
         }
         catch (Exception ex)
         {
-            return new McpTestResponse
+            return new McpTestResponseDTO
             {
                 Success = false,
                 Message = string.IsNullOrWhiteSpace(ex.Message) ? "MCP test failed." : ex.Message,
@@ -40,4 +41,3 @@ internal sealed class McpService : IMcpService
         }
     }
 }
-

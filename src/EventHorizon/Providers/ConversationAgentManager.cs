@@ -3,6 +3,7 @@ using EventHorizon.Configuration;
 using EventHorizon.Conversations;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Providers;
 
@@ -12,22 +13,25 @@ internal sealed class ConversationAgentManager : IConversationAgentManager
     private readonly IProviderResolutionService _providerResolutionService;
     private readonly IProviderAgentFactory _providerAgentFactory;
     private readonly IEventHorizonRuntime _runtime;
+    private readonly ISkillProviderFactory _skillProviderFactory;
     private readonly IConversationSessionSerializer _sessionSerializer;
     private readonly ILogger<ConversationAgentManager> _logger;
     private readonly ConcurrentDictionary<string, CachedConversationAgent> _cache = new(StringComparer.Ordinal);
 
     public ConversationAgentManager(
-        AppOptions options,
+        IOptions<AppOptions> options,
         IProviderResolutionService providerResolutionService,
         IProviderAgentFactory providerAgentFactory,
         IEventHorizonRuntime runtime,
+        ISkillProviderFactory skillProviderFactory,
         IConversationSessionSerializer sessionSerializer,
         ILogger<ConversationAgentManager> logger)
     {
-        _options = options;
+        _options = options.Value;
         _providerResolutionService = providerResolutionService;
         _providerAgentFactory = providerAgentFactory;
         _runtime = runtime;
+        _skillProviderFactory = skillProviderFactory;
         _sessionSerializer = sessionSerializer;
         _logger = logger;
     }
@@ -55,11 +59,12 @@ internal sealed class ConversationAgentManager : IConversationAgentManager
         var resolved = _providerResolutionService.TryResolveForSession(document, overrides)
             ?? throw new InvalidOperationException("No provider is configured for the current session.");
         var runtimeOptions = CloneRuntimeOptions(resolved);
+        var skillsProvider = _skillProviderFactory.Create(runtimeOptions, _runtime.Services, document);
         var agent = _providerAgentFactory.CreateAgent(
             runtimeOptions,
             _runtime.Instructions,
             _runtime.Tools,
-            _runtime.SkillsProvider,
+            skillsProvider,
             _runtime.Services);
         var session = RestoreSession(document) ?? await agent.CreateSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var cached = new CachedConversationAgent(document.Id, agent, session, resolved, 0);
@@ -159,4 +164,3 @@ internal sealed class ConversationAgentManager : IConversationAgentManager
         ResolvedProviderContext ResolvedProvider,
         int TranscriptCount);
 }
-

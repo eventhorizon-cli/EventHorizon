@@ -100,7 +100,7 @@ public sealed class ConversationsController : ControllerBase
     }
 
     [HttpGet("directories")]
-    public ActionResult<IReadOnlyList<DirectoryItemDTO>> GetDirectories([FromQuery] string? path = null)
+    public ActionResult<DirectoryListingDTO> GetDirectories([FromQuery] string? path = null)
     {
         var targetPath = ResolveWorkspacePath(path);
         if (!Directory.Exists(targetPath))
@@ -112,7 +112,7 @@ public sealed class ConversationsController : ControllerBase
         var parent = Path.GetDirectoryName(targetPath);
         if (!string.IsNullOrWhiteSpace(parent) && Directory.Exists(parent))
         {
-            items.Add(new DirectoryItemDTO(parent, "..", true, parent));
+            items.Add(new DirectoryItemDTO(parent, "..", true, targetPath));
         }
 
         foreach (var entry in Directory.EnumerateFileSystemEntries(targetPath).OrderBy(static value => value, StringComparer.OrdinalIgnoreCase))
@@ -120,7 +120,7 @@ public sealed class ConversationsController : ControllerBase
             items.Add(new DirectoryItemDTO(entry, Path.GetFileName(entry), Directory.Exists(entry), targetPath));
         }
 
-        return Ok(items);
+        return Ok(new DirectoryListingDTO(targetPath, items));
     }
 
     private string ResolveWorkspacePath(string? path)

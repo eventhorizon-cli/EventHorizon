@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { subscribeRunEvents } from "@/api/aguiClient";
-import { getConfiguration, importSkill, saveConfiguration, testMcp } from "@/api/configurationApi";
+import { getConfiguration, importSkillToTarget, removeGlobalSkill, removeSessionSkill, saveConfiguration, testMcp, testProvider } from "@/api/configurationApi";
 import { getChanges, getFileDiff } from "@/api/diffApi";
 import {
   createConversation,
@@ -61,6 +61,7 @@ function createDraftSession(task: string): AgentSessionDetail {
     updatedAt: new Date().toISOString(),
     isTitleGenerated: false,
     messages: [],
+    sessionSkills: { imported: [] },
   };
 }
 
@@ -110,9 +111,14 @@ export function useWorkbenchApp() {
   const [globalSettingsTab, setGlobalSettingsTab] = useState<(typeof globalSettingsTabs)[number]>("providers");
   const [globalSettingsMessage, setGlobalSettingsMessage] = useState<string>();
   const [globalSettingsError, setGlobalSettingsError] = useState<string>();
+  const [sessionSettingsMessage, setSessionSettingsMessage] = useState<string>();
+  const [sessionSettingsError, setSessionSettingsError] = useState<string>();
   const [mcpTestResults, setMcpTestResults] = useState<Record<number, string>>({});
+  const [providerTestResults, setProviderTestResults] = useState<Record<number, string>>({});
+  const [testingProviderIndexes, setTestingProviderIndexes] = useState<Record<number, boolean>>({});
   const [skillImportPath, setSkillImportPath] = useState("");
   const [isImportingSkill, setIsImportingSkill] = useState(false);
+  const [skillImportTarget, setSkillImportTarget] = useState<"global" | "session">("global");
   const [isUpdatingConversation, setIsUpdatingConversation] = useState(false);
   const [sessionTitleInput, setSessionTitleInput] = useState("");
   const [showGlobalSettingsDialog, setShowGlobalSettingsDialog] = useState(false);
@@ -122,7 +128,13 @@ export function useWorkbenchApp() {
   const currentSessionId = currentSession?.id;
   const selectedProviderName = currentSession?.providerName ?? configuration?.currentDefaultProvider;
   const selectedProvider = getProvider(configurationDraft ?? configuration, selectedProviderName);
+  const selectedProviderDefaultModel = selectedProvider?.provider.model;
   const availableModels = getProviderModels(selectedProvider, currentSession?.model);
+  const conversationModelWarning = currentSession?.model && selectedProviderName && selectedProvider
+    && !selectedProvider.provider.models.includes(currentSession.model)
+    && selectedProvider.provider.model !== currentSession.model
+    ? `Current session model '${currentSession.model}' is no longer configured for provider '${selectedProviderName}'. Choose a new model to continue using the latest provider configuration.`
+    : undefined;
 
   const refreshConfiguration = useCallback(async () => {
     setIsLoadingConfiguration(true);
@@ -132,6 +144,8 @@ export function useWorkbenchApp() {
       const nextConfiguration = await getConfiguration();
       setConfiguration(nextConfiguration);
       setConfigurationDraft(cloneConfiguration(nextConfiguration));
+      setProviderTestResults({});
+      setTestingProviderIndexes({});
     } catch (error) {
       setConfigurationError(formatError(error));
     } finally {
@@ -142,6 +156,8 @@ export function useWorkbenchApp() {
   const openSession = useCallback(async (sessionId: string) => {
     setDetailsMessage(undefined);
     setDetailsError(undefined);
+    setSessionSettingsMessage(undefined);
+    setSessionSettingsError(undefined);
 
     const detail = await getConversation(sessionId);
     setCurrentSession(detail);
@@ -438,6 +454,36 @@ export function useWorkbenchApp() {
     }
   }, [currentSession, refreshSessions, setChanges, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
 
+  const handleDeleteSession = useCallback(async (sessionId: string) => {
+    try {
+      await deleteConversation(sessionId);
+      if (currentSession?.id === sessionId) {
+        setCurrentSession(undefined);
+        setCurrentRun(undefined);
+        setCurrentDiff(undefined);
+        setSelectedFile(undefined);
+        setChanges([]);
+        setDetailsMessage("Conversation deleted.");
+        setDetailsError(undefined);
+      }
+      await refreshSessions();
+    } catch (error) {
+      setDetailsError(formatError(error));
+    }
+  }, [currentSession, refreshSessions, setChanges, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
+
+  const handleRenameSession = useCallback(async (sessionId: string, newTitle: string) => {
+    try {
+      const updated = await updateConversation({ conversationId: sessionId, title: newTitle });
+      if (currentSession?.id === sessionId) {
+        setCurrentSession({ ...currentSession, ...updated });
+      }
+      await refreshSessions();
+    } catch (error) {
+      setDetailsError(formatError(error));
+    }
+  }, [currentSession, refreshSessions, setCurrentSession]);
+
   const handleConversationTitleSave = useCallback(async () => {
     const title = sessionTitleInput.trim();
     if (!currentSession || currentSession.id.startsWith("draft_") || !title) {
@@ -483,13 +529,14 @@ export function useWorkbenchApp() {
         model: selection.modelId,
       });
       setDetailsMessage("Conversation provider updated.");
+      await openSession(currentSession.id);
       await refreshSessions();
     } catch (error) {
       setDetailsError(formatError(error));
     } finally {
       setIsUpdatingConversation(false);
     }
-  }, [currentSession, refreshSessions, setCurrentSession]);
+  }, [currentSession, openSession, refreshSessions, setCurrentSession]);
 
   const handleConversationModelChange = useCallback(async (modelId: string) => {
     if (!currentSession || currentSession.id.startsWith("draft_")) {
@@ -514,13 +561,14 @@ export function useWorkbenchApp() {
         model: selection.modelId,
       });
       setDetailsMessage("Conversation model updated.");
+      await openSession(currentSession.id);
       await refreshSessions();
     } catch (error) {
       setDetailsError(formatError(error));
     } finally {
       setIsUpdatingConversation(false);
     }
-  }, [currentSession, refreshSessions, setCurrentSession]);
+  }, [currentSession, openSession, refreshSessions, setCurrentSession]);
 
   const handleConfigurationFieldChange = useCallback((index: number, field: keyof ProviderEntry, value: string) => {
     setConfigurationDraft((previous) => {
@@ -538,6 +586,12 @@ export function useWorkbenchApp() {
           return field === "name" ? { ...provider, name: value } : provider;
         }),
       };
+    });
+
+    setProviderTestResults((previous) => {
+      const next = { ...previous };
+      delete next[index];
+      return next;
     });
   }, []);
 
@@ -591,6 +645,12 @@ export function useWorkbenchApp() {
         }),
       };
     });
+
+    setProviderTestResults((previous) => {
+      const next = { ...previous };
+      delete next[index];
+      return next;
+    });
   }, []);
 
   const handleAddProvider = useCallback(() => {
@@ -610,7 +670,71 @@ export function useWorkbenchApp() {
         providers: previous.providers.filter((_, providerIndex) => providerIndex !== index),
       };
     });
+
+    setProviderTestResults((previous) => {
+      const next = Object.entries(previous).reduce<Record<number, string>>((result, [key, value]) => {
+        const currentIndex = Number(key);
+        if (currentIndex < index) {
+          result[currentIndex] = value;
+        } else if (currentIndex > index) {
+          result[currentIndex - 1] = value;
+        }
+
+        return result;
+      }, {});
+
+      return next;
+    });
+
+    setTestingProviderIndexes((previous) => {
+      const next = Object.entries(previous).reduce<Record<number, boolean>>((result, [key, value]) => {
+        const currentIndex = Number(key);
+        if (currentIndex < index) {
+          result[currentIndex] = value;
+        } else if (currentIndex > index) {
+          result[currentIndex - 1] = value;
+        }
+
+        return result;
+      }, {});
+
+      return next;
+    });
   }, []);
+
+  const handleTestProvider = useCallback(async (index: number) => {
+    const entry = configurationDraft?.providers[index];
+    if (!entry) {
+      return;
+    }
+
+    if (!entry.name.trim()) {
+      setProviderTestResults((previous) => ({ ...previous, [index]: "Provider name is required before testing." }));
+      return;
+    }
+
+    if (!entry.provider.type) {
+      setProviderTestResults((previous) => ({ ...previous, [index]: "Provider type is required before testing." }));
+      return;
+    }
+
+    setTestingProviderIndexes((previous) => ({ ...previous, [index]: true }));
+    setProviderTestResults((previous) => ({ ...previous, [index]: "Testing..." }));
+
+    try {
+      const result = await testProvider(entry.name.trim(), entry.provider);
+      setProviderTestResults((previous) => ({
+        ...previous,
+        [index]: result.success
+          ? `${result.message}${result.models.length ? ` Models: ${result.models.join(", ")}` : ""}`
+          : result.message,
+      }));
+    } catch (error) {
+      setProviderTestResults((previous) => ({ ...previous, [index]: formatError(error) }));
+    } finally {
+      setTestingProviderIndexes((previous) => ({ ...previous, [index]: false }));
+    }
+  }, [configurationDraft?.providers]);
 
   const handleMcpServerChange = useCallback((index: number, field: keyof McpServerConfig, value: string | boolean) => {
     setConfigurationDraft((previous) => {
@@ -704,23 +828,70 @@ export function useWorkbenchApp() {
 
     setIsImportingSkill(true);
     setGlobalSettingsError(undefined);
+    setSessionSettingsError(undefined);
 
     try {
-      const result: SkillImportResult = await importSkill(path);
+      const result: SkillImportResult = await importSkillToTarget({
+        path,
+        target: skillImportTarget,
+        sessionId: skillImportTarget === "session" ? currentSession?.id : undefined,
+      });
       if (!result.success) {
-        setGlobalSettingsError(result.message || result.errors.join(", "));
+        const message = result.message || result.errors.join(", ");
+        if (skillImportTarget === "session") {
+          setSessionSettingsError(message);
+        } else {
+          setGlobalSettingsError(message);
+        }
         return;
       }
 
       setSkillImportPath("");
-      setGlobalSettingsMessage(result.message || "Skill imported.");
+      if (skillImportTarget === "session") {
+        setSessionSettingsMessage(result.message || "Session skill imported.");
+        if (currentSession?.id) {
+          await openSession(currentSession.id);
+        }
+      } else {
+        setGlobalSettingsMessage(result.message || "Skill imported.");
+      }
+
       await refreshConfiguration();
     } catch (error) {
-      setGlobalSettingsError(formatError(error));
+      const message = formatError(error);
+      if (skillImportTarget === "session") {
+        setSessionSettingsError(message);
+      } else {
+        setGlobalSettingsError(message);
+      }
     } finally {
       setIsImportingSkill(false);
     }
-  }, [refreshConfiguration, skillImportPath]);
+  }, [currentSession?.id, openSession, refreshConfiguration, skillImportPath, skillImportTarget]);
+
+  const handleRemoveGlobalSkill = useCallback(async (skillName: string) => {
+    try {
+      const result = await removeGlobalSkill(skillName);
+      setGlobalSettingsMessage(result.message || "Global skill removed.");
+      await refreshConfiguration();
+    } catch (error) {
+      setGlobalSettingsError(formatError(error));
+    }
+  }, [refreshConfiguration]);
+
+  const handleRemoveSessionSkill = useCallback(async (skillName: string) => {
+    if (!currentSession?.id) {
+      return;
+    }
+
+    try {
+      const result = await removeSessionSkill(currentSession.id, skillName);
+      setSessionSettingsMessage(result.message || "Session skill removed.");
+      await openSession(currentSession.id);
+    } catch (error) {
+      setSessionSettingsError(formatError(error));
+    }
+  }, [currentSession?.id, openSession]);
 
   const handleSaveConfiguration = useCallback(async () => {
     if (!configurationDraft) {
@@ -751,7 +922,12 @@ export function useWorkbenchApp() {
 
       setConfiguration(saved);
       setConfigurationDraft(cloneConfiguration(saved));
+      setProviderTestResults({});
+      setTestingProviderIndexes({});
       setGlobalSettingsMessage("Configuration saved.");
+      if (currentSession?.id && !currentSession.id.startsWith("draft_")) {
+        await openSession(currentSession.id);
+      }
       await refreshSessions();
     } catch (error) {
       const message = formatError(error);
@@ -760,7 +936,7 @@ export function useWorkbenchApp() {
     } finally {
       setIsSavingConfiguration(false);
     }
-  }, [configurationDraft, refreshSessions]);
+  }, [configurationDraft, currentSession?.id, openSession, refreshSessions]);
 
   return {
     sessions,
@@ -784,18 +960,25 @@ export function useWorkbenchApp() {
     configurationError,
     detailsMessage,
     detailsError,
+    sessionSettingsMessage,
+    sessionSettingsError,
     globalSettingsTab,
     globalSettingsMessage,
     globalSettingsError,
     mcpTestResults,
+    providerTestResults,
     skillImportPath,
     isImportingSkill,
+    skillImportTarget,
     isUpdatingConversation,
+    testingProviderIndexes,
     sessionTitleInput,
     showGlobalSettingsDialog,
     selectedProviderName,
     selectedProvider,
     availableModels,
+    conversationModelWarning,
+    selectedProviderDefaultModel,
     resolvedTheme,
     workspaceDirectoryPicker,
     skillDirectoryPicker,
@@ -804,10 +987,12 @@ export function useWorkbenchApp() {
     setConfigurationDraft,
     setGlobalSettingsTab,
     setSkillImportPath,
+    setSkillImportTarget,
     setSessionTitleInput,
     openSettings: () => {
       setGlobalSettingsMessage(undefined);
       setGlobalSettingsError(undefined);
+      setSkillImportTarget("global");
       setShowGlobalSettingsDialog(true);
     },
     closeSettings: () => setShowGlobalSettingsDialog(false),
@@ -820,17 +1005,22 @@ export function useWorkbenchApp() {
     handleViewFiles,
     handleDeleteCurrentConversation,
     handleConversationTitleSave,
+    handleDeleteSession,
+    handleRenameSession,
     handleConversationProviderChange,
     handleConversationModelChange,
     handleConfigurationFieldChange,
     handleProviderConfigChange,
     handleAddProvider,
     handleRemoveProvider,
+    handleTestProvider,
     handleMcpServerChange,
     handleAddMcpServer,
     handleRemoveMcpServer,
     handleTestMcpServer,
     handleImportSkill,
+    handleRemoveGlobalSkill,
+    handleRemoveSessionSkill,
     handleSaveConfiguration,
     refreshConfiguration,
   };

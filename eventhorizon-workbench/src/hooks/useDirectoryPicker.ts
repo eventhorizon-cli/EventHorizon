@@ -19,9 +19,11 @@ export function useDirectoryPicker({ initialPath, onConfirm }: UseDirectoryPicke
     setIsLoading(true);
 
     try {
-      const dirs = await getDirectories(path);
-      setDirectories(dirs);
-      setCurrentPath(path);
+      const listing = await getDirectories(path);
+      setDirectories(listing.items);
+      setCurrentPath(listing.currentPath);
+      setSelectedPath(listing.currentPath);
+      setPathInput(listing.currentPath);
     } finally {
       setIsLoading(false);
     }
@@ -29,7 +31,6 @@ export function useDirectoryPicker({ initialPath, onConfirm }: UseDirectoryPicke
 
   const openPicker = useCallback(async (path = initialPath) => {
     setOpen(true);
-    setSelectedPath(path);
     setPathInput(path ?? "");
     await loadDirectories(path);
   }, [initialPath, loadDirectories]);
@@ -56,8 +57,6 @@ export function useDirectoryPicker({ initialPath, onConfirm }: UseDirectoryPicke
       return;
     }
 
-    setSelectedPath(item.path);
-    setPathInput(item.path);
     await loadDirectories(item.path);
   }, [loadDirectories]);
 
@@ -67,7 +66,6 @@ export function useDirectoryPicker({ initialPath, onConfirm }: UseDirectoryPicke
       return;
     }
 
-    setSelectedPath(nextPath);
     await loadDirectories(nextPath);
   }, [loadDirectories, pathInput]);
 

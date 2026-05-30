@@ -5,7 +5,7 @@ These samples match the current shared-host AGUI server startup model.
 ## Run With External Config
 
 ```zsh
-dotnet run --project src/EventHorizon -- --config samples/openai-compatible.eventhorizon.json
+dotnet run --project src/EventHorizon
 ```
 
 ## Notes

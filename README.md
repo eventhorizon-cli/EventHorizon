@@ -20,10 +20,10 @@ Configuration is loaded in this order, with later sources overriding earlier one
 
 1. Built-in `src/EventHorizon/appsettings.json`
 2. `~/.eventhorizon/appsettings.json`
-3. `--config <path>`
-4. `EVENTHORIZON__...` environment variables
 
 On first start, EventHorizon creates `~/.eventhorizon/` and seeds `~/.eventhorizon/appsettings.json` from the bundled `appsettings.json` if needed.
+
+All runtime configuration is bound into `IOptions<Configuration.AppOptions>` and consumed through options injection.
 
 `CurrentProvider` is now replaced by `CurrentDefaultProvider`.
 Legacy `CurrentProvider` is still read during load and migrated in memory. Persisted config only writes `CurrentDefaultProvider`.
@@ -31,7 +31,7 @@ Legacy `CurrentProvider` is still read during load and migrated in memory. Persi
 ## Run
 
 ```zsh
-dotnet run --project src/EventHorizon -- --config samples/openai-compatible.eventhorizon.json
+dotnet run --project src/EventHorizon
 ```
 
 By default the server listens on the URLs configured in `AGUI:Urls` and serves:
@@ -73,7 +73,6 @@ See `samples/README.md` and the sample files in `samples/` for:
 
 - default provider config
 - multi-provider config
-- external `--config` usage
 - MCP examples
 - skill folder examples
 

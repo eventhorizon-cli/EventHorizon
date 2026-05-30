@@ -3,6 +3,7 @@ using EventHorizon.Configuration;
 using EventHorizon.Conversations;
 using EventHorizon.Providers;
 using EventHorizon.Workspace;
+using Microsoft.Extensions.Options;
 
 namespace EventHorizon.AGUI;
 
@@ -49,14 +50,14 @@ public sealed class AGUISessionService : IAGUISessionService
 
     public AGUISessionService(
         IConversationSessionStore conversationSessionStore,
-        AppOptions options,
+        IOptions<AppOptions> options,
         WorkspaceContext workspaceContext,
         IProviderResolutionService providerResolutionService,
         ISessionTitleGenerator sessionTitleGenerator,
         IConversationAgentManager conversationAgentManager)
     {
         _conversationSessionStore = conversationSessionStore;
-        _options = options;
+        _options = options.Value;
         _workspaceContext = workspaceContext;
         _providerResolutionService = providerResolutionService;
         _sessionTitleGenerator = sessionTitleGenerator;
@@ -358,6 +359,7 @@ public sealed class AGUISessionService : IAGUISessionService
             document.ChangedFilesCount,
             document.IsTitleGenerated,
             document.WorkspaceRoot,
+            document.SessionSkills,
             document.Transcript
                 .Select((entry, index) => new AGUIChatMessageDTO(
                     $"msg_{document.Id}_{index + 1}",

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 namespace EventHorizon.Configuration;
 
 public sealed record ConfiguredProvider(string Name, string Type, string? Model);
@@ -16,20 +18,17 @@ public interface IProviderConfigurationService
 internal sealed class ProviderConfigurationService : IProviderConfigurationService
 {
     private readonly AppOptions _options;
-    private readonly EffectiveCommandOptions _commandOptions;
     private readonly IAppOptionsInitializer _initializer;
-    private readonly IUserConfigurationFileService _userConfigurationFileService;
+    private readonly IUserProvidersFileService _userProvidersFileService;
 
     public ProviderConfigurationService(
-        AppOptions options,
-        EffectiveCommandOptions commandOptions,
+        IOptions<AppOptions> options,
         IAppOptionsInitializer initializer,
-        IUserConfigurationFileService userConfigurationFileService)
+        IUserProvidersFileService userProvidersFileService)
     {
-        _options = options;
-        _commandOptions = commandOptions;
+        _options = options.Value;
         _initializer = initializer;
-        _userConfigurationFileService = userConfigurationFileService;
+        _userProvidersFileService = userProvidersFileService;
     }
 
     public IReadOnlyList<ConfiguredProvider> GetConfiguredProviders()
@@ -43,11 +42,6 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
 
     public string? GetEffectiveProviderName()
     {
-        if (!string.IsNullOrWhiteSpace(_commandOptions.Provider) && _options.Providers.ContainsKey(_commandOptions.Provider))
-        {
-            return _commandOptions.Provider;
-        }
-
         if (!string.IsNullOrWhiteSpace(_options.CurrentDefaultProvider))
         {
             return _options.CurrentDefaultProvider;
@@ -69,18 +63,13 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
 
         if (persist)
         {
-            _userConfigurationFileService.Save(_options);
+            _userProvidersFileService.Save(_options);
         }
     }
 
     public Task EnsureCurrentProviderAsync(CancellationToken cancellationToken)
     {
         _initializer.RefreshActiveProvider(_options);
-
-        if (!string.IsNullOrWhiteSpace(_commandOptions.Provider))
-        {
-            return Task.CompletedTask;
-        }
 
         if (_options.Providers.Count == 0)
         {
@@ -111,7 +100,7 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
     private static string PromptForProvider(IReadOnlyList<ConfiguredProvider> providers, CancellationToken cancellationToken)
     {
         Console.WriteLine("Multiple providers are configured, but CurrentDefaultProvider is not set.");
-        Console.WriteLine("Choose the provider to use and persist to ~/.eventhorizon/appsettings.json:");
+        Console.WriteLine("Choose the provider to use and persist to ~/.eventhorizon/providers.json:");
 
         for (var index = 0; index < providers.Count; index++)
         {
@@ -146,4 +135,3 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
         throw new OperationCanceledException("Provider selection was canceled.", cancellationToken);
     }
 }
-

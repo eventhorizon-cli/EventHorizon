@@ -61,8 +61,8 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
     private AIAgent CreateAnthropicAgent(Configuration.AppOptions options, string instructions, IReadOnlyList<AITool> tools)
     {
         var anthropicOptions = CloneOptionsWithInstructions(options, instructions);
-        var apiKey = anthropicOptions.Provider.ApiKey ?? throw new InvalidOperationException("ANTHROPIC_API_KEY is required for the anthropic provider.");
-        var model = anthropicOptions.Provider.Model ?? throw new InvalidOperationException("ANTHROPIC_CHAT_MODEL_NAME is required for the anthropic provider.");
+        var apiKey = anthropicOptions.Provider.ApiKey ?? throw new InvalidOperationException("Provider.ApiKey is required for the anthropic provider.");
+        var model = anthropicOptions.Provider.Model ?? throw new InvalidOperationException("Provider.Model is required for the anthropic provider.");
         var anthropicInstructions = _codingInstructionsBuilder.Build(anthropicOptions);
 
         return new AnthropicClient { ApiKey = apiKey }.AsAIAgent(
@@ -94,4 +94,3 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
         };
     }
 }
-

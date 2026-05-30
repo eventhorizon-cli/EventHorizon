@@ -5,6 +5,7 @@ namespace EventHorizon.Configuration;
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(AppOptions))]
 [JsonSerializable(typeof(ProviderOptions))]
+[JsonSerializable(typeof(Dictionary<string, ProviderOptions>))]
 [JsonSerializable(typeof(McpServerOptions))]
 [JsonSerializable(typeof(SkillCatalogOptions))]
 [JsonSerializable(typeof(ImportedSkillOptions))]

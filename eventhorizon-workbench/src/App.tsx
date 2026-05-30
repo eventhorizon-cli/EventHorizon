@@ -23,6 +23,8 @@ export default function App() {
           onToggleCollapsed={app.toggleLeftPaneCollapsed}
           onNewChat={app.handleNewChat}
           onOpenSession={(sessionId) => void app.openSession(sessionId)}
+          onDeleteSession={(sessionId) => void app.handleDeleteSession(sessionId)}
+          onRenameSession={(sessionId, title) => void app.handleRenameSession(sessionId, title)}
         />
 
         <PanelGroup direction="horizontal" className="min-h-0 flex-1 overflow-hidden">
@@ -61,11 +63,18 @@ export default function App() {
               configurationDraft={app.configurationDraft}
               detailsMessage={app.detailsMessage}
               detailsError={app.detailsError}
+              sessionSettingsMessage={app.sessionSettingsMessage}
+              sessionSettingsError={app.sessionSettingsError}
               isUpdatingConversation={app.isUpdatingConversation}
+              isImportingSkill={app.isImportingSkill}
               sessionTitleInput={app.sessionTitleInput}
+              skillImportPath={app.skillImportPath}
+              skillImportTarget={app.skillImportTarget}
               selectedProviderName={app.selectedProviderName}
               selectedProviderType={app.selectedProvider?.provider.type}
               availableModels={app.availableModels}
+              conversationModelWarning={app.conversationModelWarning}
+              selectedProviderDefaultModel={app.selectedProviderDefaultModel}
               changes={app.changes}
               selectedFile={app.selectedFile}
               currentDiff={app.currentDiff}
@@ -74,10 +83,18 @@ export default function App() {
               resolvedTheme={app.resolvedTheme === "dark" ? "dark" : "light"}
               onContextViewChange={app.setContextView}
               onSessionTitleInputChange={app.setSessionTitleInput}
+              onSkillImportPathChange={app.setSkillImportPath}
+              onSkillImportTargetChange={app.setSkillImportTarget}
               onSaveConversationTitle={app.handleConversationTitleSave}
               onDeleteConversation={app.handleDeleteCurrentConversation}
               onChangeConversationProvider={app.handleConversationProviderChange}
               onChangeConversationModel={app.handleConversationModelChange}
+              onOpenSkillDirectoryPicker={() => {
+                app.setSkillImportTarget("session");
+                return app.skillDirectoryPicker.openPicker(app.skillImportPath.trim() || app.currentSession?.sessionSkills.storagePath || app.currentSession?.workspaceRoot);
+              }}
+              onImportSkill={app.handleImportSkill}
+              onRemoveSessionSkill={app.handleRemoveSessionSkill}
               onOpenDiff={app.openDiff}
             />
           </Panel>
@@ -88,6 +105,7 @@ export default function App() {
         open={app.workspaceDirectoryPicker.open}
         title="Select Workspace Directory"
         confirmLabel="Create Session"
+        zIndexClassName="z-50"
         currentPath={app.workspaceDirectoryPicker.currentPath}
         selectedPath={app.workspaceDirectoryPicker.selectedPath}
         pathInput={app.workspaceDirectoryPicker.pathInput}
@@ -99,6 +117,24 @@ export default function App() {
         onPathInputSubmit={() => void app.workspaceDirectoryPicker.submitPathInput()}
         onSelectPath={app.workspaceDirectoryPicker.selectPath}
         onDoubleClickPath={(item) => void app.workspaceDirectoryPicker.navigateToPath(item)}
+      />
+
+      <DirectoryPickerDialog
+        open={app.skillDirectoryPicker.open}
+        title="Select Skill Folder"
+        confirmLabel="Use Folder"
+        zIndexClassName="z-[70]"
+        currentPath={app.skillDirectoryPicker.currentPath}
+        selectedPath={app.skillDirectoryPicker.selectedPath}
+        pathInput={app.skillDirectoryPicker.pathInput}
+        directories={app.skillDirectoryPicker.directories}
+        isLoading={app.skillDirectoryPicker.isLoading}
+        onCancel={app.skillDirectoryPicker.closePicker}
+        onConfirm={() => void app.skillDirectoryPicker.confirmSelection()}
+        onPathInputChange={app.skillDirectoryPicker.setPathInput}
+        onPathInputSubmit={() => void app.skillDirectoryPicker.submitPathInput()}
+        onSelectPath={app.skillDirectoryPicker.selectPath}
+        onDoubleClickPath={(item) => void app.skillDirectoryPicker.navigateToPath(item)}
       />
 
       <GlobalSettingsDialog
@@ -113,13 +149,10 @@ export default function App() {
         isSavingConfiguration={app.isSavingConfiguration}
         isImportingSkill={app.isImportingSkill}
         skillImportPath={app.skillImportPath}
+        skillImportTarget={app.skillImportTarget}
         mcpTestResults={app.mcpTestResults}
-        skillDirectoryPickerOpen={app.skillDirectoryPicker.open}
-        skillDirectories={app.skillDirectoryPicker.directories}
-        skillCurrentPath={app.skillDirectoryPicker.currentPath}
-        skillSelectedPath={app.skillDirectoryPicker.selectedPath}
-        skillPathInput={app.skillDirectoryPicker.pathInput}
-        isLoadingSkillDirectories={app.skillDirectoryPicker.isLoading}
+        providerTestResults={app.providerTestResults}
+        testingProviderIndexes={app.testingProviderIndexes}
         onClose={app.closeSettings}
         onTabChange={app.setGlobalSettingsTab}
         onRefreshConfiguration={app.refreshConfiguration}
@@ -129,19 +162,19 @@ export default function App() {
         onRemoveProvider={app.handleRemoveProvider}
         onConfigurationFieldChange={app.handleConfigurationFieldChange}
         onProviderConfigChange={app.handleProviderConfigChange}
+        onTestProvider={app.handleTestProvider}
         onAddMcpServer={app.handleAddMcpServer}
         onRemoveMcpServer={app.handleRemoveMcpServer}
         onMcpServerChange={app.handleMcpServerChange}
         onTestMcpServer={app.handleTestMcpServer}
         onSkillImportPathChange={app.setSkillImportPath}
-        onOpenSkillDirectoryPicker={() => app.skillDirectoryPicker.openPicker(app.skillImportPath.trim() || app.configurationDraft?.skills.storagePath)}
+        onSkillImportTargetChange={app.setSkillImportTarget}
+        onOpenSkillDirectoryPicker={() => {
+          app.setSkillImportTarget("global");
+          return app.skillDirectoryPicker.openPicker(app.skillImportPath.trim() || app.currentSession?.workspaceRoot);
+        }}
         onImportSkill={app.handleImportSkill}
-        onCloseSkillDirectoryPicker={app.skillDirectoryPicker.closePicker}
-        onSkillPathInputChange={app.skillDirectoryPicker.setPathInput}
-        onSkillPathInputSubmit={app.skillDirectoryPicker.submitPathInput}
-        onSelectSkillPath={app.skillDirectoryPicker.selectPath}
-        onNavigateSkillPath={app.skillDirectoryPicker.navigateToPath}
-        onConfirmSkillPath={app.skillDirectoryPicker.confirmSelection}
+        onRemoveGlobalSkill={app.handleRemoveGlobalSkill}
       />
     </div>
   );

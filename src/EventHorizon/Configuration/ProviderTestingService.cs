@@ -1,3 +1,4 @@
+using EventHorizon.AGUI.DTOs;
 using EventHorizon.Providers;
 using Microsoft.Extensions.AI;
 
@@ -12,7 +13,7 @@ internal sealed class ProviderTestingService : IProviderTestingService
         _providerChatClientFactory = providerChatClientFactory;
     }
 
-    public async Task<ProviderTestResponse> TestAsync(ProviderTestRequest request, CancellationToken cancellationToken)
+    public async Task<ProviderTestResponseDTO> TestAsync(ProviderTestRequestDTO request, CancellationToken cancellationToken)
     {
         try
         {
@@ -28,7 +29,7 @@ internal sealed class ProviderTestingService : IProviderTestingService
                 : string.IsNullOrWhiteSpace(provider.Model)
                     ? []
                     : [provider.Model];
-            return new ProviderTestResponse
+            return new ProviderTestResponseDTO
             {
                 Success = true,
                 Message = string.IsNullOrWhiteSpace(response.Text) ? "Connection succeeded." : "Connection succeeded.",
@@ -37,7 +38,7 @@ internal sealed class ProviderTestingService : IProviderTestingService
         }
         catch (Exception ex)
         {
-            return new ProviderTestResponse
+            return new ProviderTestResponseDTO
             {
                 Success = false,
                 Message = Sanitize(ex.Message),
@@ -51,4 +52,3 @@ internal sealed class ProviderTestingService : IProviderTestingService
             ? "Provider test failed."
             : message.Replace("api key", "credentials", StringComparison.OrdinalIgnoreCase);
 }
-

@@ -1,5 +1,5 @@
 import { apiRequest } from "@/api/client";
-import type { AgentSession, AgentSessionDetail, ConversationModelSelection, DirectoryItem } from "@/types";
+import type { AgentSession, AgentSessionDetail, ConversationModelSelection, DirectoryItem, DirectoryListing } from "@/types";
 
 type ConversationPayload = {
   id: string;
@@ -20,6 +20,7 @@ type ConversationPayload = {
 
 type ConversationDetailPayload = ConversationPayload & {
   messages?: AgentSessionDetail["messages"];
+  sessionSkills?: AgentSessionDetail["sessionSkills"];
 };
 
 function mapConversation(payload: ConversationPayload): AgentSession {
@@ -45,10 +46,10 @@ export async function getConversations(): Promise<AgentSession[]> {
   return payload.map(mapConversation);
 }
 
-export async function getDirectories(path?: string): Promise<DirectoryItem[]> {
+export async function getDirectories(path?: string): Promise<DirectoryListing> {
   const params = path ? new URLSearchParams({ path }) : undefined;
   const url = path ? `/api/conversations/directories?${params}` : "/api/conversations/directories";
-  return apiRequest<DirectoryItem[]>(url);
+  return apiRequest<DirectoryListing>(url);
 }
 
 export async function createConversation(input: {
@@ -70,6 +71,7 @@ export async function getConversation(conversationId: string): Promise<AgentSess
   return {
     ...mapConversation(payload),
     messages: payload.messages ?? [],
+    sessionSkills: payload.sessionSkills ?? { imported: [] },
   };
 }
 

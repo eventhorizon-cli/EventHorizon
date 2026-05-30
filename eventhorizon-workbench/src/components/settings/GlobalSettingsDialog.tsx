@@ -1,5 +1,4 @@
 import { X } from "lucide-react";
-import { DirectoryPickerDialog } from "@/components/dialogs/DirectoryPickerDialog";
 import { cn } from "@/utils/cn";
 import {
   getProviderFieldMeta,
@@ -27,13 +26,10 @@ type GlobalSettingsDialogProps = {
   isSavingConfiguration: boolean;
   isImportingSkill: boolean;
   skillImportPath: string;
+  skillImportTarget: "global" | "session";
   mcpTestResults: Record<number, string>;
-  skillDirectoryPickerOpen: boolean;
-  skillDirectories: DirectoryItem[];
-  skillCurrentPath?: string;
-  skillSelectedPath?: string;
-  skillPathInput: string;
-  isLoadingSkillDirectories: boolean;
+  providerTestResults: Record<number, string>;
+  testingProviderIndexes: Record<number, boolean>;
   onClose: () => void;
   onTabChange: (tab: GlobalSettingsTab) => void;
   onRefreshConfiguration: () => Promise<void> | void;
@@ -43,19 +39,16 @@ type GlobalSettingsDialogProps = {
   onRemoveProvider: (index: number) => void;
   onConfigurationFieldChange: (index: number, field: keyof ProviderEntry, value: string) => void;
   onProviderConfigChange: (index: number, field: keyof ProviderEntry["provider"], value: string | boolean) => void;
+  onTestProvider: (index: number) => Promise<void> | void;
   onAddMcpServer: () => void;
   onRemoveMcpServer: (index: number) => void;
   onMcpServerChange: (index: number, field: keyof McpServerConfig, value: string | boolean) => void;
   onTestMcpServer: (index: number) => Promise<void> | void;
   onSkillImportPathChange: (value: string) => void;
+  onSkillImportTargetChange: (target: "global" | "session") => void;
   onOpenSkillDirectoryPicker: () => Promise<void> | void;
   onImportSkill: () => Promise<void> | void;
-  onCloseSkillDirectoryPicker: () => void;
-  onSkillPathInputChange: (value: string) => void;
-  onSkillPathInputSubmit: () => Promise<void> | void;
-  onSelectSkillPath: (item: DirectoryItem) => void;
-  onNavigateSkillPath: (item: DirectoryItem) => Promise<void> | void;
-  onConfirmSkillPath: () => Promise<void> | void;
+  onRemoveGlobalSkill: (skillName: string) => Promise<void> | void;
 };
 
 export function GlobalSettingsDialog({
@@ -70,13 +63,10 @@ export function GlobalSettingsDialog({
   isSavingConfiguration,
   isImportingSkill,
   skillImportPath,
+  skillImportTarget,
   mcpTestResults,
-  skillDirectoryPickerOpen,
-  skillDirectories,
-  skillCurrentPath,
-  skillSelectedPath,
-  skillPathInput,
-  isLoadingSkillDirectories,
+  providerTestResults,
+  testingProviderIndexes,
   onClose,
   onTabChange,
   onRefreshConfiguration,
@@ -86,27 +76,23 @@ export function GlobalSettingsDialog({
   onRemoveProvider,
   onConfigurationFieldChange,
   onProviderConfigChange,
+  onTestProvider,
   onAddMcpServer,
   onRemoveMcpServer,
   onMcpServerChange,
   onTestMcpServer,
   onSkillImportPathChange,
+  onSkillImportTargetChange,
   onOpenSkillDirectoryPicker,
   onImportSkill,
-  onCloseSkillDirectoryPicker,
-  onSkillPathInputChange,
-  onSkillPathInputSubmit,
-  onSelectSkillPath,
-  onNavigateSkillPath,
-  onConfirmSkillPath,
+  onRemoveGlobalSkill,
 }: GlobalSettingsDialogProps) {
   if (!open) {
     return null;
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
         <div className="relative z-10 flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-xl">
           <div className="flex items-center justify-between border-b border-border px-6 py-4">
@@ -138,13 +124,13 @@ export function GlobalSettingsDialog({
                       type="button"
                       onClick={() => onTabChange(tab)}
                       className={cn(
-                        "rounded-xl px-3 py-2 capitalize transition",
+                        "rounded-xl px-3 py-2 transition",
                         globalSettingsTab === tab
                           ? "bg-card text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      {tab}
+                      {tab === "providers" ? "Providers" : tab === "mcp" ? "Mcp" : "Skills"}
                     </button>
                   ))}
                 </div>
@@ -240,16 +226,26 @@ export function GlobalSettingsDialog({
                       ) : null}
 
                       {configurationDraft.providers.map((provider, index) => (
-                        <div key={`${provider.name}-${index}`} className="rounded-2xl border border-border bg-card p-4">
+                        <div key={`provider-${index}`} className="rounded-2xl border border-border bg-card p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-sm font-medium">{provider.name || `Provider ${index + 1}`}</div>
-                            <button
-                              type="button"
-                              onClick={() => onRemoveProvider(index)}
-                              className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
-                            >
-                              Remove
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void onTestProvider(index)}
+                                disabled={testingProviderIndexes[index]}
+                                className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {testingProviderIndexes[index] ? "Testing..." : "Test"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onRemoveProvider(index)}
+                                className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
 
                           <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -318,7 +314,7 @@ export function GlobalSettingsDialog({
                                 <input
                                   value={provider.provider.apiKey ?? ""}
                                   onChange={(event) => onProviderConfigChange(index, "apiKey", event.target.value)}
-                                  placeholder={provider.provider.apiKeyMasked || "Set API key"}
+                                  placeholder="Set API key"
                                   className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                                 />
                                 <span className="text-xs text-muted-foreground">
@@ -363,6 +359,12 @@ export function GlobalSettingsDialog({
                               />
                               Use default Azure credential
                             </label>
+                          ) : null}
+
+                          {providerTestResults[index] ? (
+                            <div className="mt-3 rounded-xl border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                              {providerTestResults[index]}
+                            </div>
                           ) : null}
                         </div>
                       ))}
@@ -548,16 +550,27 @@ export function GlobalSettingsDialog({
                     </div>
                   </div>
 
-                  {configurationDraft?.skills.imported.length ? (
-                    <div className="mt-4 grid gap-3">
-                      {configurationDraft.skills.imported.map((skill) => (
-                        <div key={skill.path} className="rounded-2xl border border-border bg-card p-4">
-                          <div className="text-sm font-medium">{skill.name}</div>
-                          <div className="mt-1 text-xs text-muted-foreground">{skill.path}</div>
-                          {skill.description ? <div className="mt-2 text-sm text-muted-foreground">{skill.description}</div> : null}
-                        </div>
-                      ))}
-                    </div>
+                    {configurationDraft?.skills.imported.length ? (
+                      <div className="mt-4 grid gap-3">
+                        {configurationDraft.skills.imported.map((skill) => (
+                          <div key={skill.path} className="rounded-2xl border border-border bg-card p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium">{skill.name}</div>
+                                <div className="mt-1 text-xs text-muted-foreground">{skill.path}</div>
+                                {skill.description ? <div className="mt-2 text-sm text-muted-foreground">{skill.description}</div> : null}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => void onRemoveGlobalSkill(skill.name)}
+                                className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                   ) : (
                     <div className="mt-4 rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
                       No imported skills yet.
@@ -569,23 +582,5 @@ export function GlobalSettingsDialog({
           </div>
         </div>
       </div>
-
-      <DirectoryPickerDialog
-        open={skillDirectoryPickerOpen}
-        title="Select Skill Folder"
-        confirmLabel="Use Folder"
-        currentPath={skillCurrentPath}
-        selectedPath={skillSelectedPath}
-        pathInput={skillPathInput}
-        directories={skillDirectories}
-        isLoading={isLoadingSkillDirectories}
-        onCancel={onCloseSkillDirectoryPicker}
-        onConfirm={() => void onConfirmSkillPath()}
-        onPathInputChange={onSkillPathInputChange}
-        onPathInputSubmit={() => void onSkillPathInputSubmit()}
-        onSelectPath={onSelectSkillPath}
-        onDoubleClickPath={(item) => void onNavigateSkillPath(item)}
-      />
-    </>
   );
 }

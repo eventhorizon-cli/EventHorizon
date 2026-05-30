@@ -1,11 +1,13 @@
-namespace EventHorizon.Configuration;
+using EventHorizon.Configuration;
 
-public sealed class McpTestRequest
+namespace EventHorizon.AGUI.DTOs;
+
+public sealed class McpTestRequestDTO
 {
     public McpServerOptions Server { get; set; } = new();
 }
 
-public sealed class McpTestResponse
+public sealed class McpTestResponseDTO
 {
     public bool Success { get; set; }
 
@@ -13,4 +15,3 @@ public sealed class McpTestResponse
 
     public IReadOnlyList<string> Tools { get; set; } = Array.Empty<string>();
 }
-

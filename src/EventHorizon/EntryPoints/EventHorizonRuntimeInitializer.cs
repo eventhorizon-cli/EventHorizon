@@ -19,6 +19,7 @@ internal sealed class EventHorizonRuntimeInitializer : IEventHorizonRuntimeIniti
     private readonly IToolCatalogFactory _toolCatalogFactory;
     private readonly ISystemPromptFactory _systemPromptFactory;
     private readonly IProviderAgentFactory _providerAgentFactory;
+    private readonly ISkillProviderFactory _skillProviderFactory;
     private readonly McpToolConnector _mcpToolConnector;
     private readonly IOptions<AppOptions> _options;
     private readonly EventHorizonRuntimeHolder _runtimeHolder;
@@ -30,6 +31,7 @@ internal sealed class EventHorizonRuntimeInitializer : IEventHorizonRuntimeIniti
         IToolCatalogFactory toolCatalogFactory,
         ISystemPromptFactory systemPromptFactory,
         IProviderAgentFactory providerAgentFactory,
+        ISkillProviderFactory skillProviderFactory,
         McpToolConnector mcpToolConnector,
         IOptions<AppOptions> options,
         EventHorizonRuntimeHolder runtimeHolder)
@@ -39,6 +41,7 @@ internal sealed class EventHorizonRuntimeInitializer : IEventHorizonRuntimeIniti
         _toolCatalogFactory = toolCatalogFactory;
         _systemPromptFactory = systemPromptFactory;
         _providerAgentFactory = providerAgentFactory;
+        _skillProviderFactory = skillProviderFactory;
         _mcpToolConnector = mcpToolConnector;
         _options = options;
         _runtimeHolder = runtimeHolder;
@@ -82,11 +85,7 @@ internal sealed class EventHorizonRuntimeInitializer : IEventHorizonRuntimeIniti
         var allTools = new List<AITool>(toolCatalog.Select(static descriptor => descriptor.Tool));
         var contextSnapshot = await _sessionContextBuilder.BuildAsync(cancellationToken).ConfigureAwait(false);
 
-        AgentSkillsProvider? skillsProvider = null;
-        if (options.Agent.EnableSkills)
-        {
-            skillsProvider = new AgentSkillsProvider(services.GetRequiredService<WorkspaceSkill>());
-        }
+        var skillsProvider = _skillProviderFactory.Create(options, services);
 
         IReadOnlyList<IAsyncDisposable> resources = [];
         if (options.Agent.EnableMcpTools)

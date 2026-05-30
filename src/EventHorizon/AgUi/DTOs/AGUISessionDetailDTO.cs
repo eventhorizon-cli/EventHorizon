@@ -1,3 +1,5 @@
+using EventHorizon.Configuration;
+
 namespace EventHorizon.AGUI.DTOs;
 
 public sealed record AGUISessionDetailDTO(
@@ -14,4 +16,5 @@ public sealed record AGUISessionDetailDTO(
     int ChangedFilesCount,
     bool IsTitleGenerated,
     string? WorkspaceRoot,
+    SkillCatalogOptions SessionSkills,
     IReadOnlyList<AGUIChatMessageDTO> Messages);

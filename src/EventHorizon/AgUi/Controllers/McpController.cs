@@ -1,3 +1,4 @@
+using EventHorizon.AGUI.DTOs;
 using EventHorizon.Configuration;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,7 +16,6 @@ public sealed class McpController : ControllerBase
     }
 
     [HttpPost("test")]
-    public async Task<ActionResult<McpTestResponse>> TestAsync(McpTestRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<McpTestResponseDTO>> TestAsync(McpTestRequestDTO request, CancellationToken cancellationToken)
         => Ok(await _mcpService.TestAsync(request, cancellationToken).ConfigureAwait(false));
 }
-

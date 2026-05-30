@@ -6,22 +6,21 @@ namespace EventHorizon.Configuration;
 
 public static class ConfigurationServiceCollectionExtensions
 {
-    public static IServiceCollection AddEventHorizonConfiguration(this IServiceCollection services, EffectiveCommandOptions commandOptions, IPathEnvironment pathEnvironment)
+    public static IServiceCollection AddEventHorizonConfiguration(this IServiceCollection services, IPathEnvironment pathEnvironment)
     {
-        services.AddSingleton(commandOptions);
         services.AddSingleton(pathEnvironment);
         services.AddSingleton<IUserConfigurationFileService, UserConfigurationFileService>();
+        services.AddSingleton<IUserProvidersFileService, UserProvidersFileService>();
         services.AddOptions<AppOptions>().BindConfiguration(string.Empty);
         services.AddSingleton<IAppOptionsInitializer, AppOptionsInitializer>();
         services.AddSingleton<IPostConfigureOptions<AppOptions>, AppOptionsPostConfigure>();
-        services.AddSingleton(serviceProvider => serviceProvider.GetRequiredService<IOptions<AppOptions>>().Value);
         services.AddSingleton<IAppConfigurationService, AppConfigurationService>();
         services.AddSingleton<IProviderTestingService, ProviderTestingService>();
         services.AddSingleton<IMcpService, McpService>();
         services.AddSingleton<ISkillService, SkillService>();
         services.AddSingleton<IProviderConfigurationService, ProviderConfigurationService>();
+        services.AddSingleton<Providers.ISkillProviderFactory, Providers.SkillProviderFactory>();
         services.AddSingleton<IHostedService, CurrentProviderSelectionHostedService>();
         return services;
     }
 }
-

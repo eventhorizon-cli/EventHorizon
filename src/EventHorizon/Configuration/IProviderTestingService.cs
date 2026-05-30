@@ -1,7 +1,8 @@
+using EventHorizon.AGUI.DTOs;
+
 namespace EventHorizon.Configuration;
 
 public interface IProviderTestingService
 {
-    Task<ProviderTestResponse> TestAsync(ProviderTestRequest request, CancellationToken cancellationToken);
+    Task<ProviderTestResponseDTO> TestAsync(ProviderTestRequestDTO request, CancellationToken cancellationToken);
 }
-

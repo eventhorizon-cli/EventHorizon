@@ -1,6 +1,8 @@
-namespace EventHorizon.Configuration;
+using EventHorizon.Configuration;
 
-public sealed class AppConfigurationResponse
+namespace EventHorizon.AGUI.DTOs;
+
+public sealed class AppConfigurationResponseDTO
 {
     public string FilePath { get; set; } = string.Empty;
 
@@ -12,4 +14,3 @@ public sealed class AppConfigurationResponse
 
     public SkillCatalogOptions Skills { get; set; } = new();
 }
-

@@ -1,3 +1,4 @@
+using EventHorizon.AGUI.DTOs;
 using EventHorizon.Configuration;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,7 +16,6 @@ public sealed class ProvidersController : ControllerBase
     }
 
     [HttpPost("test")]
-    public async Task<ActionResult<ProviderTestResponse>> TestAsync(ProviderTestRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProviderTestResponseDTO>> TestAsync(ProviderTestRequestDTO request, CancellationToken cancellationToken)
         => Ok(await _providerTestingService.TestAsync(request, cancellationToken).ConfigureAwait(false));
 }
-

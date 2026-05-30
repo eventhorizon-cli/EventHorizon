@@ -1,20 +1,21 @@
-namespace EventHorizon.Configuration;
+using EventHorizon.Configuration;
 
-public sealed class SaveAppConfigurationRequest
+namespace EventHorizon.AGUI.DTOs;
+
+public sealed class SaveAppConfigurationRequestDTO
 {
     public string? CurrentDefaultProvider { get; set; }
 
-    public List<NamedProviderConfiguration> Providers { get; set; } = [];
+    public List<NamedProviderConfigurationDTO> Providers { get; set; } = [];
 
     public List<McpServerOptions> McpServers { get; set; } = [];
 
     public SkillCatalogOptions Skills { get; set; } = new();
 }
 
-public sealed class NamedProviderConfiguration
+public sealed class NamedProviderConfigurationDTO
 {
     public string Name { get; set; } = string.Empty;
 
     public ProviderOptions Provider { get; set; } = new();
 }
-

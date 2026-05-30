@@ -71,9 +71,14 @@ public sealed class FileConversationSessionStore : IConversationSessionStore
             File.Delete(path);
         }
 
+        var sessionDirectory = Path.Combine(_storagePath, sessionId);
+        if (Directory.Exists(sessionDirectory))
+        {
+            Directory.Delete(sessionDirectory, recursive: true);
+        }
+
         return Task.CompletedTask;
     }
 
     private string GetPath(string sessionId) => Path.Combine(_storagePath, sessionId + ".json");
 }
-
