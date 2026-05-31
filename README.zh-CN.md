@@ -51,15 +51,6 @@ dotnet run --project src/EventHorizon
 - 切换不会清空聊天记录、标题、摘要或其他会话状态
 - Agent 按会话缓存，仅在切换或失效时重建
 
-## API DTO 规则
-
-API DTO 统一位于 `src/EventHorizon/DTOs/`，并且类型名统一以 `DTO` 结尾，例如：
-
-- `CreateAGUISessionRequestDTO`
-- `UpdateConversationModelRequestDTO`
-- `ConversationModelResponseDTO`
-- `AGUISessionSummaryDTO`
-- `AGUIRunDTO`
 
 ## MCP 与 Skill
 

@@ -50,17 +50,6 @@ If no valid provider is configured yet, the app still starts so configuration AP
 - Switching provider/model updates only that conversation and preserves transcript, title, summary, and other session state
 - Agent/runtime objects are cached per conversation and rebuilt only when that conversation changes or is invalidated
 
-## API DTOs
-
-API DTOs live under `src/EventHorizon/DTOs/`.
-Type names end with `DTO`, for example:
-
-- `CreateAGUISessionRequestDTO`
-- `UpdateConversationModelRequestDTO`
-- `ConversationModelResponseDTO`
-- `AGUISessionSummaryDTO`
-- `AGUIRunDTO`
-
 ## MCP And Skills
 
 - MCP servers are configured in app settings and can be tested through `api/mcp/test`

@@ -28,4 +28,8 @@
     <ProjectReference Include="..\EventHorizon\EventHorizon.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
 </Project>
