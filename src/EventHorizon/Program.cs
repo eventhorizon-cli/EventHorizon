@@ -5,8 +5,13 @@ using EventHorizon.Pricing;
 using EventHorizon.Prompting;
 using EventHorizon.Providers;
 using EventHorizon.Workspace;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 

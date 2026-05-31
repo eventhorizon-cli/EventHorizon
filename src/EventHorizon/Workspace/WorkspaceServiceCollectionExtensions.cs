@@ -1,4 +1,5 @@
 using EventHorizon.Workspace.Diff;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EventHorizon.Workspace;
 

@@ -1,3 +1,6 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
 namespace EventHorizon.Configuration;
 
 public static class ConfigurationServiceCollectionExtensions

@@ -1,6 +1,7 @@
 using EventHorizon.Engine.Events;
 using EventHorizon.Engine.Runs;
 using EventHorizon.Engine.Sessions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EventHorizon.Engine;
 
