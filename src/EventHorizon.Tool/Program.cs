@@ -1,1 +1,0 @@
-EventHorizon.Program.Main(args);

@@ -5,7 +5,6 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/src/">
-    <Project Path="src/EventHorizon.Tool/EventHorizon.Tool.csproj" />
     <Project Path="src/EventHorizon/EventHorizon.csproj" />
   </Folder>
   <Folder Name="/tests/">

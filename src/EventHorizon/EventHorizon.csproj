@@ -12,6 +12,16 @@
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>eventhorizon</ToolCommandName>
+    <PackageId>EventHorizon</PackageId>
+    <Authors>EventHorizon</Authors>
+    <Description>A code agent built on top of the Microsoft Agent Framework.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/eventhorizon-cli/EventHorizon</RepositoryUrl>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Agents.AI" />
     <PackageReference Include="Microsoft.Agents.AI.Anthropic" />
