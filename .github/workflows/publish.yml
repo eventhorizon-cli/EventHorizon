@@ -58,7 +58,7 @@ jobs:
 
       - name: Pack dotnet tool
         run: |
-          dotnet pack src/EventHorizon.Tool/EventHorizon.Tool.csproj \
+          dotnet pack src/EventHorizon/EventHorizon.csproj \
             --configuration Release \
             --no-build \
             --output artifacts \
