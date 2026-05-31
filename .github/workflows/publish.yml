@@ -1,0 +1,79 @@
+name: Publish NuGet Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build, Pack and Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: eventhorizon-workbench/package-lock.json
+
+      - name: Get version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: Restore .NET
+        run: dotnet restore EventHorizon.slnx
+
+      - name: Install frontend dependencies
+        working-directory: eventhorizon-workbench
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: eventhorizon-workbench
+        run: npm run build
+
+      - name: Prepare embedded wwwroot
+        shell: bash
+        run: |
+          mkdir -p src/EventHorizon/wwwroot
+          find src/EventHorizon/wwwroot -mindepth 1 -maxdepth 1 ! -name '.gitkeep' -exec rm -rf {} +
+          cp -R eventhorizon-workbench/dist/. src/EventHorizon/wwwroot/
+          test -f src/EventHorizon/wwwroot/index.html
+
+      - name: Build .NET
+        run: dotnet build EventHorizon.slnx --configuration Release --no-restore
+
+      - name: Test .NET
+        run: dotnet test EventHorizon.slnx --configuration Release --no-build --verbosity normal
+
+      - name: Pack dotnet tool
+        run: |
+          dotnet pack src/EventHorizon.Tool/EventHorizon.Tool.csproj \
+            --configuration Release \
+            --no-build \
+            --output artifacts \
+            /p:PackageVersion=${{ env.VERSION }}
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: eventhorizon-tool-packages
+          path: artifacts/*.nupkg
+
+      - name: Publish to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: dotnet nuget push artifacts/*.nupkg \
+          --api-key $NUGET_API_KEY \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
