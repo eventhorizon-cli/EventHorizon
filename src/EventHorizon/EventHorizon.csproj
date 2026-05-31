@@ -10,10 +10,8 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);MAAI001;MEAI001</NoWarn>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
-  </PropertyGroup>
 
-  <PropertyGroup>
-    <PackAsTool>true</PackAsTool>
+    <IsPackable>true</IsPackable>
     <ToolCommandName>eventhorizon</ToolCommandName>
     <PackageId>EventHorizon</PackageId>
     <Authors>EventHorizon</Authors>
