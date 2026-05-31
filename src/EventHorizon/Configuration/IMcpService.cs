@@ -1,4 +1,4 @@
-using EventHorizon.AGUI.DTOs;
+using EventHorizon.DTOs;
 
 namespace EventHorizon.Configuration;
 

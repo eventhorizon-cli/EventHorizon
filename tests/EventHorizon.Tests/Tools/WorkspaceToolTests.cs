@@ -1,7 +1,6 @@
-using EventHorizon.Configuration;
-using EventHorizon.Diff;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
+using EventHorizon.Workspace.Diff;
 using Microsoft.Extensions.AI;
 
 namespace EventHorizon.Tests.Tools;
@@ -9,25 +8,22 @@ namespace EventHorizon.Tests.Tools;
 public sealed class WorkspaceToolTests : IDisposable
 {
     private readonly string _workspaceRoot;
+    private readonly WorkspaceContext _workspaceContext;
     private readonly WorkspaceService _workspaceService;
     private readonly ToolCatalog _toolCatalog;
-    private readonly AppOptions _options;
 
     public WorkspaceToolTests()
     {
         _workspaceRoot = Path.Combine(Path.GetTempPath(), "eventhorizon-tool-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_workspaceRoot);
+        _workspaceContext = new WorkspaceContext(_workspaceRoot);
         _workspaceService = new WorkspaceService(
-            _workspaceRoot,
+            _workspaceContext,
             new ShellCommandRunner(),
-            new FileSnapshotService(_workspaceRoot),
+            new FileSnapshotService(_workspaceContext),
             new FileStateTrackerAccessor(),
             new BackgroundTerminalCommandStore());
         _toolCatalog = new ToolCatalog();
-        _options = new AppOptions
-        {
-            Agent = new AgentOptions { EnableShell = true }
-        };
     }
 
     [Fact]
@@ -356,7 +352,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public void ToolCatalog_Should_Include_All_Tools()
     {
         // Arrange & Act
-        var tools = _toolCatalog.Create(_workspaceService, _options);
+        var tools = _toolCatalog.Create(_workspaceService);
 
         // Assert
         var toolNames = tools.Select(t => t.Name).ToList();
@@ -380,14 +376,8 @@ public sealed class WorkspaceToolTests : IDisposable
     [Fact]
     public void ToolCatalog_Without_Shell_Flag_Should_Still_Include_Shell_Tools()
     {
-        // Arrange
-        var optionsWithoutShell = new AppOptions
-        {
-            Agent = new AgentOptions { EnableShell = false }
-        };
-
         // Act
-        var tools = _toolCatalog.Create(_workspaceService, optionsWithoutShell);
+        var tools = _toolCatalog.Create(_workspaceService);
 
         // Assert
         var toolNames = tools.Select(t => t.Name).ToList();
@@ -400,7 +390,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public void ToolCatalog_Should_Use_Method_Groups()
     {
         // Arrange & Act
-        var tools = _toolCatalog.Create(_workspaceService, _options);
+        var tools = _toolCatalog.Create(_workspaceService);
 
         // Assert - verify each tool has an AI function
         foreach (var tool in tools)

@@ -1,4 +1,4 @@
-using EventHorizon.Context;
+using EventHorizon.Engine.Sessions;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
 using EventHorizon.Tools;
@@ -69,10 +69,9 @@ public sealed class SessionUsageTrackerTests
                 WorkspaceSummary: "summary",
                 GitStatus: "clean",
                 ProjectInstructions: "instructions"));
-        public ValueTask<IReadOnlyList<ToolDescriptor>> GetToolCatalogAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<IReadOnlyList<ToolDescriptor>>([]);
+        public IReadOnlyList<ToolDescriptor> GetToolCatalog(CancellationToken cancellationToken = default) => [];
         public ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<IReadOnlyList<AITool>>([]);
         public Task InvalidateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }
-

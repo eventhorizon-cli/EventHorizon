@@ -1,4 +1,3 @@
-using EventHorizon.Configuration;
 using EventHorizon.Workspace;
 using Microsoft.Extensions.AI;
 
@@ -6,7 +5,7 @@ namespace EventHorizon.Tools;
 
 public sealed class ToolCatalog : IToolCatalogFactory
 {
-    public IReadOnlyList<ToolDescriptor> Create(WorkspaceService workspaceService, AppOptions options)
+    public IReadOnlyList<ToolDescriptor> Create(IWorkspaceService workspaceService)
     {
         List<ToolDescriptor> tools =
         [

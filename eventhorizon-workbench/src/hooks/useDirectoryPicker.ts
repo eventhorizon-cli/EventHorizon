@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { getDirectories } from "@/api/conversationsApi";
+import { getDirectories } from "@/api/sessionsApi";
 import type { DirectoryItem } from "@/types";
 
 type UseDirectoryPickerOptions = {
@@ -29,19 +29,24 @@ export function useDirectoryPicker({ initialPath, onConfirm }: UseDirectoryPicke
     }
   }, []);
 
+  const updatePathInput = useCallback((value: string) => {
+    setPathInput(value);
+    setSelectedPath(undefined);
+  }, []);
+
   const openPicker = useCallback(async (path = initialPath) => {
     setOpen(true);
-    setPathInput(path ?? "");
+    updatePathInput(path ?? "");
     await loadDirectories(path);
-  }, [initialPath, loadDirectories]);
+  }, [initialPath, loadDirectories, updatePathInput]);
 
   const closePicker = useCallback(() => {
     setOpen(false);
     setDirectories([]);
     setCurrentPath(undefined);
     setSelectedPath(undefined);
-    setPathInput("");
-  }, []);
+    updatePathInput("");
+  }, [updatePathInput]);
 
   const selectPath = useCallback((item: DirectoryItem) => {
     if (!item.isDirectory) {
@@ -70,13 +75,14 @@ export function useDirectoryPicker({ initialPath, onConfirm }: UseDirectoryPicke
   }, [loadDirectories, pathInput]);
 
   const confirmSelection = useCallback(async () => {
-    if (!selectedPath) {
+    const nextPath = selectedPath?.trim() || pathInput.trim();
+    if (!nextPath) {
       return;
     }
 
-    await onConfirm(selectedPath);
+    await onConfirm(nextPath);
     closePicker();
-  }, [closePicker, onConfirm, selectedPath]);
+  }, [closePicker, onConfirm, pathInput, selectedPath]);
 
   return {
     open,
@@ -85,7 +91,7 @@ export function useDirectoryPicker({ initialPath, onConfirm }: UseDirectoryPicke
     selectedPath,
     pathInput,
     isLoading,
-    setPathInput,
+    setPathInput: updatePathInput,
     openPicker,
     closePicker,
     loadDirectories,

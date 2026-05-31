@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using EventHorizon.Diff;
+using EventHorizon.Workspace.Diff;
 
 namespace EventHorizon.Tests.Diff;
 
@@ -67,4 +67,3 @@ public sealed class DiffServiceTests
             false,
             DateTimeOffset.UtcNow);
 }
-

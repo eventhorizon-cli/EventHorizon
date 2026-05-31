@@ -9,7 +9,7 @@ public interface IUserConfigurationFileService
 
     void EnsureExists();
 
-    void Save(AppOptions options);
+    void Save(AgentOptions agentOptions, PricingOptions pricingOptions);
 
     string CreateInitialContent();
 }
@@ -40,7 +40,7 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
         }
     }
 
-    public void Save(AppOptions options)
+    public void Save(AgentOptions agentOptions, PricingOptions pricingOptions)
     {
         EnsureExists();
 
@@ -50,12 +50,10 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
         root.Remove(nameof(McpOptions.Servers));
         root.Remove(nameof(SkillsOptions.Imported));
         root.Remove(nameof(SkillsOptions.StoragePath));
+        root.Remove("Session");
 
-        var persisted = JsonSerializer.SerializeToNode(options, EventHorizonJsonContext.Default.AppOptions)?.AsObject() ?? [];
-        foreach (var pair in persisted)
-        {
-            root[pair.Key] = pair.Value?.DeepClone();
-        }
+        root["Agent"] = JsonSerializer.SerializeToNode(agentOptions, EventHorizonJsonContext.Default.AgentOptions);
+        root["Pricing"] = JsonSerializer.SerializeToNode(pricingOptions, EventHorizonJsonContext.Default.PricingOptions);
 
         SafeWrite(root.ToJsonString(JsonOptions) + Environment.NewLine);
     }
@@ -103,6 +101,7 @@ public sealed class UserConfigurationFileService : IUserConfigurationFileService
             root.Remove(nameof(McpOptions.Servers));
             root.Remove(nameof(SkillsOptions.Imported));
             root.Remove(nameof(SkillsOptions.StoragePath));
+            root.Remove("Session");
 
             return root.ToJsonString(JsonOptions) + Environment.NewLine;
         }

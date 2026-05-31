@@ -1,0 +1,14 @@
+namespace EventHorizon.DTOs;
+
+public sealed class SessionModelResponseDTO
+{
+    public string SessionId { get; set; } = string.Empty;
+
+    public string? ProviderName { get; set; }
+
+    public string ProviderType { get; set; } = string.Empty;
+
+    public string ModelId { get; set; } = string.Empty;
+
+    public IReadOnlyList<string> Warnings { get; set; } = Array.Empty<string>();
+}

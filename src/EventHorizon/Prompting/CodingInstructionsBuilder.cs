@@ -6,21 +6,21 @@ namespace EventHorizon.Prompting;
 
 public interface ICodingInstructionsBuilder
 {
-    string Build(Configuration.AppOptions options);
+    string Build(AgentOptions options);
 }
 
 public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
 {
     private readonly WorkspaceContext _workspaceContext;
-    private readonly McpOptions _mcpOptions;
+    private readonly IOptionsMonitor<McpOptions> _mcpOptionsMonitor;
 
-    public CodingInstructionsBuilder(WorkspaceContext workspaceContext, IOptions<McpOptions> mcpOptions)
+    public CodingInstructionsBuilder(WorkspaceContext workspaceContext, IOptionsMonitor<McpOptions> mcpOptionsMonitor)
     {
         _workspaceContext = workspaceContext;
-        _mcpOptions = mcpOptions.Value;
+        _mcpOptionsMonitor = mcpOptionsMonitor;
     }
 
-    public string Build(Configuration.AppOptions options)
+    public string Build(AgentOptions options)
     {
         List<string> sections =
         [
@@ -34,21 +34,21 @@ public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
 
         sections.Add("A shell execution capability is available. Use it when live command output, builds, tests, generators, or tooling feedback is necessary.");
 
-        if (options.Agent.EnableSkills)
+        if (options.EnableSkills)
         {
             sections.Add("A workspace skill is available for browsing files, reading content, editing content, searching code, and running shell commands across many project types.");
         }
 
-        if (options.Agent.EnableMcpTools && _mcpOptions.Servers.Count > 0)
+        if (options.EnableMcpTools && _mcpOptionsMonitor.CurrentValue.Servers.Count > 0)
         {
             sections.Add("Additional MCP tools are connected. Use them when they provide specialized capabilities beyond local workspace operations.");
         }
 
         sections.Add($"The workspace root is: {_workspaceContext.WorkspaceRoot}");
 
-        if (options.Agent.AdditionalSystemPrompts.Length > 0)
+        if (options.AdditionalSystemPrompts.Length > 0)
         {
-            sections.AddRange(options.Agent.AdditionalSystemPrompts);
+            sections.AddRange(options.AdditionalSystemPrompts);
         }
 
         return string.Join("\n\n", sections);

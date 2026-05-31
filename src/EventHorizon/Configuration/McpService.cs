@@ -1,4 +1,4 @@
-using EventHorizon.AGUI.DTOs;
+using EventHorizon.DTOs;
 using EventHorizon.Protocols.Mcp;
 
 namespace EventHorizon.Configuration;

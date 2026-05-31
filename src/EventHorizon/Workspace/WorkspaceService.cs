@@ -1,12 +1,12 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using EventHorizon.Diff;
 using EventHorizon.Tools;
+using EventHorizon.Workspace.Diff;
 
 namespace EventHorizon.Workspace;
 
-public sealed class WorkspaceService
+public sealed class WorkspaceService : IWorkspaceService
 {
     private static readonly HttpClient OsvHttpClient = new();
 
@@ -69,34 +69,34 @@ public sealed class WorkspaceService
         "where",
     };
 
-    private readonly string _workspaceRoot;
+    private readonly WorkspaceContext _workspaceContext;
     private readonly ShellCommandRunner _shellCommandRunner;
     private readonly BackgroundTerminalCommandStore _backgroundTerminalCommandStore;
-    private readonly FileSnapshotService _fileSnapshotService;
-    private readonly FileStateTrackerAccessor _fileStateTrackerAccessor;
+    private readonly IFileSnapshotService _fileSnapshotService;
+    private readonly IFileStateTrackerAccessor _fileStateTrackerAccessor;
 
     public WorkspaceService(
-        string workspaceRoot,
+        WorkspaceContext workspaceContext,
         ShellCommandRunner shellCommandRunner,
-        FileSnapshotService fileSnapshotService,
-        FileStateTrackerAccessor fileStateTrackerAccessor,
+        IFileSnapshotService fileSnapshotService,
+        IFileStateTrackerAccessor fileStateTrackerAccessor,
         BackgroundTerminalCommandStore? backgroundTerminalCommandStore = null)
     {
-        _workspaceRoot = Path.GetFullPath(workspaceRoot);
+        _workspaceContext = workspaceContext;
         _shellCommandRunner = shellCommandRunner;
         _fileSnapshotService = fileSnapshotService;
         _fileStateTrackerAccessor = fileStateTrackerAccessor;
         _backgroundTerminalCommandStore = backgroundTerminalCommandStore ?? new BackgroundTerminalCommandStore();
     }
 
-    public string WorkspaceRoot => _workspaceRoot;
+    public string WorkspaceRoot => _workspaceContext.WorkspaceRoot;
 
     public string DescribeWorkspace()
     {
         StringBuilder builder = new();
-        builder.AppendLine($"Workspace root: {_workspaceRoot}");
+        builder.AppendLine($"Workspace root: {WorkspaceRoot}");
         builder.AppendLine("Top-level entries:");
-        foreach (var entry in Directory.EnumerateFileSystemEntries(_workspaceRoot).OrderBy(static p => p, StringComparer.OrdinalIgnoreCase))
+        foreach (var entry in Directory.EnumerateFileSystemEntries(WorkspaceRoot).OrderBy(static p => p, StringComparer.OrdinalIgnoreCase))
         {
             var name = Path.GetFileName(entry);
             builder.AppendLine(Directory.Exists(entry) ? $"- {name}/" : $"- {name}");
@@ -114,7 +114,7 @@ public sealed class WorkspaceService
         builder.AppendLine($"Directory: {GetDisplayPath(path)}");
         foreach (var entry in Directory.EnumerateFileSystemEntries(path).OrderBy(static p => p, StringComparer.OrdinalIgnoreCase))
         {
-            var relative = Path.GetRelativePath(_workspaceRoot, entry);
+            var relative = Path.GetRelativePath(WorkspaceRoot, entry);
             builder.AppendLine(Directory.Exists(entry) ? $"- {relative}/" : $"- {relative}");
         }
         return builder.ToString().TrimEnd();
@@ -277,7 +277,7 @@ public sealed class WorkspaceService
     {
         var regex = WildcardToRegex(query);
         var matches = EnumerateWorkspaceFiles()
-            .Select(path => Path.GetRelativePath(_workspaceRoot, path))
+            .Select(path => Path.GetRelativePath(WorkspaceRoot, path))
             .Where(path => regex.IsMatch(path))
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
             .Take(Math.Clamp(maxResults, 1, 500))
@@ -296,7 +296,7 @@ public sealed class WorkspaceService
         List<string> matches = [];
         foreach (var file in EnumerateWorkspaceFiles())
         {
-            var relative = Path.GetRelativePath(_workspaceRoot, file);
+            var relative = Path.GetRelativePath(WorkspaceRoot, file);
             if (!fileRegex.IsMatch(relative))
             {
                 continue;
@@ -338,7 +338,7 @@ public sealed class WorkspaceService
         List<SemanticSnippet> snippets = [];
         foreach (var file in EnumerateWorkspaceFiles())
         {
-            var relative = Path.GetRelativePath(_workspaceRoot, file);
+            var relative = Path.GetRelativePath(WorkspaceRoot, file);
             string[] lines;
             try
             {
@@ -386,12 +386,12 @@ public sealed class WorkspaceService
     {
         if (isBackground)
         {
-            var id = _backgroundTerminalCommandStore.Start(command, _workspaceRoot);
+            var id = _backgroundTerminalCommandStore.Start(command, WorkspaceRoot);
             return $"Started background terminal session.\nId: {id}\nExplanation: {explanation}\nCommand: {command}";
         }
 
         var beforeSnapshot = CaptureWorkspaceForTracking();
-        var result = await _shellCommandRunner.RunAsync(command, _workspaceRoot, 120, cancellationToken).ConfigureAwait(false);
+        var result = await _shellCommandRunner.RunAsync(command, WorkspaceRoot, 120, cancellationToken).ConfigureAwait(false);
         TrackWorkspaceTransition(beforeSnapshot, CaptureWorkspaceForTracking());
         return $"Explanation: {explanation}\n{result}";
     }
@@ -401,7 +401,7 @@ public sealed class WorkspaceService
 
     public async Task<string> RunShellAsync(string command, int timeoutSeconds, CancellationToken cancellationToken)
     {
-        var result = await _shellCommandRunner.RunAsync(command, _workspaceRoot, timeoutSeconds, cancellationToken).ConfigureAwait(false);
+        var result = await _shellCommandRunner.RunAsync(command, WorkspaceRoot, timeoutSeconds, cancellationToken).ConfigureAwait(false);
         return result.ToString();
     }
 
@@ -423,7 +423,7 @@ public sealed class WorkspaceService
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var result = await _shellCommandRunner
-            .RunAsync($"dotnet build \"{buildTarget}\" --nologo --no-restore", _workspaceRoot, 180, cancellationToken)
+            .RunAsync($"dotnet build \"{buildTarget}\" --nologo --no-restore", WorkspaceRoot, 180, cancellationToken)
             .ConfigureAwait(false);
 
         var combinedOutput = string.Join(
@@ -572,7 +572,7 @@ public sealed class WorkspaceService
 
         var terms = ExtractSearchTerms(task);
         var fileCandidates = EnumerateWorkspaceFiles()
-            .Select(path => Path.GetRelativePath(_workspaceRoot, path))
+            .Select(path => Path.GetRelativePath(WorkspaceRoot, path))
             .Where(path => terms.Any(term => path.Contains(term, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
             .Take(10)
@@ -610,10 +610,10 @@ public sealed class WorkspaceService
     private string ResolvePath(string? path)
     {
         var candidate = string.IsNullOrWhiteSpace(path)
-            ? _workspaceRoot
+            ? WorkspaceRoot
             : Path.IsPathRooted(path)
                 ? Path.GetFullPath(path)
-                : Path.GetFullPath(Path.Combine(_workspaceRoot, path));
+                : Path.GetFullPath(Path.Combine(WorkspaceRoot, path));
 
         if (!IsInsideWorkspace(candidate))
         {
@@ -625,29 +625,29 @@ public sealed class WorkspaceService
 
     private bool IsInsideWorkspace(string path)
     {
-        var rootWithSeparator = _workspaceRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? _workspaceRoot
-            : _workspaceRoot + Path.DirectorySeparatorChar;
+        var rootWithSeparator = WorkspaceRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? WorkspaceRoot
+            : WorkspaceRoot + Path.DirectorySeparatorChar;
 
-        return path.Equals(_workspaceRoot, StringComparison.Ordinal)
+        return path.Equals(WorkspaceRoot, StringComparison.Ordinal)
             || path.StartsWith(rootWithSeparator, StringComparison.Ordinal);
     }
 
     private string GetDisplayPath(string fullPath)
     {
-        var relative = Path.GetRelativePath(_workspaceRoot, fullPath);
+        var relative = Path.GetRelativePath(WorkspaceRoot, fullPath);
         return relative == "." ? "." : relative;
     }
 
     private IEnumerable<string> EnumerateWorkspaceFiles()
     {
-        return Directory.EnumerateFiles(_workspaceRoot, "*", SearchOption.AllDirectories)
+        return Directory.EnumerateFiles(WorkspaceRoot, "*", SearchOption.AllDirectories)
             .Where(path => !IsIgnoredPath(path) && !BinaryExtensions.Contains(Path.GetExtension(path)));
     }
 
     private bool IsIgnoredPath(string path)
     {
-        var relative = Path.GetRelativePath(_workspaceRoot, path);
+        var relative = Path.GetRelativePath(WorkspaceRoot, path);
         var segments = relative.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
         return segments.Any(IgnoredDirectoryNames.Contains);
     }
@@ -845,23 +845,23 @@ public sealed class WorkspaceService
 
     private string? FindDotNetBuildTarget()
     {
-        var slnx = Directory.EnumerateFiles(_workspaceRoot, "*.slnx", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+        var slnx = Directory.EnumerateFiles(WorkspaceRoot, "*.slnx", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
         if (slnx is not null)
         {
-            return Path.GetRelativePath(_workspaceRoot, slnx);
+            return Path.GetRelativePath(WorkspaceRoot, slnx);
         }
 
-        var sln = Directory.EnumerateFiles(_workspaceRoot, "*.sln", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+        var sln = Directory.EnumerateFiles(WorkspaceRoot, "*.sln", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
         if (sln is not null)
         {
-            return Path.GetRelativePath(_workspaceRoot, sln);
+            return Path.GetRelativePath(WorkspaceRoot, sln);
         }
 
-        var project = Directory.EnumerateFiles(_workspaceRoot, "*.csproj", SearchOption.AllDirectories)
+        var project = Directory.EnumerateFiles(WorkspaceRoot, "*.csproj", SearchOption.AllDirectories)
             .Where(path => !IsIgnoredPath(path))
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
-        return project is null ? null : Path.GetRelativePath(_workspaceRoot, project);
+        return project is null ? null : Path.GetRelativePath(WorkspaceRoot, project);
     }
 
     private static string[] ExtractSearchTerms(string query)

@@ -1,1 +1,1 @@
-return await EventHorizon.Program.Main(args);
+EventHorizon.Program.Main(args);

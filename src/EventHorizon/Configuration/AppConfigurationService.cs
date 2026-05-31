@@ -4,10 +4,11 @@ namespace EventHorizon.Configuration;
 
 internal sealed class AppConfigurationService : IAppConfigurationService
 {
-    private readonly AppOptions _appOptions;
-    private readonly ProvidersOptions _providersOptions;
-    private readonly McpOptions _mcpOptions;
-    private readonly SkillsOptions _skillsOptions;
+    private readonly IOptionsMonitor<AgentOptions> _agentOptionsMonitor;
+    private readonly IOptionsMonitor<PricingOptions> _pricingOptionsMonitor;
+    private readonly IOptionsMonitor<ProvidersOptions> _providersOptionsMonitor;
+    private readonly IOptionsMonitor<McpOptions> _mcpOptionsMonitor;
+    private readonly IOptionsMonitor<SkillsOptions> _skillsOptionsMonitor;
     private readonly IOptionsNormalizer _normalizer;
     private readonly IUserConfigurationFileService _userConfigurationFileService;
     private readonly IUserProvidersFileService _userProvidersFileService;
@@ -15,20 +16,22 @@ internal sealed class AppConfigurationService : IAppConfigurationService
     private readonly IUserSkillsFileService _userSkillsFileService;
 
     public AppConfigurationService(
-        IOptions<AppOptions> appOptions,
-        IOptions<ProvidersOptions> providersOptions,
-        IOptions<McpOptions> mcpOptions,
-        IOptions<SkillsOptions> skillsOptions,
+        IOptionsMonitor<AgentOptions> agentOptionsMonitor,
+        IOptionsMonitor<PricingOptions> pricingOptionsMonitor,
+        IOptionsMonitor<ProvidersOptions> providersOptionsMonitor,
+        IOptionsMonitor<McpOptions> mcpOptionsMonitor,
+        IOptionsMonitor<SkillsOptions> skillsOptionsMonitor,
         IOptionsNormalizer normalizer,
         IUserConfigurationFileService userConfigurationFileService,
         IUserProvidersFileService userProvidersFileService,
         IUserMcpFileService userMcpFileService,
         IUserSkillsFileService userSkillsFileService)
     {
-        _appOptions = appOptions.Value;
-        _providersOptions = providersOptions.Value;
-        _mcpOptions = mcpOptions.Value;
-        _skillsOptions = skillsOptions.Value;
+        _agentOptionsMonitor = agentOptionsMonitor;
+        _pricingOptionsMonitor = pricingOptionsMonitor;
+        _providersOptionsMonitor = providersOptionsMonitor;
+        _mcpOptionsMonitor = mcpOptionsMonitor;
+        _skillsOptionsMonitor = skillsOptionsMonitor;
         _normalizer = normalizer;
         _userConfigurationFileService = userConfigurationFileService;
         _userProvidersFileService = userProvidersFileService;
@@ -36,19 +39,16 @@ internal sealed class AppConfigurationService : IAppConfigurationService
         _userSkillsFileService = userSkillsFileService;
     }
 
-    public AppOptions GetAppOptions()
-        => _appOptions;
-
     public ProvidersOptions GetProvidersOptions()
-        => _providersOptions;
+        => _providersOptionsMonitor.CurrentValue;
 
     public McpOptions GetMcpOptions()
-        => _mcpOptions;
+        => _mcpOptionsMonitor.CurrentValue;
 
     public SkillsOptions GetSkillsOptions()
-        => _skillsOptions;
+        => _skillsOptionsMonitor.CurrentValue;
 
-    public Task SaveAsync(
+    public void Save(
         ProvidersOptions providers,
         McpOptions mcp,
         SkillsOptions skills,
@@ -56,29 +56,31 @@ internal sealed class AppConfigurationService : IAppConfigurationService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        CopyProvidersInto(_providersOptions, providers);
-        CopyMcpInto(_mcpOptions, mcp);
-        CopySkillsInto(_skillsOptions, skills);
+        var providersOptions = _providersOptionsMonitor.CurrentValue;
+        var mcpOptions = _mcpOptionsMonitor.CurrentValue;
+        var skillsOptions = _skillsOptionsMonitor.CurrentValue;
 
-        _normalizer.NormalizeProviders(_providersOptions);
-        _normalizer.NormalizeMcp(_mcpOptions);
-        _normalizer.NormalizeSkills(_skillsOptions);
+        CopyProvidersInto(providersOptions, providers);
+        CopyMcpInto(mcpOptions, mcp);
+        CopySkillsInto(skillsOptions, skills);
 
-        _userConfigurationFileService.Save(_appOptions);
-        _userProvidersFileService.Save(_providersOptions);
-        _userMcpFileService.Save(_mcpOptions);
-        _userSkillsFileService.Save(_skillsOptions);
+        _normalizer.NormalizeProviders(providersOptions);
+        _normalizer.NormalizeMcp(mcpOptions);
+        _normalizer.NormalizeSkills(skillsOptions);
 
-        return Task.CompletedTask;
+        _userConfigurationFileService.Save(_agentOptionsMonitor.CurrentValue, _pricingOptionsMonitor.CurrentValue);
+        _userProvidersFileService.Save(providersOptions);
+        _userMcpFileService.Save(mcpOptions);
+        _userSkillsFileService.Save(skillsOptions);
     }
 
-    public Task SetDefaultProviderAsync(string? providerName, CancellationToken cancellationToken)
+    public void SetDefaultProvider(string? providerName, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _providersOptions.CurrentDefaultProvider = string.IsNullOrWhiteSpace(providerName) ? null : providerName.Trim();
-        _normalizer.NormalizeProviders(_providersOptions);
-        _userProvidersFileService.Save(_providersOptions);
-        return Task.CompletedTask;
+        var providersOptions = _providersOptionsMonitor.CurrentValue;
+        providersOptions.CurrentDefaultProvider = string.IsNullOrWhiteSpace(providerName) ? null : providerName.Trim();
+        _normalizer.NormalizeProviders(providersOptions);
+        _userProvidersFileService.Save(providersOptions);
     }
 
     private static void CopyProvidersInto(ProvidersOptions target, ProvidersOptions source)

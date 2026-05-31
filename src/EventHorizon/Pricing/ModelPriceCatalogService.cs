@@ -7,26 +7,28 @@ public sealed class ModelPriceCatalogService : IModelPriceCatalogService
 {
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
 
-    private readonly Configuration.PricingOptions _options;
+    private readonly IOptionsMonitor<Configuration.PricingOptions>? _optionsMonitor;
+    private readonly Configuration.PricingOptions _fallbackOptions = new();
     private readonly HttpClient _httpClient;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     private ModelPriceCatalog? _catalog;
 
     public ModelPriceCatalogService(
-        IOptions<Configuration.AppOptions> options,
+        IOptionsMonitor<Configuration.PricingOptions> optionsMonitor,
         HttpClient httpClient)
     {
-        _options = options.Value.Pricing;
+        _optionsMonitor = optionsMonitor;
         _httpClient = httpClient;
     }
 
     public ModelPriceCatalogService(ModelPriceCatalog catalog)
     {
-        _options = new Configuration.PricingOptions();
         _httpClient = null!;
         _catalog = catalog;
     }
+
+    private Configuration.PricingOptions Options => _optionsMonitor?.CurrentValue ?? _fallbackOptions;
 
     public bool TryGetCatalog(out ModelPriceCatalog? catalog)
     {
@@ -39,7 +41,7 @@ public sealed class ModelPriceCatalogService : IModelPriceCatalogService
         await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var cacheDirectory = GetCacheDirectory(_options.CachePath);
+            var cacheDirectory = GetCacheDirectory(Options.CachePath);
             var (latestPath, cachedAt) = FindLatestCachedFile(cacheDirectory);
 
             if (!string.IsNullOrEmpty(latestPath) &&
@@ -84,8 +86,9 @@ public sealed class ModelPriceCatalogService : IModelPriceCatalogService
         CancellationToken cancellationToken)
     {
         var cachePath = GetCachePathWithTimestamp(cacheDirectory);
+        var options = Options;
 
-        using var response = await _httpClient.GetAsync(_options.CatalogUrl, cancellationToken).ConfigureAwait(false);
+        using var response = await _httpClient.GetAsync(options.CatalogUrl, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

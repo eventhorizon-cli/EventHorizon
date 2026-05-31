@@ -1,5 +1,5 @@
 using EventHorizon.Configuration;
-using EventHorizon.Context;
+using EventHorizon.Engine.Sessions;
 using EventHorizon.Prompting;
 using EventHorizon.Protocols.Mcp;
 using EventHorizon.Tools;
@@ -11,32 +11,35 @@ namespace EventHorizon.Providers;
 
 public sealed class EventHorizonRuntime : IEventHorizonRuntime
 {
-    private readonly WorkspaceService _workspaceService;
+    private readonly IWorkspaceService _workspaceService;
     private readonly ISessionContextBuilder _sessionContextBuilder;
     private readonly IToolCatalogFactory _toolCatalogFactory;
     private readonly ISystemPromptFactory _systemPromptFactory;
+    private readonly IProviderResolutionService _providerResolutionService;
     private readonly McpToolConnector _mcpToolConnector;
-    private readonly IOptionsMonitor<AppOptions> _appOptionsMonitor;
+    private readonly IOptionsMonitor<AgentOptions> _agentOptionsMonitor;
     private readonly IOptionsMonitor<McpOptions> _mcpOptionsMonitor;
     private readonly SemaphoreSlim _mcpLock = new(1, 1);
     private IReadOnlyList<AITool>? _mcpTools;
     private IReadOnlyList<IAsyncDisposable> _mcpResources = [];
 
     public EventHorizonRuntime(
-        WorkspaceService workspaceService,
+        IWorkspaceService workspaceService,
         ISessionContextBuilder sessionContextBuilder,
         IToolCatalogFactory toolCatalogFactory,
         ISystemPromptFactory systemPromptFactory,
+        IProviderResolutionService providerResolutionService,
         McpToolConnector mcpToolConnector,
-        IOptionsMonitor<AppOptions> appOptionsMonitor,
+        IOptionsMonitor<AgentOptions> agentOptionsMonitor,
         IOptionsMonitor<McpOptions> mcpOptionsMonitor)
     {
         _workspaceService = workspaceService;
         _sessionContextBuilder = sessionContextBuilder;
         _toolCatalogFactory = toolCatalogFactory;
         _systemPromptFactory = systemPromptFactory;
+        _providerResolutionService = providerResolutionService;
         _mcpToolConnector = mcpToolConnector;
-        _appOptionsMonitor = appOptionsMonitor;
+        _agentOptionsMonitor = agentOptionsMonitor;
         _mcpOptionsMonitor = mcpOptionsMonitor;
     }
 
@@ -44,7 +47,12 @@ public sealed class EventHorizonRuntime : IEventHorizonRuntime
     {
         get
         {
-            var provider = _appOptionsMonitor.CurrentValue.Provider;
+            var provider = _providerResolutionService.TryResolveDefault()?.Provider;
+            if (provider is null)
+            {
+                return string.Empty;
+            }
+
             return string.Equals(provider.Type, "azure-openai", StringComparison.OrdinalIgnoreCase)
                 ? provider.Deployment ?? provider.Model ?? string.Empty
                 : provider.Model ?? string.Empty;
@@ -56,26 +64,25 @@ public sealed class EventHorizonRuntime : IEventHorizonRuntime
 
     public async ValueTask<string> GetInstructionsAsync(CancellationToken cancellationToken = default)
     {
-        var appOptions = _appOptionsMonitor.CurrentValue;
+        var agentOptions = _agentOptionsMonitor.CurrentValue;
         var context = await _sessionContextBuilder.BuildAsync(cancellationToken).ConfigureAwait(false);
-        var toolCatalog = _toolCatalogFactory.Create(_workspaceService, appOptions);
-        return _systemPromptFactory.Build(appOptions, context, toolCatalog);
+        var toolCatalog = _toolCatalogFactory.Create(_workspaceService);
+        return _systemPromptFactory.Build(agentOptions, context, toolCatalog);
     }
 
-    public ValueTask<IReadOnlyList<ToolDescriptor>> GetToolCatalogAsync(CancellationToken cancellationToken = default)
+    public IReadOnlyList<ToolDescriptor> GetToolCatalog(CancellationToken cancellationToken = default)
     {
-        var appOptions = _appOptionsMonitor.CurrentValue;
-        var catalog = _toolCatalogFactory.Create(_workspaceService, appOptions);
-        return ValueTask.FromResult(catalog);
+        cancellationToken.ThrowIfCancellationRequested();
+        return _toolCatalogFactory.Create(_workspaceService);
     }
 
     public async ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default)
     {
-        var appOptions = _appOptionsMonitor.CurrentValue;
-        var toolCatalog = _toolCatalogFactory.Create(_workspaceService, appOptions);
+        var agentOptions = _agentOptionsMonitor.CurrentValue;
+        var toolCatalog = _toolCatalogFactory.Create(_workspaceService);
         var tools = new List<AITool>(toolCatalog.Select(static d => d.Tool));
 
-        if (appOptions.Agent.EnableMcpTools)
+        if (agentOptions.EnableMcpTools)
         {
             var mcpTools = await GetOrConnectMcpToolsAsync(cancellationToken).ConfigureAwait(false);
             tools.AddRange(mcpTools);

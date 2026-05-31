@@ -12,7 +12,7 @@ public static class ProvidersServiceCollectionExtensions
         services.AddSingleton<IProviderChatClientFactory, ProviderChatClientFactory>();
         services.AddSingleton<IProviderAgentFactory, ProviderAgentFactory>();
         services.AddSingleton<IProviderResolutionService, ProviderResolutionService>();
-        services.AddSingleton<IConversationAgentManager, ConversationAgentManager>();
+        services.AddSingleton<ISessionAgentManager, SessionAgentManager>();
         services.AddSingleton<McpToolConnector>();
         services.AddSingleton<IEventHorizonRuntime, EventHorizonRuntime>();
         return services;

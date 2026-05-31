@@ -115,7 +115,7 @@ export type AgentSessionDetail = AgentSession & {
 export type AgentRun = {
   id: string;
   threadId: string;
-  sessionId?: string;
+  sessionId: string;
   status: RunStatus;
   task: string;
   workingDirectory?: string;
@@ -127,8 +127,17 @@ export type AgentRun = {
   error?: string;
 };
 
-export type ConversationModelSelection = {
-  conversationId: string;
+export type ReasoningSummary = {
+  goal: string;
+  plan: string[];
+  completed: string[];
+  next?: string | null;
+  issues: string[];
+  decisions: string[];
+};
+
+export type SessionModelSelection = {
+  sessionId: string;
   providerName?: string;
   providerType: string;
   modelId: string;
@@ -154,7 +163,7 @@ export type AgentEvent = {
   toolCall?: unknown;
   result?: unknown;
   artifact?: unknown;
-  summary?: unknown;
+  summary?: ReasoningSummary;
   state?: unknown;
   metadata?: unknown;
 };

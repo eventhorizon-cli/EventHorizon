@@ -1,4 +1,4 @@
-using EventHorizon.Context;
+using EventHorizon.Engine.Sessions;
 using EventHorizon.Tools;
 using Microsoft.Extensions.AI;
 
@@ -12,7 +12,7 @@ public interface IEventHorizonRuntime : IAsyncDisposable
 
     ValueTask<string> GetInstructionsAsync(CancellationToken cancellationToken = default);
 
-    ValueTask<IReadOnlyList<ToolDescriptor>> GetToolCatalogAsync(CancellationToken cancellationToken = default);
+    IReadOnlyList<ToolDescriptor> GetToolCatalog(CancellationToken cancellationToken = default);
 
     ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default);
 

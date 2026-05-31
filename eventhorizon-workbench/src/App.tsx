@@ -1,5 +1,5 @@
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { ConversationPane } from "@/components/chat/ConversationPane";
+import { SessionPane } from "@/components/chat/SessionPane";
 import { ContextPanel } from "@/components/context/ContextPanel";
 import { DirectoryPickerDialog } from "@/components/dialogs/DirectoryPickerDialog";
 import { SessionsSidebar } from "@/components/layout/SessionsSidebar";
@@ -29,21 +29,22 @@ export default function App() {
 
         <PanelGroup direction="horizontal" className="min-h-0 flex-1 overflow-hidden">
           <Panel defaultSize={64} minSize={45} className="min-h-0 min-w-0">
-            <ConversationPane
+            <SessionPane
               currentSession={app.currentSession}
               currentRun={app.currentRun}
               currentDefaultProvider={app.configuration?.currentDefaultProvider}
               availableModels={app.availableModels}
               phase={app.phase}
               logsCount={app.logs.length}
+              logs={app.logs}
               changes={app.changes}
               composerValue={app.composerValue}
               isSubmitting={app.isSubmitting}
-              isUpdatingConversation={app.isUpdatingConversation}
+              isUpdatingSession={app.isUpdatingSession}
               onComposerChange={app.setComposerValue}
               onComposerSubmit={app.handleSubmit}
               onCancelRun={app.handleCancel}
-              onSelectModel={app.handleConversationModelChange}
+              onSelectModel={app.handleSessionModelChange}
               onViewFiles={app.handleViewFiles}
               onViewLogs={() => app.setContextView("logs")}
               onOpenDiff={app.openDiff}
@@ -65,7 +66,7 @@ export default function App() {
               detailsError={app.detailsError}
               sessionSettingsMessage={app.sessionSettingsMessage}
               sessionSettingsError={app.sessionSettingsError}
-              isUpdatingConversation={app.isUpdatingConversation}
+              isUpdatingSession={app.isUpdatingSession}
               isImportingSkill={app.isImportingSkill}
               sessionTitleInput={app.sessionTitleInput}
               skillImportPath={app.skillImportPath}
@@ -73,7 +74,7 @@ export default function App() {
               selectedProviderName={app.selectedProviderName}
               selectedProviderType={app.selectedProvider?.provider.type}
               availableModels={app.availableModels}
-              conversationModelWarning={app.conversationModelWarning}
+              sessionModelWarning={app.sessionModelWarning}
               selectedProviderDefaultModel={app.selectedProviderDefaultModel}
               changes={app.changes}
               selectedFile={app.selectedFile}
@@ -85,10 +86,10 @@ export default function App() {
               onSessionTitleInputChange={app.setSessionTitleInput}
               onSkillImportPathChange={app.setSkillImportPath}
               onSkillImportTargetChange={app.setSkillImportTarget}
-              onSaveConversationTitle={app.handleConversationTitleSave}
-              onDeleteConversation={app.handleDeleteCurrentConversation}
-              onChangeConversationProvider={app.handleConversationProviderChange}
-              onChangeConversationModel={app.handleConversationModelChange}
+              onSaveSessionTitle={app.handleSessionTitleSave}
+              onDeleteSession={app.handleDeleteCurrentSession}
+              onChangeSessionProvider={app.handleSessionProviderChange}
+              onChangeSessionModel={app.handleSessionModelChange}
               onOpenSkillDirectoryPicker={() => {
                 app.setSkillImportTarget("session");
                 return app.skillDirectoryPicker.openPicker(app.skillImportPath.trim() || app.currentSession?.sessionSkills.storagePath || app.currentSession?.workspaceRoot);

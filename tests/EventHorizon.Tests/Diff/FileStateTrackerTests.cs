@@ -1,10 +1,12 @@
-using EventHorizon.Diff;
+using EventHorizon.Workspace;
+using EventHorizon.Workspace.Diff;
 
 namespace EventHorizon.Tests.Diff;
 
 public sealed class FileStateTrackerTests : IDisposable
 {
     private readonly string _workspaceRoot;
+    private readonly WorkspaceContext _workspaceContext;
     private readonly FileSnapshotService _fileSnapshotService;
     private readonly DiffService _diffService;
 
@@ -12,7 +14,8 @@ public sealed class FileStateTrackerTests : IDisposable
     {
         _workspaceRoot = Path.Combine(Path.GetTempPath(), "eventhorizon-file-state-tracker-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_workspaceRoot);
-        _fileSnapshotService = new FileSnapshotService(_workspaceRoot);
+        _workspaceContext = new WorkspaceContext(_workspaceRoot);
+        _fileSnapshotService = new FileSnapshotService(_workspaceContext);
         _diffService = new DiffService();
     }
 
@@ -89,4 +92,3 @@ public sealed class FileStateTrackerTests : IDisposable
         }
     }
 }
-

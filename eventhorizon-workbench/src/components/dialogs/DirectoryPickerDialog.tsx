@@ -78,7 +78,7 @@ export function DirectoryPickerDialog({
               value={pathInput}
               onChange={(event) => onPathInputChange(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && onPathInputSubmit()}
-              placeholder="Or paste a directory path..."
+              placeholder="Or paste any directory path..."
               className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <button
@@ -147,10 +147,10 @@ export function DirectoryPickerDialog({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={!selectedPath}
+            disabled={!pathInput.trim()}
             className={cn(
               "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition",
-              selectedPath
+              pathInput.trim()
                 ? "bg-primary text-primary-foreground hover:opacity-90"
                 : "cursor-not-allowed bg-muted text-muted-foreground",
             )}

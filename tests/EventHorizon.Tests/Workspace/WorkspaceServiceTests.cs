@@ -1,17 +1,19 @@
-using EventHorizon.Diff;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
+using EventHorizon.Workspace.Diff;
 
 namespace EventHorizon.Tests.Workspace;
 
 public sealed class WorkspaceServiceTests : IDisposable
 {
     private readonly string _root;
+    private readonly WorkspaceContext _workspaceContext;
 
     public WorkspaceServiceTests()
     {
         _root = Path.Combine(Path.GetTempPath(), "eventhorizon-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
+        _workspaceContext = new WorkspaceContext(_root);
     }
 
     [Fact]
@@ -150,9 +152,9 @@ public sealed class WorkspaceServiceTests : IDisposable
 
     private WorkspaceService CreateService()
         => new(
-            _root,
+            _workspaceContext,
             new ShellCommandRunner(),
-            new FileSnapshotService(_root),
+            new FileSnapshotService(_workspaceContext),
             new FileStateTrackerAccessor());
 
     public void Dispose()
@@ -163,5 +165,3 @@ public sealed class WorkspaceServiceTests : IDisposable
         }
     }
 }
-
-

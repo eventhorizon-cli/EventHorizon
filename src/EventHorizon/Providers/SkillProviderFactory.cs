@@ -1,5 +1,5 @@
 using EventHorizon.Configuration;
-using EventHorizon.Conversations;
+using EventHorizon.Engine.Sessions;
 using EventHorizon.Workspace;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,9 +17,10 @@ internal sealed class SkillProviderFactory : ISkillProviderFactory
         _skillsOptionsMonitor = skillsOptionsMonitor;
     }
 
-    public AgentSkillsProvider? Create(AppOptions options, IServiceProvider services, ConversationSessionDocument? sessionDocument = null)
+    public AgentSkillsProvider? Create(AgentOptions options, IServiceProvider services,
+        SessionDocument? sessionDocument = null)
     {
-        if (!options.Agent.EnableSkills)
+        if (!options.EnableSkills)
         {
             return null;
         }
@@ -34,7 +35,7 @@ internal sealed class SkillProviderFactory : ISkillProviderFactory
 
         if (skillDirectories.Length > 0)
         {
-            builder.UseFileSkills(skillDirectories);
+            builder.UseFileSkills(skillDirectories, scriptRunner: SubprocessScriptRunner.RunAsync);
         }
 
         var loggerFactory = services.GetService<ILoggerFactory>();
@@ -46,7 +47,7 @@ internal sealed class SkillProviderFactory : ISkillProviderFactory
         return builder.Build();
     }
 
-    private IEnumerable<string> GetSkillDirectories(ConversationSessionDocument? sessionDocument)
+    private IEnumerable<string> GetSkillDirectories(SessionDocument? sessionDocument)
     {
         var skillsOptions = _skillsOptionsMonitor.CurrentValue;
 

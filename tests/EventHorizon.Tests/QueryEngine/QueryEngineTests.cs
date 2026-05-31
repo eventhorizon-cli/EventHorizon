@@ -1,6 +1,6 @@
 using EventHorizon.Configuration;
-using EventHorizon.Context;
-using EventHorizon.Conversations;
+using EventHorizon.Engine.Sessions;
+using EventHorizon.Engine.Sessions;
 using EventHorizon.Execution;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
@@ -21,7 +21,7 @@ public sealed class QueryEngineTests
             new FakeRuntime(),
             new FakeProviderAgentFactory(),
             new FakeSkillProviderFactory(),
-            new FakeOptionsMonitor<AppOptions>(new AppOptions()),
+            new FakeOptionsMonitor<AgentOptions>(new AgentOptions()),
             new ServiceCollection().BuildServiceProvider(),
             new SessionUsageTracker(new ModelPriceCatalogService(new ModelPriceCatalog([])), "missing-model"));
 
@@ -58,7 +58,7 @@ public sealed class QueryEngineTests
                 WorkspaceSummary: "summary",
                 GitStatus: "clean",
                 ProjectInstructions: "instructions"));
-        public ValueTask<IReadOnlyList<ToolDescriptor>> GetToolCatalogAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<IReadOnlyList<ToolDescriptor>>([]);
+        public IReadOnlyList<ToolDescriptor> GetToolCatalog(CancellationToken cancellationToken = default) => [];
         public ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<IReadOnlyList<AITool>>([]);
         public Task InvalidateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
@@ -66,12 +66,12 @@ public sealed class QueryEngineTests
 
     private sealed class FakeProviderAgentFactory : IProviderAgentFactory
     {
-        public AIAgent CreateAgent(AppOptions options, string instructions, IReadOnlyList<AITool> tools, AgentSkillsProvider? skillsProvider, IServiceProvider services) => null!;
+        public AIAgent CreateAgent(AgentOptions options, ProviderOptions providerOptions, string instructions, IReadOnlyList<AITool> tools, AgentSkillsProvider? skillsProvider, IServiceProvider services) => null!;
     }
 
     private sealed class FakeSkillProviderFactory : ISkillProviderFactory
     {
-        public AgentSkillsProvider? Create(AppOptions options, IServiceProvider services, ConversationSessionDocument? document = null) => null;
+        public AgentSkillsProvider? Create(AgentOptions options, IServiceProvider services, SessionDocument? document = null) => null;
     }
 
     private sealed class FakeOptionsMonitor<T>(T value) : IOptionsMonitor<T>

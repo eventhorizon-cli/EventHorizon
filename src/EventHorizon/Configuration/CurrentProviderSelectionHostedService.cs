@@ -12,9 +12,11 @@ internal sealed class CurrentProviderSelectionHostedService : IHostedService
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
-        => _providerConfigurationService.EnsureCurrentProviderAsync(cancellationToken);
+    {
+        _providerConfigurationService.EnsureCurrentProvider(cancellationToken);
+        return Task.CompletedTask;
+    }
 
     public Task StopAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
 }
-

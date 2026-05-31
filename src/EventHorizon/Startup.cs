@@ -1,55 +1,82 @@
-using EventHorizon.AGUI;
 using EventHorizon.Configuration;
-using EventHorizon.Context;
-using EventHorizon.Conversations;
-using EventHorizon.Execution;
+using EventHorizon.Engine;
 using EventHorizon.Pricing;
 using EventHorizon.Prompting;
 using EventHorizon.Providers;
 using EventHorizon.Workspace;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 
 namespace EventHorizon;
 
-internal sealed class Startup(IConfiguration configuration)
+internal static class Startup
 {
-    public void ConfigureServices(IServiceCollection services)
+    public static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
-        var pathEnvironment = ResolvePathEnvironment();
+        var pathEnvironment = ResolvePathEnvironment(configuration);
         services
             .AddEventHorizonConfiguration(pathEnvironment)
             .AddEventHorizonWorkspace()
-            .AddEventHorizonContext()
-            .AddEventHorizonConversations()
             .AddEventHorizonPrompting()
             .AddEventHorizonProviders()
             .AddEventHorizonPricing()
-            .AddEventHorizonExecution()
-            .AddEventHorizonAGUI();
+            .AddEventHorizonEngine();
     }
 
-    public void Configure(WebApplication app)
+    public static void Configure(WebApplication app)
     {
-        var options = app.Services.GetRequiredService<IOptions<AppOptions>>().Value;
-        if (options.AGUI.Urls is null || options.AGUI.Urls.Count == 0)
+        var fileProvider = GetStaticFileProvider();
+        MapStaticFiles(app, fileProvider);
+        app.MapControllers();
+        app.MapFallback(async context =>
         {
-            throw new InvalidOperationException("AGUI:Urls configuration is required.");
-        }
+            var requestPath = NormalizePath(context.Request.Path.Value);
+            if (requestPath.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
 
-        app.Urls.Clear();
-        foreach (var url in options.AGUI.Urls)
-        {
-            app.Urls.Add(url);
-        }
+            var indexFile = fileProvider.GetFileInfo("index.html");
+            if (!indexFile.Exists)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
 
-        var runtime = app.Services.GetRequiredService<IEventHorizonRuntime>();
-        AGUIEndpoints.Map(app, options.AGUI, runtime);
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await using var stream = indexFile.CreateReadStream();
+            await stream.CopyToAsync(context.Response.Body, context.RequestAborted).ConfigureAwait(false);
+        });
     }
 
-    private IPathEnvironment ResolvePathEnvironment()
+    private static void MapStaticFiles(WebApplication app, IFileProvider fileProvider)
+    {
+        app.UseDefaultFiles(new DefaultFilesOptions
+        {
+            FileProvider = fileProvider,
+        });
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = fileProvider,
+            ContentTypeProvider = new FileExtensionContentTypeProvider(),
+        });
+    }
+
+    private static IFileProvider GetStaticFileProvider()
+    {
+        var webRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+        IFileProvider fileProvider = new ManifestEmbeddedFileProvider(typeof(Startup).Assembly, "wwwroot");
+        if (Directory.Exists(webRootPath))
+        {
+            fileProvider = new CompositeFileProvider(new PhysicalFileProvider(webRootPath), fileProvider);
+        }
+
+        return fileProvider;
+    }
+
+    private static IPathEnvironment ResolvePathEnvironment(IConfiguration configuration)
         => configuration.GetSection(nameof(PathEnvironment)).Get<ConfiguredPathEnvironment>()?.ToPathEnvironment()
            ?? new PathEnvironment();
 
@@ -78,5 +105,21 @@ internal sealed class Startup(IConfiguration configuration)
         public string CurrentDirectory { get; }
 
         public string HomeDirectory { get; }
+    }
+
+    internal static string NormalizePath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path == "/")
+        {
+            return "/";
+        }
+
+        var normalized = path.Trim();
+        if (!normalized.StartsWith("/", StringComparison.Ordinal))
+        {
+            normalized = "/" + normalized;
+        }
+
+        return normalized.TrimEnd('/');
     }
 }

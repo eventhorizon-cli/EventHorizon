@@ -16,8 +16,10 @@ public static class ConfigurationServiceCollectionExtensions
 
         services.AddSingleton<IOptionsNormalizer, OptionsNormalizer>();
 
-        services.AddOptions<AppOptions>().BindConfiguration(string.Empty);
-        services.AddSingleton<IPostConfigureOptions<AppOptions>, AppOptionsPostConfigure>();
+        services.AddOptions<AgentOptions>().BindConfiguration("Agent");
+
+        services.AddOptions<PricingOptions>().BindConfiguration("Pricing");
+        services.AddSingleton<IPostConfigureOptions<PricingOptions>, PricingOptionsPostConfigure>();
 
         services.AddOptions<ProvidersOptions>().BindConfiguration(string.Empty);
         services.AddSingleton<IPostConfigureOptions<ProvidersOptions>, ProvidersOptionsPostConfigure>();

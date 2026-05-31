@@ -1,4 +1,4 @@
-using EventHorizon.AGUI.DTOs;
+using EventHorizon.DTOs;
 using EventHorizon.Providers;
 using Microsoft.Extensions.AI;
 

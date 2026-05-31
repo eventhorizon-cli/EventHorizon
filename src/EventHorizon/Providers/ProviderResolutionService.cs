@@ -1,35 +1,38 @@
 using EventHorizon.Configuration;
-using EventHorizon.Conversations;
+using EventHorizon.Engine.Sessions;
 using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Providers;
 
 internal sealed class ProviderResolutionService : IProviderResolutionService
 {
-    private readonly ProvidersOptions _options;
+    private readonly IOptionsMonitor<ProvidersOptions> _optionsMonitor;
     private readonly IProviderConfigurationService _providerConfigurationService;
 
-    public ProviderResolutionService(IOptions<ProvidersOptions> options, IProviderConfigurationService providerConfigurationService)
+    public ProviderResolutionService(IOptionsMonitor<ProvidersOptions> optionsMonitor, IProviderConfigurationService providerConfigurationService)
     {
-        _options = options.Value;
+        _optionsMonitor = optionsMonitor;
         _providerConfigurationService = providerConfigurationService;
     }
 
+    private ProvidersOptions Options => _optionsMonitor.CurrentValue;
+
     public IReadOnlyList<ProviderOptions> GetProviderOptions()
-        => _options.Providers
+        => Options.Providers
             .OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase)
             .Select(static pair => Clone(pair.Key, pair.Value))
             .ToArray();
 
-    public ResolvedProviderContext? TryResolveForSession(ConversationSessionDocument? session, ChatRequestOverrides? overrides = null)
+    public ResolvedProviderContext? TryResolveForSession(SessionDocument? session, ChatRequestOverrides? overrides = null)
     {
-        var providerName = FirstNonEmpty(overrides?.ProviderName, session?.ProviderName, _options.CurrentDefaultProvider, _providerConfigurationService.GetEffectiveProviderName());
+        var options = Options;
+        var providerName = FirstNonEmpty(overrides?.ProviderName, session?.ProviderName, options.CurrentDefaultProvider, _providerConfigurationService.GetEffectiveProviderName());
         if (string.IsNullOrWhiteSpace(providerName))
         {
             return TryResolveDefaultWithModel(overrides?.Model ?? session?.Model);
         }
 
-        if (!_options.Providers.TryGetValue(providerName, out var provider))
+        if (!options.Providers.TryGetValue(providerName, out var provider))
         {
             return null;
         }
@@ -44,17 +47,18 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
 
     private ResolvedProviderContext? TryResolveDefaultWithModel(string? model)
     {
+        var options = Options;
         var activeProvider = _providerConfigurationService.GetActiveProvider();
         if (HasConfiguredProvider(activeProvider))
         {
-            var provider = Clone(_options.CurrentDefaultProvider, activeProvider);
+            var provider = Clone(options.CurrentDefaultProvider, activeProvider);
             ApplyModelOverride(provider, model);
-            return new ResolvedProviderContext(_options.CurrentDefaultProvider, provider.Type ?? "openai", provider.Model ?? string.Empty, provider, ChatRequestOverrides.Empty);
+            return new ResolvedProviderContext(options.CurrentDefaultProvider, provider.Type ?? "openai", provider.Model ?? string.Empty, provider, ChatRequestOverrides.Empty);
         }
 
-        if (_options.Providers.Count == 1)
+        if (options.Providers.Count == 1)
         {
-            var pair = _options.Providers.Single();
+            var pair = options.Providers.Single();
             var provider = Clone(pair.Key, pair.Value);
             ApplyModelOverride(provider, model);
             return new ResolvedProviderContext(pair.Key, provider.Type ?? "openai", provider.Model ?? string.Empty, provider, ChatRequestOverrides.Empty);

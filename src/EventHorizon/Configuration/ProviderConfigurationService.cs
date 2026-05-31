@@ -12,29 +12,31 @@ public interface IProviderConfigurationService
 
     void SetCurrentProvider(string providerName, bool persist);
 
-    Task EnsureCurrentProviderAsync(CancellationToken cancellationToken);
+    void EnsureCurrentProvider(CancellationToken cancellationToken);
 
     ProviderOptions GetActiveProvider();
 }
 
 internal sealed class ProviderConfigurationService : IProviderConfigurationService
 {
-    private readonly ProvidersOptions _options;
+    private readonly IOptionsMonitor<ProvidersOptions> _optionsMonitor;
     private readonly IOptionsNormalizer _normalizer;
     private readonly IUserProvidersFileService _userProvidersFileService;
 
     public ProviderConfigurationService(
-        IOptions<ProvidersOptions> options,
+        IOptionsMonitor<ProvidersOptions> optionsMonitor,
         IOptionsNormalizer normalizer,
         IUserProvidersFileService userProvidersFileService)
     {
-        _options = options.Value;
+        _optionsMonitor = optionsMonitor;
         _normalizer = normalizer;
         _userProvidersFileService = userProvidersFileService;
     }
 
+    private ProvidersOptions Options => _optionsMonitor.CurrentValue;
+
     public IReadOnlyList<ConfiguredProvider> GetConfiguredProviders()
-        => _options.Providers
+        => Options.Providers
             .OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase)
             .Select(static pair => new ConfiguredProvider(
                 pair.Key,
@@ -44,53 +46,56 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
 
     public string? GetEffectiveProviderName()
     {
-        if (!string.IsNullOrWhiteSpace(_options.CurrentDefaultProvider))
+        var options = Options;
+        if (!string.IsNullOrWhiteSpace(options.CurrentDefaultProvider))
         {
-            return _options.CurrentDefaultProvider;
+            return options.CurrentDefaultProvider;
         }
 
-        return _options.Providers.Count == 1 ? _options.Providers.Keys.Single() : null;
+        return options.Providers.Count == 1 ? options.Providers.Keys.Single() : null;
     }
 
     public ProviderOptions GetActiveProvider()
-        => _normalizer.ResolveActiveProvider(_options);
+        => _normalizer.ResolveActiveProvider(Options);
 
     public void SetCurrentProvider(string providerName, bool persist)
     {
-        if (!_options.Providers.ContainsKey(providerName))
+        var options = Options;
+        if (!options.Providers.ContainsKey(providerName))
         {
-            var available = string.Join(", ", _options.Providers.Keys.OrderBy(static name => name, StringComparer.OrdinalIgnoreCase));
+            var available = string.Join(", ", options.Providers.Keys.OrderBy(static name => name, StringComparer.OrdinalIgnoreCase));
             throw new InvalidOperationException($"Unknown provider '{providerName}'. Available providers: {available}.");
         }
 
-        _options.CurrentDefaultProvider = providerName;
-        _normalizer.NormalizeProviders(_options);
+        options.CurrentDefaultProvider = providerName;
+        _normalizer.NormalizeProviders(options);
 
         if (persist)
         {
-            _userProvidersFileService.Save(_options);
+            _userProvidersFileService.Save(options);
         }
     }
 
-    public Task EnsureCurrentProviderAsync(CancellationToken cancellationToken)
+    public void EnsureCurrentProvider(CancellationToken cancellationToken)
     {
-        _normalizer.NormalizeProviders(_options);
+        var options = Options;
+        _normalizer.NormalizeProviders(options);
 
-        if (_options.Providers.Count == 0)
+        if (options.Providers.Count == 0)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        if (!string.IsNullOrWhiteSpace(_options.CurrentDefaultProvider))
+        if (!string.IsNullOrWhiteSpace(options.CurrentDefaultProvider))
         {
-            return Task.CompletedTask;
+            return;
         }
 
         var providers = GetConfiguredProviders();
         if (providers.Count == 1)
         {
             SetCurrentProvider(providers[0].Name, persist: true);
-            return Task.CompletedTask;
+            return;
         }
 
         if (providers.Count > 1)
@@ -99,7 +104,6 @@ internal sealed class ProviderConfigurationService : IProviderConfigurationServi
             SetCurrentProvider(selection, persist: true);
         }
 
-        return Task.CompletedTask;
     }
 
     private static string PromptForProvider(IReadOnlyList<ConfiguredProvider> providers, CancellationToken cancellationToken)

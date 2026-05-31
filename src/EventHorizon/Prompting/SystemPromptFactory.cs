@@ -1,22 +1,22 @@
 using System.Text;
 using EventHorizon.Configuration;
-using EventHorizon.Context;
+using EventHorizon.Engine.Sessions;
 using EventHorizon.Tools;
 
 namespace EventHorizon.Prompting;
 
 public interface ISystemPromptFactory
 {
-    string Build(AppOptions options, SessionContextSnapshot snapshot, IReadOnlyList<ToolDescriptor> tools);
+    string Build(AgentOptions options, SessionContextSnapshot snapshot, IReadOnlyList<ToolDescriptor> tools);
 }
 
 public sealed class SystemPromptFactory : ISystemPromptFactory
 {
-    public string Build(AppOptions options, SessionContextSnapshot snapshot, IReadOnlyList<ToolDescriptor> tools)
+    public string Build(AgentOptions options, SessionContextSnapshot snapshot, IReadOnlyList<ToolDescriptor> tools)
     {
         var builder = new StringBuilder();
         builder.AppendLine("# Role");
-        builder.AppendLine($"You are {options.Agent.Name}, a software engineering agent for terminal-first coding workflows.");
+        builder.AppendLine($"You are {options.Name}, a software engineering agent for terminal-first coding workflows.");
         builder.AppendLine("You operate directly on the user's workspace through tools and should behave like a careful pair programmer.");
         builder.AppendLine();
 
@@ -57,11 +57,11 @@ public sealed class SystemPromptFactory : ISystemPromptFactory
                 .AppendLine(tool.Description);
         }
 
-        if (options.Agent.AdditionalSystemPrompts.Length > 0)
+        if (options.AdditionalSystemPrompts.Length > 0)
         {
             builder.AppendLine();
             builder.AppendLine("# Additional guidance");
-            foreach (var prompt in options.Agent.AdditionalSystemPrompts)
+            foreach (var prompt in options.AdditionalSystemPrompts)
             {
                 builder.Append("- ").AppendLine(prompt);
             }
@@ -70,5 +70,4 @@ public sealed class SystemPromptFactory : ISystemPromptFactory
         return builder.ToString().TrimEnd();
     }
 }
-
 

@@ -2,11 +2,11 @@
 
 [中文](README.zh-CN.md) | English
 
-EventHorizon is a .NET-based coding agent host with AGUI APIs, embedded web assets, conversation persistence, provider switching, MCP integration, and skill import support.
+EventHorizon is a .NET-based coding agent host with Engine APIs, embedded Workbench assets, conversation persistence, provider switching, MCP integration, and skill import support.
 
 ## Highlights
 
-- Shared host for EventHorizon runtime and AGUI APIs
+- Shared host for EventHorizon runtime and Engine APIs
 - Per-conversation provider and model persistence
 - Conversation-level agent cache and rebuild-on-change behavior
 - Provider configuration persisted to `~/.eventhorizon/appsettings.json`
@@ -34,11 +34,11 @@ Legacy `CurrentProvider` is still read during load and migrated in memory. Persi
 dotnet run --project src/EventHorizon
 ```
 
-By default the server listens on the URLs configured in `AGUI:Urls` and serves:
+By default the server listens on the `Kestrel:Endpoints:EventHorizon:Url` setting in `src/EventHorizon/appsettings.json` and serves:
 
 - `api/*` for controllers
-- embedded static assets for the AGUI workbench shell
-- `/agui` for the raw AGUI endpoint when runtime initialization succeeds
+- embedded static assets for the Workbench shell
+- `/api/sessions/{sessionId}/runs/{runId}/events` for run streaming
 
 If no valid provider is configured yet, the app still starts so configuration APIs and UI can be used first.
 
@@ -50,9 +50,9 @@ If no valid provider is configured yet, the app still starts so configuration AP
 - Switching provider/model updates only that conversation and preserves transcript, title, summary, and other session state
 - Agent/runtime objects are cached per conversation and rebuilt only when that conversation changes or is invalidated
 
-## AGUI DTOs
+## API DTOs
 
-AGUI boundary DTOs live under `src/EventHorizon/AGUI/DTOs/`.
+API DTOs live under `src/EventHorizon/DTOs/`.
 Type names end with `DTO`, for example:
 
 - `CreateAGUISessionRequestDTO`

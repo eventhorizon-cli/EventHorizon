@@ -1,9 +1,11 @@
 using System.Text.Json.Serialization;
+using EventHorizon.Engine.Sessions;
 
 namespace EventHorizon.Configuration;
 
 [JsonSourceGenerationOptions(WriteIndented = true)]
-[JsonSerializable(typeof(AppOptions))]
+[JsonSerializable(typeof(AgentOptions))]
+[JsonSerializable(typeof(PricingOptions))]
 [JsonSerializable(typeof(ProvidersOptions))]
 [JsonSerializable(typeof(McpOptions))]
 [JsonSerializable(typeof(SkillsOptions))]
@@ -13,8 +15,8 @@ namespace EventHorizon.Configuration;
 [JsonSerializable(typeof(List<McpServerOptions>))]
 [JsonSerializable(typeof(ImportedSkillOptions))]
 [JsonSerializable(typeof(List<ImportedSkillOptions>))]
-[JsonSerializable(typeof(Conversations.ConversationSessionDocument))]
-[JsonSerializable(typeof(List<Conversations.ConversationSessionSummary>))]
+[JsonSerializable(typeof(SessionDocument))]
+[JsonSerializable(typeof(List<SessionSummary>))]
 [JsonSerializable(typeof(Dictionary<string, Pricing.ModelPriceCatalog.ModelCatalogEntry>))]
 internal partial class EventHorizonJsonContext : JsonSerializerContext
 {

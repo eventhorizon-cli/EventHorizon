@@ -24,7 +24,7 @@ type ContextPanelProps = {
   detailsError?: string;
   sessionSettingsMessage?: string;
   sessionSettingsError?: string;
-  isUpdatingConversation: boolean;
+  isUpdatingSession: boolean;
   isImportingSkill: boolean;
   sessionTitleInput: string;
   skillImportPath: string;
@@ -32,7 +32,7 @@ type ContextPanelProps = {
   selectedProviderName?: string;
   selectedProviderType?: string;
   availableModels: string[];
-  conversationModelWarning?: string;
+  sessionModelWarning?: string;
   selectedProviderDefaultModel?: string;
   changes: FileChange[];
   selectedFile?: string;
@@ -44,10 +44,10 @@ type ContextPanelProps = {
   onSessionTitleInputChange: (value: string) => void;
   onSkillImportPathChange: (value: string) => void;
   onSkillImportTargetChange: (target: "global" | "session") => void;
-  onSaveConversationTitle: () => Promise<void> | void;
-  onDeleteConversation: () => Promise<void> | void;
-  onChangeConversationProvider: (providerName: string) => Promise<void> | void;
-  onChangeConversationModel: (model: string) => Promise<void> | void;
+  onSaveSessionTitle: () => Promise<void> | void;
+  onDeleteSession: () => Promise<void> | void;
+  onChangeSessionProvider: (providerName: string) => Promise<void> | void;
+  onChangeSessionModel: (model: string) => Promise<void> | void;
   onOpenSkillDirectoryPicker: () => Promise<void> | void;
   onImportSkill: () => Promise<void> | void;
   onRemoveSessionSkill: (skillName: string) => Promise<void> | void;
@@ -64,7 +64,7 @@ export function ContextPanel({
   detailsError,
   sessionSettingsMessage,
   sessionSettingsError,
-  isUpdatingConversation,
+  isUpdatingSession,
   isImportingSkill,
   sessionTitleInput,
   skillImportPath,
@@ -72,7 +72,7 @@ export function ContextPanel({
   selectedProviderName,
   selectedProviderType,
   availableModels,
-  conversationModelWarning,
+  sessionModelWarning,
   selectedProviderDefaultModel,
   changes,
   selectedFile,
@@ -84,10 +84,10 @@ export function ContextPanel({
   onSessionTitleInputChange,
   onSkillImportPathChange,
   onSkillImportTargetChange,
-  onSaveConversationTitle,
-  onDeleteConversation,
-  onChangeConversationProvider,
-  onChangeConversationModel,
+  onSaveSessionTitle,
+  onDeleteSession,
+  onChangeSessionProvider,
+  onChangeSessionModel,
   onOpenSkillDirectoryPicker,
   onImportSkill,
   onRemoveSessionSkill,
@@ -231,7 +231,7 @@ export function ContextPanel({
                 {currentSession && !currentSession.id.startsWith("draft_") ? (
                   <button
                     type="button"
-                    onClick={() => void onDeleteConversation()}
+                    onClick={() => void onDeleteSession()}
                     className="rounded-xl border border-red-500/30 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-500/10 dark:text-red-300"
                   >
                     Delete
@@ -246,13 +246,13 @@ export function ContextPanel({
                     <input
                       value={sessionTitleInput}
                       onChange={(event) => onSessionTitleInputChange(event.target.value)}
-                      disabled={!currentSession || currentSession.id.startsWith("draft_") || isUpdatingConversation}
+                      disabled={!currentSession || currentSession.id.startsWith("draft_") || isUpdatingSession}
                       className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                     />
                     <button
                       type="button"
-                      onClick={() => void onSaveConversationTitle()}
-                      disabled={!currentSession || currentSession.id.startsWith("draft_") || isUpdatingConversation || !sessionTitleInput.trim()}
+                      onClick={() => void onSaveSessionTitle()}
+                      disabled={!currentSession || currentSession.id.startsWith("draft_") || isUpdatingSession || !sessionTitleInput.trim()}
                       className="rounded-xl border border-border px-3 py-2 text-xs font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Save
@@ -264,8 +264,8 @@ export function ContextPanel({
                   <span className="text-xs uppercase tracking-wide text-muted-foreground">Provider</span>
                   <select
                     value={currentSession?.providerName ?? ""}
-                    onChange={(event) => void onChangeConversationProvider(event.target.value)}
-                    disabled={!currentSession || currentSession.id.startsWith("draft_") || isUpdatingConversation}
+                    onChange={(event) => void onChangeSessionProvider(event.target.value)}
+                    disabled={!currentSession || currentSession.id.startsWith("draft_") || isUpdatingSession}
                     className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="">
@@ -283,8 +283,8 @@ export function ContextPanel({
                   <span className="text-xs uppercase tracking-wide text-muted-foreground">Model</span>
                   <select
                     value={currentSession?.model ?? ""}
-                    onChange={(event) => void onChangeConversationModel(event.target.value)}
-                    disabled={!currentSession || currentSession.id.startsWith("draft_") || isUpdatingConversation}
+                    onChange={(event) => void onChangeSessionModel(event.target.value)}
+                    disabled={!currentSession || currentSession.id.startsWith("draft_") || isUpdatingSession}
                     className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                   >
                     {availableModels.length === 0 ? <option value="">No configured models</option> : null}
@@ -294,13 +294,13 @@ export function ContextPanel({
                       </option>
                     ))}
                   </select>
-                  {conversationModelWarning ? (
+                  {sessionModelWarning ? (
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-                      <span>{conversationModelWarning}</span>
+                      <span>{sessionModelWarning}</span>
                       <button
                         type="button"
-                        onClick={() => selectedProviderDefaultModel ? void onChangeConversationModel(selectedProviderDefaultModel) : undefined}
-                        disabled={!selectedProviderDefaultModel || isUpdatingConversation}
+                        onClick={() => selectedProviderDefaultModel ? void onChangeSessionModel(selectedProviderDefaultModel) : undefined}
+                        disabled={!selectedProviderDefaultModel || isUpdatingSession}
                         className="shrink-0 rounded-lg border border-amber-500/30 px-2.5 py-1 font-medium transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Use provider default

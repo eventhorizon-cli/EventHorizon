@@ -1,8 +1,4 @@
 using EventHorizon.Configuration;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 
@@ -22,11 +18,10 @@ public static class Program
         ConfigureConfiguration(builder.Configuration, pathEnvironment);
         ConfigureLogging(builder, pathEnvironment);
 
-        var startup = new Startup(builder.Configuration);
-        startup.ConfigureServices(builder.Services);
+        Startup.ConfigureServices(builder.Services, builder.Configuration);
 
         var app = builder.Build();
-        startup.Configure(app);
+        Startup.Configure(app);
         return app;
     }
 
@@ -119,6 +114,7 @@ public static class Program
             root.Remove(nameof(McpOptions.Servers));
             root.Remove(nameof(SkillsOptions.Imported));
             root.Remove(nameof(SkillsOptions.StoragePath));
+            root.Remove("Session");
 
             return root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, }) +
                    Environment.NewLine;

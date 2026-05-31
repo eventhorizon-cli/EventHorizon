@@ -1,5 +1,6 @@
 using EventHorizon.Configuration;
-using EventHorizon.EntryPoints;
+using EventHorizon.Engine;
+using EventHorizon.Engine.Runs;
 using EventHorizon.Providers;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,13 +27,11 @@ public sealed class SharedHostTests : IDisposable
         using var host = global::EventHorizon.Program.BuildHost([], new TestPathEnvironment(_workspaceDirectory, _homeDirectory));
 
         var application = host.Services.GetRequiredService<IEventHorizonApplication>();
-        var runner = host.Services.GetRequiredService<IAGUIServerRunner>();
         var runtime = host.Services.GetRequiredService<IEventHorizonRuntime>();
-        var sessionService = host.Services.GetRequiredService<EventHorizon.AGUI.IAGUISessionService>();
-        var runService = host.Services.GetRequiredService<EventHorizon.AGUI.RunService>();
+        var sessionService = host.Services.GetRequiredService<EventHorizon.Engine.ISessionService>();
+        var runService = host.Services.GetRequiredService<IRunService>();
 
         Assert.NotNull(application);
-        Assert.NotNull(runner);
         Assert.NotNull(runtime);
         Assert.NotNull(sessionService);
         Assert.NotNull(runService);

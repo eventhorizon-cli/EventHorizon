@@ -1,5 +1,5 @@
 using EventHorizon.Configuration;
-using EventHorizon.Context;
+using EventHorizon.Engine.Sessions;
 using EventHorizon.Prompting;
 using EventHorizon.Tools;
 using Microsoft.Extensions.AI;
@@ -11,13 +11,10 @@ public sealed class SystemPromptFactoryTests
     [Fact]
     public void Build_Produces_Structured_Sections_And_Tool_Metadata()
     {
-        AppOptions options = new()
+        AgentOptions options = new()
         {
-            Agent = new AgentOptions
-            {
-                Name = "EventHorizon",
-                AdditionalSystemPrompts = ["Keep answers concise."]
-            }
+            Name = "EventHorizon",
+            AdditionalSystemPrompts = ["Keep answers concise."]
         };
         SessionContextSnapshot snapshot = new(
             CurrentDate: "Today's date is 2026-05-20.",
@@ -47,4 +44,3 @@ public sealed class SystemPromptFactoryTests
         Assert.Contains("Keep answers concise.", prompt, StringComparison.Ordinal);
     }
 }
-

@@ -10,7 +10,7 @@ internal interface IOptionsNormalizer
 
     void NormalizeSkills(SkillsOptions options);
 
-    void NormalizeApp(AppOptions options);
+    void NormalizePricing(PricingOptions options);
 
     ProviderOptions ResolveActiveProvider(ProvidersOptions options);
 }
@@ -51,10 +51,9 @@ internal sealed class OptionsNormalizer : IOptionsNormalizer
         options.StoragePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "skills");
     }
 
-    public void NormalizeApp(AppOptions options)
+    public void NormalizePricing(PricingOptions options)
     {
-        options.Pricing.CachePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "model_prices_and_context_window.json");
-        options.Conversation.StoragePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "sessions");
+        options.CachePath ??= Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "model_prices_and_context_window.json");
     }
 
     public ProviderOptions ResolveActiveProvider(ProvidersOptions options)
@@ -159,15 +158,15 @@ internal sealed class SkillsOptionsPostConfigure : IPostConfigureOptions<SkillsO
         => _normalizer.NormalizeSkills(options);
 }
 
-internal sealed class AppOptionsPostConfigure : IPostConfigureOptions<AppOptions>
+internal sealed class PricingOptionsPostConfigure : IPostConfigureOptions<PricingOptions>
 {
     private readonly IOptionsNormalizer _normalizer;
 
-    public AppOptionsPostConfigure(IOptionsNormalizer normalizer)
+    public PricingOptionsPostConfigure(IOptionsNormalizer normalizer)
     {
         _normalizer = normalizer;
     }
 
-    public void PostConfigure(string? name, AppOptions options)
-        => _normalizer.NormalizeApp(options);
+    public void PostConfigure(string? name, PricingOptions options)
+        => _normalizer.NormalizePricing(options);
 }

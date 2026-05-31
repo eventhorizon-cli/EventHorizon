@@ -31,7 +31,7 @@ public sealed class BackgroundTerminalCommandStore
         private readonly Process _process;
         private readonly StringBuilder _stdout = new();
         private readonly StringBuilder _stderr = new();
-        private readonly object _sync = new();
+        private readonly Lock _sync = new();
 
         private BackgroundTerminalCommand(string id, string command, Process process)
         {
@@ -49,7 +49,7 @@ public sealed class BackgroundTerminalCommandStore
 
         public static BackgroundTerminalCommand Start(string id, string command, string workingDirectory)
         {
-            (var fileName, var arguments) = ShellCommandRunner.GetShellInvocation(command);
+            var (fileName, arguments) = ShellCommandRunner.GetShellInvocation(command);
             Process process = new()
             {
                 StartInfo = new ProcessStartInfo

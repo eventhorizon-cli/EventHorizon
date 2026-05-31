@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
-using EventHorizon.AGUI.DTOs;
-using EventHorizon.Conversations;
+using EventHorizon.DTOs;
+using EventHorizon.Engine.Sessions;
 using EventHorizon.Providers;
 using EventHorizon.Workspace;
 using Microsoft.Extensions.Options;
@@ -10,28 +10,30 @@ namespace EventHorizon.Configuration;
 internal sealed class SkillService : ISkillService
 {
     private static readonly Regex DangerousScriptPattern = new("(rm\\s+-rf|curl\\s+.+\\|\\s*sh|powershell\\s+-enc)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private readonly SkillsOptions _options;
-    private readonly AppOptions _appOptions;
+    private readonly IOptionsMonitor<SkillsOptions> _skillsOptionsMonitor;
+    private readonly IPathEnvironment _pathEnvironment;
     private readonly IUserSkillsFileService _userSkillsFileService;
-    private readonly IConversationSessionStore _conversationSessionStore;
-    private readonly IConversationAgentManager _conversationAgentManager;
+    private readonly ISessionStore _sessionStore;
+    private readonly ISessionAgentManager _agentManager;
     private readonly WorkspaceContext _workspaceContext;
 
     public SkillService(
-        IOptions<SkillsOptions> options,
-        IOptions<AppOptions> appOptions,
+        IOptionsMonitor<SkillsOptions> skillsOptionsMonitor,
+        IPathEnvironment pathEnvironment,
         IUserSkillsFileService userSkillsFileService,
-        IConversationSessionStore conversationSessionStore,
-        IConversationAgentManager conversationAgentManager,
+        ISessionStore sessionStore,
+        ISessionAgentManager agentManager,
         WorkspaceContext workspaceContext)
     {
-        _options = options.Value;
-        _appOptions = appOptions.Value;
+        _skillsOptionsMonitor = skillsOptionsMonitor;
+        _pathEnvironment = pathEnvironment;
         _userSkillsFileService = userSkillsFileService;
-        _conversationSessionStore = conversationSessionStore;
-        _conversationAgentManager = conversationAgentManager;
+        _sessionStore = sessionStore;
+        _agentManager = agentManager;
         _workspaceContext = workspaceContext;
     }
+
+    private SkillsOptions Options => _skillsOptionsMonitor.CurrentValue;
 
     public async Task<SkillImportResponseDTO> ImportAsync(ImportSkillRequestDTO request, CancellationToken cancellationToken)
     {
@@ -60,14 +62,14 @@ internal sealed class SkillService : ISkillService
                 };
             }
 
-            var document = await _conversationSessionStore.LoadAsync(request.SessionId, cancellationToken).ConfigureAwait(false);
+            var document = await _sessionStore.LoadAsync(request.SessionId, cancellationToken).ConfigureAwait(false);
             if (document is null)
             {
                 return new SkillImportResponseDTO
                 {
                     Success = false,
-                    Message = "Conversation session was not found.",
-                    Errors = ["Conversation session was not found."],
+                    Message = "Session was not found.",
+                    Errors = ["Session was not found."],
                 };
             }
 
@@ -75,8 +77,8 @@ internal sealed class SkillService : ISkillService
             Directory.CreateDirectory(document.SessionSkills.StoragePath);
             var skill = ImportToCatalog(sourcePath, document.SessionSkills.StoragePath, document.SessionSkills);
             document.UpdatedAt = DateTimeOffset.UtcNow;
-            await _conversationSessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
-            await _conversationAgentManager.InvalidateAsync(document.Id, cancellationToken).ConfigureAwait(false);
+            await _sessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
+            _agentManager.Invalidate(document.Id, cancellationToken);
 
             return new SkillImportResponseDTO
             {
@@ -87,10 +89,11 @@ internal sealed class SkillService : ISkillService
             };
         }
 
-        _options.StoragePath ??= ResolveGlobalSkillsRoot();
-        Directory.CreateDirectory(_options.StoragePath);
-        var importedSkill = ImportToCatalog(sourcePath, _options.StoragePath, _options);
-        _userSkillsFileService.Save(_options);
+        var options = Options;
+        options.StoragePath ??= ResolveGlobalSkillsRoot();
+        Directory.CreateDirectory(options.StoragePath);
+        var importedSkill = ImportToCatalog(sourcePath, options.StoragePath, options);
+        _userSkillsFileService.Save(options);
 
         return new SkillImportResponseDTO
         {
@@ -101,40 +104,41 @@ internal sealed class SkillService : ISkillService
         };
     }
 
-    public Task<SkillRemoveResponseDTO> RemoveGlobalAsync(string skillName, CancellationToken cancellationToken)
+    public SkillRemoveResponseDTO RemoveGlobal(string skillName, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(skillName))
         {
-            return Task.FromResult(new SkillRemoveResponseDTO
+            return new SkillRemoveResponseDTO
             {
                 Success = false,
                 Message = "Skill name is required.",
                 Errors = ["Skill name is required."],
-            });
+            };
         }
 
-        var skill = _options.Imported.FirstOrDefault(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
+        var options = Options;
+        var skill = options.Imported.FirstOrDefault(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
         if (skill is null)
         {
-            return Task.FromResult(new SkillRemoveResponseDTO
+            return new SkillRemoveResponseDTO
             {
                 Success = false,
                 Message = "Global skill was not found.",
                 Errors = ["Global skill was not found."],
-            });
+            };
         }
 
         DeleteSkillDirectory(skill.Path);
-        _options.Imported.RemoveAll(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
-        _userSkillsFileService.Save(_options);
+        options.Imported.RemoveAll(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
+        _userSkillsFileService.Save(options);
 
-        return Task.FromResult(new SkillRemoveResponseDTO
+        return new SkillRemoveResponseDTO
         {
             Success = true,
             Message = "Global skill removed.",
             Errors = Array.Empty<string>(),
-        });
+        };
     }
 
     public async Task<SkillRemoveResponseDTO> RemoveSessionAsync(string sessionId, string skillName, CancellationToken cancellationToken)
@@ -150,14 +154,14 @@ internal sealed class SkillService : ISkillService
             };
         }
 
-        var document = await _conversationSessionStore.LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        var document = await _sessionStore.LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
         if (document is null)
         {
             return new SkillRemoveResponseDTO
             {
                 Success = false,
-                Message = "Conversation session was not found.",
-                Errors = ["Conversation session was not found."],
+                Message = "Session was not found.",
+                Errors = ["Session was not found."],
             };
         }
 
@@ -175,8 +179,8 @@ internal sealed class SkillService : ISkillService
         DeleteSkillDirectory(skill.Path);
         document.SessionSkills.Imported.RemoveAll(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
         document.UpdatedAt = DateTimeOffset.UtcNow;
-        await _conversationSessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
-        await _conversationAgentManager.InvalidateAsync(document.Id, cancellationToken).ConfigureAwait(false);
+        await _sessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
+        _agentManager.Invalidate(document.Id, cancellationToken);
 
         return new SkillRemoveResponseDTO
         {
@@ -210,16 +214,14 @@ internal sealed class SkillService : ISkillService
     }
 
     private string ResolveGlobalSkillsRoot()
-        => _options.StoragePath
+        => Options.StoragePath
            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".eventhorizon", "skills");
 
     private string ResolveSessionSkillsRoot(string sessionId)
-        => Path.Combine(ResolveConversationStorageRoot(), sessionId, "skills");
+        => Path.Combine(ResolveSessionStorageRoot(), sessionId, "skills");
 
-    private string ResolveConversationStorageRoot()
-        => !string.IsNullOrWhiteSpace(_appOptions.Conversation.StoragePath)
-            ? Path.GetFullPath(_appOptions.Conversation.StoragePath)
-            : Path.Combine(_workspaceContext.WorkspaceRoot, ".eventhorizon", "sessions");
+    private string ResolveSessionStorageRoot()
+        => Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "sessions");
 
     private static void DeleteSkillDirectory(string path)
     {

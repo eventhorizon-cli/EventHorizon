@@ -16,6 +16,5 @@ internal sealed class WorkspaceSkill : AgentClassSkill<WorkspaceSkill>
     [AgentSkillResource("workspace-map")]
     [Description("High-level description of the configured workspace root and its top-level entries.")]
     private static string GetWorkspaceMap(IServiceProvider serviceProvider)
-        => serviceProvider.GetRequiredService<WorkspaceService>().DescribeWorkspace();
+        => serviceProvider.GetRequiredService<IWorkspaceService>().DescribeWorkspace();
 }
-

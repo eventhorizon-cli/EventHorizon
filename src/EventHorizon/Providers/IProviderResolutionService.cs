@@ -1,4 +1,4 @@
-using EventHorizon.Conversations;
+using EventHorizon.Engine.Sessions;
 
 namespace EventHorizon.Providers;
 
@@ -6,7 +6,7 @@ public interface IProviderResolutionService
 {
     IReadOnlyList<Configuration.ProviderOptions> GetProviderOptions();
 
-    ResolvedProviderContext? TryResolveForSession(ConversationSessionDocument? session, ChatRequestOverrides? overrides = null);
+    ResolvedProviderContext? TryResolveForSession(SessionDocument? session, ChatRequestOverrides? overrides = null);
 
     ResolvedProviderContext? TryResolveDefault();
 }

@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { subscribeRunEvents } from "@/api/aguiClient";
+import { subscribeRunEvents } from "@/api/workbenchClient";
 import { getConfiguration, importSkillToTarget, removeGlobalSkill, removeSessionSkill, saveConfiguration, testMcp, testProvider } from "@/api/configurationApi";
 import { getChanges, getFileDiff } from "@/api/diffApi";
 import {
-  createConversation,
-  deleteConversation,
-  getConversation,
-  getConversations,
-  updateConversation,
-  updateConversationModel,
-} from "@/api/conversationsApi";
+  createSession,
+  deleteSession,
+  getSession,
+  getSessions,
+  updateSession,
+  updateSessionModel,
+} from "@/api/sessionsApi";
 import { cancelRun, createRun, getRun } from "@/api/runsApi";
 import { useDirectoryPicker } from "@/hooks/useDirectoryPicker";
 import { useWorkbenchStore } from "@/store/workbenchStore";
@@ -69,6 +69,21 @@ function formatError(error: unknown) {
   return error instanceof Error ? error.message : "Unexpected error";
 }
 
+function mapRunStatusToPhase(status: AgentRun["status"]) {
+  switch (status) {
+    case "running":
+      return "understanding" as const;
+    case "completed":
+      return "completed" as const;
+    case "failed":
+      return "failed" as const;
+    case "cancelled":
+      return "cancelled" as const;
+    default:
+      return "idle" as const;
+  }
+}
+
 export function useWorkbenchApp() {
   const {
     sessions,
@@ -119,7 +134,7 @@ export function useWorkbenchApp() {
   const [skillImportPath, setSkillImportPath] = useState("");
   const [isImportingSkill, setIsImportingSkill] = useState(false);
   const [skillImportTarget, setSkillImportTarget] = useState<"global" | "session">("global");
-  const [isUpdatingConversation, setIsUpdatingConversation] = useState(false);
+  const [isUpdatingSession, setIsUpdatingSession] = useState(false);
   const [sessionTitleInput, setSessionTitleInput] = useState("");
   const [showGlobalSettingsDialog, setShowGlobalSettingsDialog] = useState(false);
 
@@ -130,7 +145,7 @@ export function useWorkbenchApp() {
   const selectedProvider = getProvider(configurationDraft ?? configuration, selectedProviderName);
   const selectedProviderDefaultModel = selectedProvider?.provider.model;
   const availableModels = getProviderModels(selectedProvider, currentSession?.model);
-  const conversationModelWarning = currentSession?.model && selectedProviderName && selectedProvider
+  const sessionModelWarning = currentSession?.model && selectedProviderName && selectedProvider
     && !selectedProvider.provider.models.includes(currentSession.model)
     && selectedProvider.provider.model !== currentSession.model
     ? `Current session model '${currentSession.model}' is no longer configured for provider '${selectedProviderName}'. Choose a new model to continue using the latest provider configuration.`
@@ -159,19 +174,19 @@ export function useWorkbenchApp() {
     setSessionSettingsMessage(undefined);
     setSessionSettingsError(undefined);
 
-    const detail = await getConversation(sessionId);
+    const detail = await getSession(sessionId);
     setCurrentSession(detail);
     setCurrentDiff(undefined);
     setSelectedFile(undefined);
     setContextView("overview");
 
     if (detail.lastRunId) {
-      const run = await getRun(detail.lastRunId);
+      const run = await getRun(detail.id, detail.lastRunId);
       setCurrentRun(run);
 
       if (run.status !== "running") {
         try {
-          setChanges(await getChanges(run.id));
+          setChanges(await getChanges(detail.id, run.id));
         } catch {
           setChanges([]);
         }
@@ -187,7 +202,7 @@ export function useWorkbenchApp() {
   }, [setChanges, setContextView, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
 
   const refreshSessions = useCallback(async () => {
-    const list = await getConversations();
+    const list = await getSessions();
     setSessions(list);
 
     if (!didAutoOpenInitialSessionRef.current) {
@@ -204,8 +219,8 @@ export function useWorkbenchApp() {
     eventSubscriptionRef.current = null;
 
     try {
-      const created = await createConversation({ workspaceRoot: selectedPath });
-      const detail = await getConversation(created.id);
+      const created = await createSession({ workspaceRoot: selectedPath });
+      const detail = await getSession(created.id);
       setCurrentSession(detail);
       await refreshSessions();
     } catch (error) {
@@ -289,11 +304,11 @@ export function useWorkbenchApp() {
     });
   }, []);
 
-  function subscribeToRun(run: AgentRun, sessionId: string) {
+  const subscribeToRun = useCallback((run: AgentRun, sessionId: string) => {
     eventSubscriptionRef.current?.();
     setConnectionStatus("connecting");
 
-    eventSubscriptionRef.current = subscribeRunEvents(run.id, {
+    eventSubscriptionRef.current = subscribeRunEvents(sessionId, run.id, {
       onOpen: () => setConnectionStatus("connected"),
       onClose: () => setConnectionStatus("disconnected"),
       onError: () => setConnectionStatus("reconnecting"),
@@ -313,10 +328,10 @@ export function useWorkbenchApp() {
             finishAssistantMessage(sessionId, event.text ?? "");
             break;
           case "runFinished": {
-            const updatedRun = await getRun(run.id);
+            const updatedRun = await getRun(sessionId, run.id);
             setCurrentRun(updatedRun);
             setPhase("completed");
-            setChanges(await getChanges(run.id));
+            setChanges(await getChanges(sessionId, run.id));
             await refreshSessions();
 
             if (currentSessionId === sessionId) {
@@ -341,7 +356,7 @@ export function useWorkbenchApp() {
             setContextView("files");
 
             try {
-              setChanges(await getChanges(run.id));
+              setChanges(await getChanges(sessionId, run.id));
             } catch {
               return;
             }
@@ -351,7 +366,7 @@ export function useWorkbenchApp() {
         }
       },
     });
-  }
+  }, [addLog, appendAssistantDelta, currentSessionId, openSession, refreshSessions, setChanges, setConnectionStatus, setContextView, setCurrentRun, setPhase, finishAssistantMessage]);
 
   const handleNewChat = useCallback(() => {
     void workspaceDirectoryPicker.openPicker();
@@ -374,13 +389,13 @@ export function useWorkbenchApp() {
       }
 
       if (activeSession.id.startsWith("draft_")) {
-        const created = await createConversation({
+        const created = await createSession({
           initialMessage: task,
           providerName: currentSession?.providerName,
           model: currentSession?.model,
           workspaceRoot: currentSession?.workspaceRoot,
         });
-        const detail = await getConversation(created.id);
+        const detail = await getSession(created.id);
         setCurrentSession(detail);
         activeSession = detail;
         await refreshSessions();
@@ -412,35 +427,54 @@ export function useWorkbenchApp() {
 
   const handleCancel = useCallback(async () => {
     if (currentRun) {
-      await cancelRun(currentRun.id);
+      const sessionId = currentRun.sessionId ?? currentSessionId;
+      if (!sessionId) {
+        return;
+      }
+
+      setDetailsError(undefined);
+      try {
+        await cancelRun(sessionId, currentRun.id);
+      } catch (error) {
+        setDetailsError(formatError(error));
+      } finally {
+        const latestRun = await getRun(sessionId, currentRun.id);
+        setCurrentRun(latestRun);
+        setPhase(mapRunStatusToPhase(latestRun.status));
+      }
     }
-  }, [currentRun]);
+  }, [currentRun, currentSessionId, setCurrentRun, setPhase]);
 
   const openDiff = useCallback(async (change: FileChange) => {
     if (!currentRun) {
       return;
     }
 
+    const sessionId = currentRun.sessionId ?? currentSessionId;
+    if (!sessionId) {
+      return;
+    }
+
     setSelectedFile(change.path);
     setContextView("diff");
-    setCurrentDiff(await getFileDiff(currentRun.id, change.path));
-  }, [currentRun, setContextView, setCurrentDiff, setSelectedFile]);
+    setCurrentDiff(await getFileDiff(sessionId, currentRun.id, change.path));
+  }, [currentRun, currentSessionId, setContextView, setCurrentDiff, setSelectedFile]);
 
   const handleViewFiles = useCallback(() => {
     setContextView("files");
   }, [setContextView]);
 
-  const handleDeleteCurrentConversation = useCallback(async () => {
+  const handleDeleteCurrentSession = useCallback(async () => {
     if (!currentSession || currentSession.id.startsWith("draft_")) {
       return;
     }
 
-    if (!window.confirm(`Delete conversation \"${currentSession.title}\"?`)) {
+    if (!window.confirm(`Delete conversation "${currentSession.title}"?`)) {
       return;
     }
 
     try {
-      await deleteConversation(currentSession.id);
+      await deleteSession(currentSession.id);
       setCurrentSession(undefined);
       setCurrentRun(undefined);
       setCurrentDiff(undefined);
@@ -456,7 +490,7 @@ export function useWorkbenchApp() {
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     try {
-      await deleteConversation(sessionId);
+      await deleteSession(sessionId);
       if (currentSession?.id === sessionId) {
         setCurrentSession(undefined);
         setCurrentRun(undefined);
@@ -474,7 +508,7 @@ export function useWorkbenchApp() {
 
   const handleRenameSession = useCallback(async (sessionId: string, newTitle: string) => {
     try {
-      const updated = await updateConversation({ conversationId: sessionId, title: newTitle });
+      const updated = await updateSession({ sessionId, title: newTitle });
       if (currentSession?.id === sessionId) {
         setCurrentSession({ ...currentSession, ...updated });
       }
@@ -484,40 +518,40 @@ export function useWorkbenchApp() {
     }
   }, [currentSession, refreshSessions, setCurrentSession]);
 
-  const handleConversationTitleSave = useCallback(async () => {
+  const handleSessionTitleSave = useCallback(async () => {
     const title = sessionTitleInput.trim();
     if (!currentSession || currentSession.id.startsWith("draft_") || !title) {
       return;
     }
 
-    setIsUpdatingConversation(true);
+    setIsUpdatingSession(true);
     setDetailsMessage(undefined);
     setDetailsError(undefined);
 
     try {
-      const updated = await updateConversation({ conversationId: currentSession.id, title });
+      const updated = await updateSession({ sessionId: currentSession.id, title });
       setCurrentSession({ ...currentSession, ...updated });
       setDetailsMessage("Conversation title updated.");
       await refreshSessions();
     } catch (error) {
       setDetailsError(formatError(error));
     } finally {
-      setIsUpdatingConversation(false);
+      setIsUpdatingSession(false);
     }
   }, [currentSession, refreshSessions, sessionTitleInput, setCurrentSession]);
 
-  const handleConversationProviderChange = useCallback(async (providerName: string) => {
+  const handleSessionProviderChange = useCallback(async (providerName: string) => {
     if (!currentSession || currentSession.id.startsWith("draft_")) {
       return;
     }
 
-    setIsUpdatingConversation(true);
+    setIsUpdatingSession(true);
     setDetailsMessage(undefined);
     setDetailsError(undefined);
 
     try {
-      const selection = await updateConversationModel({
-        conversationId: currentSession.id,
+      const selection = await updateSessionModel({
+        sessionId: currentSession.id,
         providerName: providerName || null,
         modelId: "",
       });
@@ -534,22 +568,22 @@ export function useWorkbenchApp() {
     } catch (error) {
       setDetailsError(formatError(error));
     } finally {
-      setIsUpdatingConversation(false);
+      setIsUpdatingSession(false);
     }
   }, [currentSession, openSession, refreshSessions, setCurrentSession]);
 
-  const handleConversationModelChange = useCallback(async (modelId: string) => {
+  const handleSessionModelChange = useCallback(async (modelId: string) => {
     if (!currentSession || currentSession.id.startsWith("draft_")) {
       return;
     }
 
-    setIsUpdatingConversation(true);
+    setIsUpdatingSession(true);
     setDetailsMessage(undefined);
     setDetailsError(undefined);
 
     try {
-      const selection = await updateConversationModel({
-        conversationId: currentSession.id,
+      const selection = await updateSessionModel({
+        sessionId: currentSession.id,
         providerName: currentSession.providerName ?? null,
         modelId,
       });
@@ -566,7 +600,7 @@ export function useWorkbenchApp() {
     } catch (error) {
       setDetailsError(formatError(error));
     } finally {
-      setIsUpdatingConversation(false);
+      setIsUpdatingSession(false);
     }
   }, [currentSession, openSession, refreshSessions, setCurrentSession]);
 
@@ -970,14 +1004,14 @@ export function useWorkbenchApp() {
     skillImportPath,
     isImportingSkill,
     skillImportTarget,
-    isUpdatingConversation,
+    isUpdatingSession,
     testingProviderIndexes,
     sessionTitleInput,
     showGlobalSettingsDialog,
     selectedProviderName,
     selectedProvider,
     availableModels,
-    conversationModelWarning,
+    sessionModelWarning,
     selectedProviderDefaultModel,
     resolvedTheme,
     workspaceDirectoryPicker,
@@ -1003,12 +1037,12 @@ export function useWorkbenchApp() {
     handleCancel,
     openDiff,
     handleViewFiles,
-    handleDeleteCurrentConversation,
-    handleConversationTitleSave,
+    handleDeleteCurrentSession,
+    handleSessionTitleSave,
     handleDeleteSession,
     handleRenameSession,
-    handleConversationProviderChange,
-    handleConversationModelChange,
+    handleSessionProviderChange,
+    handleSessionModelChange,
     handleConfigurationFieldChange,
     handleProviderConfigChange,
     handleAddProvider,

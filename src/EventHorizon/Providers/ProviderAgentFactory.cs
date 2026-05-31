@@ -1,4 +1,5 @@
 using Anthropic;
+using EventHorizon.Configuration;
 using EventHorizon.Prompting;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
@@ -8,7 +9,8 @@ namespace EventHorizon.Providers;
 public interface IProviderAgentFactory
 {
     AIAgent CreateAgent(
-        Configuration.AppOptions options,
+        AgentOptions agentOptions,
+        ProviderOptions providerOptions,
         string instructions,
         IReadOnlyList<AITool> tools,
         AgentSkillsProvider? skillsProvider,
@@ -27,22 +29,23 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
     }
 
     public AIAgent CreateAgent(
-        Configuration.AppOptions options,
+        AgentOptions agentOptions,
+        ProviderOptions providerOptions,
         string instructions,
         IReadOnlyList<AITool> tools,
         AgentSkillsProvider? skillsProvider,
         IServiceProvider services)
     {
-        if (string.Equals(options.Provider.Type, "anthropic", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(providerOptions.Type, "anthropic", StringComparison.OrdinalIgnoreCase))
         {
-            return CreateAnthropicAgent(options, instructions, tools);
+            return CreateAnthropicAgent(agentOptions, providerOptions, instructions, tools);
         }
 
-        var chatClient = _providerChatClientFactory.CreateChatClient(options.Provider);
-        var agentOptions = new ChatClientAgentOptions
+        var chatClient = _providerChatClientFactory.CreateChatClient(providerOptions);
+        var chatClientAgentOptions = new ChatClientAgentOptions
         {
-            Name = options.Agent.Name,
-            Description = options.Agent.Description,
+            Name = agentOptions.Name,
+            Description = agentOptions.Description,
             ChatOptions = new ChatOptions
             {
                 Instructions = instructions,
@@ -52,42 +55,34 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
 
         if (skillsProvider is not null)
         {
-            agentOptions.AIContextProviders = [skillsProvider];
+            chatClientAgentOptions.AIContextProviders = [skillsProvider];
         }
 
-        return chatClient.AsAIAgent(agentOptions, services: services);
+        return chatClient.AsAIAgent(chatClientAgentOptions, services: services);
     }
 
-    private AIAgent CreateAnthropicAgent(Configuration.AppOptions options, string instructions, IReadOnlyList<AITool> tools)
+    private AIAgent CreateAnthropicAgent(AgentOptions agentOptions, ProviderOptions providerOptions, string instructions, IReadOnlyList<AITool> tools)
     {
-        var anthropicOptions = CloneOptionsWithInstructions(options, instructions);
-        var apiKey = anthropicOptions.Provider.ApiKey ?? throw new InvalidOperationException("Provider.ApiKey is required for the anthropic provider.");
-        var model = anthropicOptions.Provider.Model ?? throw new InvalidOperationException("Provider.Model is required for the anthropic provider.");
-        var anthropicInstructions = _codingInstructionsBuilder.Build(anthropicOptions);
+        var apiKey = providerOptions.ApiKey ?? throw new InvalidOperationException("Provider.ApiKey is required for the anthropic provider.");
+        var model = providerOptions.Model ?? throw new InvalidOperationException("Provider.Model is required for the anthropic provider.");
+        var anthropicAgentOptions = CloneAgentOptionsWithInstructions(agentOptions, instructions);
+        var anthropicInstructions = _codingInstructionsBuilder.Build(anthropicAgentOptions);
 
         return new AnthropicClient { ApiKey = apiKey }.AsAIAgent(
             model: model,
-            name: anthropicOptions.Agent.Name,
+            name: anthropicAgentOptions.Name,
             instructions: anthropicInstructions,
             tools: [.. tools]);
     }
 
-    private static Configuration.AppOptions CloneOptionsWithInstructions(Configuration.AppOptions options, string instructions)
-    {
-        return new Configuration.AppOptions
+    private static AgentOptions CloneAgentOptionsWithInstructions(AgentOptions options, string instructions)
+        => new()
         {
-            Agent = new Configuration.AgentOptions
-            {
-                Name = options.Agent.Name,
-                Description = options.Agent.Description,
-                EnableSkills = options.Agent.EnableSkills,
-                EnableShell = options.Agent.EnableShell,
-                EnableMcpTools = options.Agent.EnableMcpTools,
-                AdditionalSystemPrompts = [instructions],
-            },
-            Provider = options.Provider,
-            Pricing = options.Pricing,
-            Conversation = options.Conversation,
+            Name = options.Name,
+            Description = options.Description,
+            EnableSkills = options.EnableSkills,
+            EnableShell = options.EnableShell,
+            EnableMcpTools = options.EnableMcpTools,
+            AdditionalSystemPrompts = [instructions],
         };
-    }
 }

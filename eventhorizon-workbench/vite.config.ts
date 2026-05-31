@@ -17,10 +17,6 @@ export default defineConfig({
         target: "http://127.0.0.1:9527",
         changeOrigin: true,
       },
-      "/agui": {
-        target: "http://127.0.0.1:9527",
-        changeOrigin: true,
-      },
     },
   },
   build: {
@@ -28,4 +24,3 @@ export default defineConfig({
     emptyOutDir: true,
   },
 });
-
