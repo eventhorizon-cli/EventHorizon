@@ -12,7 +12,7 @@ internal sealed class RunStoreEntry
     private readonly List<EventEnvelope> _history = [];
     private readonly ConcurrentDictionary<Guid, Channel<EventEnvelope>> _subscribers = new();
 
-    public RunStoreEntry(Run run, FileStateTracker fileStateTracker, CancellationTokenSource cancellationTokenSource)
+    public RunStoreEntry(Run run, IFileStateTracker fileStateTracker, CancellationTokenSource cancellationTokenSource)
     {
         Run = run;
         FileStateTracker = fileStateTracker;
@@ -21,7 +21,7 @@ internal sealed class RunStoreEntry
 
     public Run Run { get; }
 
-    public FileStateTracker FileStateTracker { get; }
+    public IFileStateTracker FileStateTracker { get; }
 
     public CancellationTokenSource CancellationTokenSource { get; }
 

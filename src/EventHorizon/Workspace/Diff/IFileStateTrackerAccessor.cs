@@ -2,8 +2,8 @@ namespace EventHorizon.Workspace.Diff;
 
 public interface IFileStateTrackerAccessor
 {
-    FileStateTracker? Current { get; }
+    IFileStateTracker? Current { get; }
 
-    IDisposable BeginScope(FileStateTracker tracker);
+    IDisposable BeginScope(IFileStateTracker tracker);
 }
 

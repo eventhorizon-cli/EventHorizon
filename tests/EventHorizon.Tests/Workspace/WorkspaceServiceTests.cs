@@ -1,19 +1,22 @@
+using EventHorizon.Tests.Fixtures;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
 using EventHorizon.Workspace.Diff;
 
 namespace EventHorizon.Tests.Workspace;
 
+/// <summary>
+/// Tests for WorkspaceService covering file operations, path safety, and workspace queries.
+/// </summary>
 public sealed class WorkspaceServiceTests : IDisposable
 {
-    private readonly string _root;
-    private readonly WorkspaceContext _workspaceContext;
+    private readonly TemporaryWorkspaceFixture _fixture;
+    private readonly StubWorkspaceContextAccessor _workspaceContextAccessor;
 
     public WorkspaceServiceTests()
     {
-        _root = Path.Combine(Path.GetTempPath(), "eventhorizon-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_root);
-        _workspaceContext = new WorkspaceContext(_root);
+        _fixture = new TemporaryWorkspaceFixture();
+        _workspaceContextAccessor = new StubWorkspaceContextAccessor(_fixture.Root);
     }
 
     [Fact]
@@ -87,7 +90,7 @@ public sealed class WorkspaceServiceTests : IDisposable
 """;
 
         var result = service.ApplyPatch("src/patch-demo.txt", patch, "update sample lines");
-        var content = File.ReadAllText(Path.Combine(_root, "src", "patch-demo.txt"));
+        var content = File.ReadAllText(Path.Combine(_fixture.Root, "src", "patch-demo.txt"));
 
         Assert.Contains("Applied patch", result);
         Assert.Equal("alpha\nbeta-2\ngamma\ndelta\n", content);
@@ -152,16 +155,13 @@ public sealed class WorkspaceServiceTests : IDisposable
 
     private WorkspaceService CreateService()
         => new(
-            _workspaceContext,
+            _workspaceContextAccessor,
             new ShellCommandRunner(),
-            new FileSnapshotService(_workspaceContext),
+            new FileSnapshotService(_workspaceContextAccessor),
             new FileStateTrackerAccessor());
 
     public void Dispose()
     {
-        if (Directory.Exists(_root))
-        {
-            Directory.Delete(_root, recursive: true);
-        }
+        _fixture.Dispose();
     }
 }

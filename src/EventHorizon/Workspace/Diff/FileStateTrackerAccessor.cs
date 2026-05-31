@@ -4,11 +4,11 @@ namespace EventHorizon.Workspace.Diff;
 
 public sealed class FileStateTrackerAccessor : IFileStateTrackerAccessor
 {
-    private readonly AsyncLocal<FileStateTracker?> _current = new();
+    private readonly AsyncLocal<IFileStateTracker?> _current = new();
 
-    public FileStateTracker? Current => _current.Value;
+    public IFileStateTracker? Current => _current.Value;
 
-    public IDisposable BeginScope(FileStateTracker tracker)
+    public IDisposable BeginScope(IFileStateTracker tracker)
     {
         var previous = _current.Value;
         _current.Value = tracker;
@@ -18,10 +18,10 @@ public sealed class FileStateTrackerAccessor : IFileStateTrackerAccessor
     private sealed class Scope : IDisposable
     {
         private readonly FileStateTrackerAccessor _accessor;
-        private readonly FileStateTracker? _previous;
+        private readonly IFileStateTracker? _previous;
         private bool _disposed;
 
-        public Scope(FileStateTrackerAccessor accessor, FileStateTracker? previous)
+        public Scope(FileStateTrackerAccessor accessor, IFileStateTracker? previous)
         {
             _accessor = accessor;
             _previous = previous;

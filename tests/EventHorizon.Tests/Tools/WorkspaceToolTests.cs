@@ -1,3 +1,4 @@
+using EventHorizon.Tests.Fixtures;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
 using EventHorizon.Workspace.Diff;
@@ -7,20 +8,19 @@ namespace EventHorizon.Tests.Tools;
 
 public sealed class WorkspaceToolTests : IDisposable
 {
-    private readonly string _workspaceRoot;
-    private readonly WorkspaceContext _workspaceContext;
+    private readonly TemporaryWorkspaceFixture _fixture;
+    private readonly StubWorkspaceContextAccessor _workspaceContextAccessor;
     private readonly WorkspaceService _workspaceService;
     private readonly ToolCatalog _toolCatalog;
 
     public WorkspaceToolTests()
     {
-        _workspaceRoot = Path.Combine(Path.GetTempPath(), "eventhorizon-tool-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_workspaceRoot);
-        _workspaceContext = new WorkspaceContext(_workspaceRoot);
+        _fixture = new TemporaryWorkspaceFixture();
+        _workspaceContextAccessor = new StubWorkspaceContextAccessor(_fixture.Root);
         _workspaceService = new WorkspaceService(
-            _workspaceContext,
+            _workspaceContextAccessor,
             new ShellCommandRunner(),
-            new FileSnapshotService(_workspaceContext),
+            new FileSnapshotService(_workspaceContextAccessor),
             new FileStateTrackerAccessor(),
             new BackgroundTerminalCommandStore());
         _toolCatalog = new ToolCatalog();
@@ -30,7 +30,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task ApplyPatch_Should_Apply_Patch_Successfully()
     {
         // Arrange
-        var filePath = Path.Combine(_workspaceRoot, "test.txt");
+        var filePath = Path.Combine(_fixture.Root, "test.txt");
         await File.WriteAllTextAsync(filePath, "line1\nline2\nline3\n");
 
         // Use simpler file editing approach
@@ -69,7 +69,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task CreateFile_Should_Create_New_File()
     {
         // Arrange
-        var filePath = Path.Combine(_workspaceRoot, "newfile.txt");
+        var filePath = Path.Combine(_fixture.Root, "newfile.txt");
         var content = "Hello, World!";
 
         // Act
@@ -85,7 +85,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public void CreateFile_Should_Fail_If_Exists()
     {
         // Arrange
-        var filePath = Path.Combine(_workspaceRoot, "existing.txt");
+        var filePath = Path.Combine(_fixture.Root, "existing.txt");
         File.WriteAllText(filePath, "existing content");
 
         // Act & Assert
@@ -96,10 +96,10 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task FileSearch_Should_Find_Files()
     {
         // Arrange
-        await File.WriteAllTextAsync(Path.Combine(_workspaceRoot, "test1.cs"), "");
-        await File.WriteAllTextAsync(Path.Combine(_workspaceRoot, "test2.cs"), "");
-        Directory.CreateDirectory(Path.Combine(_workspaceRoot, "subdir"));
-        await File.WriteAllTextAsync(Path.Combine(_workspaceRoot, "subdir", "test3.cs"), "");
+        await File.WriteAllTextAsync(Path.Combine(_fixture.Root, "test1.cs"), "");
+        await File.WriteAllTextAsync(Path.Combine(_fixture.Root, "test2.cs"), "");
+        Directory.CreateDirectory(Path.Combine(_fixture.Root, "subdir"));
+        await File.WriteAllTextAsync(Path.Combine(_fixture.Root, "subdir", "test3.cs"), "");
 
         // Act
         var result = _workspaceService.FileSearch("*.cs", 10);
@@ -113,8 +113,8 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task GrepSearch_Should_Find_Matching_Lines()
     {
         // Arrange
-        var file1 = Path.Combine(_workspaceRoot, "file1.txt");
-        var file2 = Path.Combine(_workspaceRoot, "file2.txt");
+        var file1 = Path.Combine(_fixture.Root, "file1.txt");
+        var file2 = Path.Combine(_fixture.Root, "file2.txt");
         await File.WriteAllTextAsync(file1, "Hello World\n");
         await File.WriteAllTextAsync(file2, "Goodbye World\n");
 
@@ -129,7 +129,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task GrepSearch_With_Regexp_Should_Find_Matches()
     {
         // Arrange
-        var file = Path.Combine(_workspaceRoot, "data.txt");
+        var file = Path.Combine(_fixture.Root, "data.txt");
         await File.WriteAllTextAsync(file, "item-123\nitem-456\nother-789\n");
 
         // Act
@@ -144,7 +144,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task InsertEditIntoFile_Should_Replace_Text()
     {
         // Arrange
-        var filePath = Path.Combine(_workspaceRoot, "edit.txt");
+        var filePath = Path.Combine(_fixture.Root, "edit.txt");
         await File.WriteAllTextAsync(filePath, "Hello Universe\nGoodbye World\n");
 
         // Act
@@ -159,8 +159,8 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task ListDir_Should_List_Directory_Contents()
     {
         // Arrange
-        Directory.CreateDirectory(Path.Combine(_workspaceRoot, "subdir"));
-        await File.WriteAllTextAsync(Path.Combine(_workspaceRoot, "file.txt"), "");
+        Directory.CreateDirectory(Path.Combine(_fixture.Root, "subdir"));
+        await File.WriteAllTextAsync(Path.Combine(_fixture.Root, "file.txt"), "");
 
         // Act
         var result = _workspaceService.ListDir("");
@@ -174,7 +174,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task OpenFile_Should_Return_File_Content()
     {
         // Arrange
-        var filePath = Path.Combine(_workspaceRoot, "open.txt");
+        var filePath = Path.Combine(_fixture.Root, "open.txt");
         await File.WriteAllTextAsync(filePath, "Line 1\nLine 2\nLine 3\n");
 
         // Act
@@ -189,7 +189,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task OpenFile_Preview_Should_Return_Shortened_Content()
     {
         // Arrange
-        var filePath = Path.Combine(_workspaceRoot, "large.txt");
+        var filePath = Path.Combine(_fixture.Root, "large.txt");
         var lines = Enumerable.Range(1, 100).Select(i => $"Line {i}");
         await File.WriteAllLinesAsync(filePath, lines);
 
@@ -205,7 +205,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task ReadFile_Should_Return_Line_Numbered_Content()
     {
         // Arrange
-        var filePath = Path.Combine(_workspaceRoot, "read.txt");
+        var filePath = Path.Combine(_fixture.Root, "read.txt");
         await File.WriteAllTextAsync(filePath, "Line 1\nLine 2\nLine 3\n");
 
         // Act
@@ -220,7 +220,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task ReadFile_With_Offset_And_Limit_Should_Return_Partial_Content()
     {
         // Arrange
-        var filePath = Path.Combine(_workspaceRoot, "partial.txt");
+        var filePath = Path.Combine(_fixture.Root, "partial.txt");
         var lines = Enumerable.Range(1, 10).Select(i => $"Line {i}");
         await File.WriteAllLinesAsync(filePath, lines);
 
@@ -251,8 +251,8 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task SemanticSearch_Should_Return_Ranked_Results()
     {
         // Arrange
-        var file1 = Path.Combine(_workspaceRoot, "about-cats.txt");
-        var file2 = Path.Combine(_workspaceRoot, "about-dogs.txt");
+        var file1 = Path.Combine(_fixture.Root, "about-cats.txt");
+        var file2 = Path.Combine(_fixture.Root, "about-dogs.txt");
         await File.WriteAllTextAsync(file1, "Cats are furry animals that meow.");
         await File.WriteAllTextAsync(file2, "Dogs are friendly animals that bark.");
 
@@ -281,7 +281,7 @@ public sealed class WorkspaceToolTests : IDisposable
     public async Task GetErrors_Should_Return_Diagnostics()
     {
         // Arrange
-        var filePath = Path.Combine(_workspaceRoot, "Test.cs");
+        var filePath = Path.Combine(_fixture.Root, "Test.cs");
         await File.WriteAllTextAsync(filePath, "public class Test { }");
 
         // Act
@@ -403,9 +403,6 @@ public sealed class WorkspaceToolTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_workspaceRoot))
-        {
-            Directory.Delete(_workspaceRoot, recursive: true);
-        }
+        _fixture.Dispose();
     }
 }

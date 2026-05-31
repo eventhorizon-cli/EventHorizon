@@ -1,15 +1,19 @@
 namespace EventHorizon.Workspace.Diff;
 
-public sealed class FileStateTracker
+public sealed class FileStateTracker : IFileStateTracker
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly IFileSnapshotService _fileSnapshotService;
     private readonly IDiffService _diffService;
     private readonly Dictionary<string, TrackedFileState> _states = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _readPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<FileChange> _pendingChanges = [];
 
-    public FileStateTracker(string runId, string? sessionId, IFileSnapshotService fileSnapshotService, IDiffService diffService)
+    public FileStateTracker(
+        string runId,
+        string? sessionId,
+        IFileSnapshotService fileSnapshotService,
+        IDiffService diffService)
     {
         RunId = runId;
         SessionId = sessionId;
@@ -91,7 +95,8 @@ public sealed class FileStateTracker
             state.CurrentSnapshot = newSnapshot;
             _states[newNormalizedPath] = state;
 
-            var renameDiff = _diffService.CreateDiff(newNormalizedPath, oldNormalizedPath, sourceSnapshotBeforeRename, newSnapshot);
+            var renameDiff = _diffService.CreateDiff(newNormalizedPath, oldNormalizedPath, sourceSnapshotBeforeRename,
+                newSnapshot);
             if (renameDiff is not null)
             {
                 _pendingChanges.Add(ToChange(renameDiff));
