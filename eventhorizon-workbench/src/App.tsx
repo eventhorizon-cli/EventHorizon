@@ -32,7 +32,6 @@ export default function App() {
             <SessionPane
               currentSession={app.currentSession}
               currentRun={app.currentRun}
-              currentDefaultProvider={app.configuration?.currentDefaultProvider}
               availableModels={app.availableModels}
               phase={app.phase}
               logsCount={app.logs.length}

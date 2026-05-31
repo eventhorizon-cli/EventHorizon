@@ -9,7 +9,6 @@ import type { AgentPhase, AgentRun, AgentSessionDetail, FileChange, LogItem } fr
 type SessionPaneProps = {
   currentSession?: AgentSessionDetail;
   currentRun?: AgentRun;
-  currentDefaultProvider?: string;
   availableModels: string[];
   phase: AgentPhase;
   logsCount: number;
@@ -30,7 +29,6 @@ type SessionPaneProps = {
 export function SessionPane({
   currentSession,
   currentRun,
-  currentDefaultProvider,
   availableModels,
   phase,
   logsCount,
@@ -59,8 +57,8 @@ export function SessionPane({
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4 py-3 sm:px-5">
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{currentSession?.title ?? "New conversation"}</div>
-          <div className="truncate text-xs text-muted-foreground">
-            {currentSession?.providerName ?? currentDefaultProvider ?? "No provider selected"}
+          <div className="truncate text-xs text-muted-foreground" title={currentSession?.workspaceRoot}>
+            {currentSession?.workspaceRoot ?? "No workspace selected"}
           </div>
         </div>
 

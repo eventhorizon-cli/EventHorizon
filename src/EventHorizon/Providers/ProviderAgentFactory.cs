@@ -6,17 +6,7 @@ using Microsoft.Extensions.AI;
 
 namespace EventHorizon.Providers;
 
-public interface IProviderAgentFactory
-{
-    AIAgent CreateAgent(
-        AgentOptions agentOptions,
-        ProviderOptions providerOptions,
-        string instructions,
-        IReadOnlyList<AITool> tools,
-        AgentSkillsProvider? skillsProvider,
-        IServiceProvider services);
-}
-
+// TODO: Consider pooling agents
 public sealed class ProviderAgentFactory : IProviderAgentFactory
 {
     private readonly IProviderChatClientFactory _providerChatClientFactory;
