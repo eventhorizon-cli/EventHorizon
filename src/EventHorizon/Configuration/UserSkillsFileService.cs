@@ -25,7 +25,7 @@ public sealed class UserSkillsFileService : IUserSkillsFileService
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         if (!File.Exists(FilePath))
         {
-            SafeWrite(CreateInitialContent());
+            SafeWrite("{}" + Environment.NewLine);
         }
     }
 
@@ -35,18 +35,21 @@ public sealed class UserSkillsFileService : IUserSkillsFileService
 
         var persisted = new JsonObject
         {
-            [nameof(SkillsOptions.StoragePath)] = options.StoragePath ?? GetDefaultStoragePath(),
-            [nameof(SkillsOptions.Imported)] = JsonSerializer.SerializeToNode(
-                options.Imported
-                    .Select(static item => new ImportedSkillOptions
-                    {
-                        Name = item.Name,
-                        Path = item.Path,
-                        Description = item.Description,
-                        ImportedAt = item.ImportedAt,
-                    })
-                    .ToList(),
-                EventHorizonJsonContext.Default.ListImportedSkillOptions),
+            ["Skills"] = new JsonObject
+            {
+                [nameof(SkillsOptions.StoragePath)] = options.StoragePath ?? GetDefaultStoragePath(),
+                [nameof(SkillsOptions.Imported)] = JsonSerializer.SerializeToNode(
+                    options.Imported
+                        .Select(static item => new ImportedSkillOptions
+                        {
+                            Name = item.Name,
+                            Path = item.Path,
+                            Description = item.Description,
+                            ImportedAt = item.ImportedAt,
+                        })
+                        .ToList(),
+                    EventHorizonJsonContext.Default.ListImportedSkillOptions),
+            },
         };
 
         SafeWrite(persisted.ToJsonString(JsonOptions) + Environment.NewLine);
@@ -57,12 +60,6 @@ public sealed class UserSkillsFileService : IUserSkillsFileService
 
     private string GetDefaultStoragePath()
         => Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "skills");
-
-    private static string CreateInitialContent()
-        => new JsonObject
-        {
-            [nameof(SkillsOptions.Imported)] = new JsonArray(),
-        }.ToJsonString(JsonOptions) + Environment.NewLine;
 
     private void SafeWrite(string content)
     {

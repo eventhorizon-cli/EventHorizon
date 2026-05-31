@@ -8,7 +8,7 @@ public sealed class FileSessionStore : ISessionStore
     private const string SessionDocumentFileName = "session.json";
     private readonly IPathEnvironment _pathEnvironment;
 
-    public FileSessionStore(Configuration.IPathEnvironment pathEnvironment)
+    public FileSessionStore(IPathEnvironment pathEnvironment)
     {
         _pathEnvironment = pathEnvironment;
     }

@@ -1,7 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
-
 namespace EventHorizon.Configuration;
 
 public static class ConfigurationServiceCollectionExtensions
@@ -17,18 +13,10 @@ public static class ConfigurationServiceCollectionExtensions
         services.AddSingleton<IOptionsNormalizer, OptionsNormalizer>();
 
         services.AddOptions<AgentOptions>().BindConfiguration("Agent");
-
         services.AddOptions<PricingOptions>().BindConfiguration("Pricing");
-        services.AddSingleton<IPostConfigureOptions<PricingOptions>, PricingOptionsPostConfigure>();
-
-        services.AddOptions<ProvidersOptions>().BindConfiguration(string.Empty);
-        services.AddSingleton<IPostConfigureOptions<ProvidersOptions>, ProvidersOptionsPostConfigure>();
-
-        services.AddOptions<McpOptions>().BindConfiguration(string.Empty);
-        services.AddSingleton<IPostConfigureOptions<McpOptions>, McpOptionsPostConfigure>();
-
-        services.AddOptions<SkillsOptions>().BindConfiguration(string.Empty);
-        services.AddSingleton<IPostConfigureOptions<SkillsOptions>, SkillsOptionsPostConfigure>();
+        services.AddOptions<ProvidersOptions>().BindConfiguration("Providers");
+        services.AddOptions<McpOptions>().BindConfiguration("McpServers");
+        services.AddOptions<SkillsOptions>().BindConfiguration("Skills");
 
         services.AddSingleton<IAppConfigurationService, AppConfigurationService>();
         services.AddSingleton<IProviderTestingService, ProviderTestingService>();

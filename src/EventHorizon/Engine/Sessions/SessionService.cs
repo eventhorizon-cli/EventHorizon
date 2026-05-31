@@ -10,20 +10,20 @@ public sealed class SessionService : ISessionService
 {
     private const int MaxSummaryLength = 240;
     private readonly ISessionStore _sessionStore;
-    private readonly WorkspaceContext _workspaceContext;
+    private readonly IWorkspaceContextAccessor _workspaceContextAccessor;
     private readonly IProviderResolutionService _providerResolutionService;
     private readonly ISessionTitleGenerator _sessionTitleGenerator;
     private readonly ISessionAgentManager _agentManager;
 
     public SessionService(
         ISessionStore sessionStore,
-        WorkspaceContext workspaceContext,
+        IWorkspaceContextAccessor workspaceContextAccessor,
         IProviderResolutionService providerResolutionService,
         ISessionTitleGenerator sessionTitleGenerator,
         ISessionAgentManager agentManager)
     {
         _sessionStore = sessionStore;
-        _workspaceContext = workspaceContext;
+        _workspaceContextAccessor = workspaceContextAccessor;
         _providerResolutionService = providerResolutionService;
         _sessionTitleGenerator = sessionTitleGenerator;
         _agentManager = agentManager;
@@ -46,8 +46,8 @@ public sealed class SessionService : ISessionService
     public async Task<SessionSummaryDTO> CreateAsync(CreateSessionRequestDTO request, CancellationToken cancellationToken)
     {
         var initialMessage = request.InitialMessage?.Trim();
-        var workspaceRoot = string.IsNullOrWhiteSpace(request.WorkspaceRoot) ? _workspaceContext.WorkspaceRoot : Path.GetFullPath(request.WorkspaceRoot);
-        _workspaceContext.WorkspaceRoot = workspaceRoot;
+        var workspaceRoot = ResolveWorkspaceRoot(request.WorkspaceRoot);
+        Directory.CreateDirectory(workspaceRoot);
         var document = CreateSessionDocument(initialMessage, workspaceRoot, request.ProviderName, request.Model);
         await _sessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
         return MapSummary(document);
@@ -245,6 +245,17 @@ public sealed class SessionService : ISessionService
         }
 
         return document;
+    }
+
+    private string ResolveWorkspaceRoot(string? requestedWorkspaceRoot)
+    {
+        var baseWorkspaceRoot = _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot;
+        if (string.IsNullOrWhiteSpace(requestedWorkspaceRoot))
+        {
+            return baseWorkspaceRoot;
+        }
+
+        return Path.GetFullPath(Path.Combine(baseWorkspaceRoot, requestedWorkspaceRoot));
     }
 
     private void ApplyResolvedProvider(SessionDocument document)

@@ -69,27 +69,27 @@ public sealed class WorkspaceService : IWorkspaceService
         "where",
     };
 
-    private readonly WorkspaceContext _workspaceContext;
+    private readonly IWorkspaceContextAccessor _workspaceContextAccessor;
     private readonly ShellCommandRunner _shellCommandRunner;
     private readonly BackgroundTerminalCommandStore _backgroundTerminalCommandStore;
     private readonly IFileSnapshotService _fileSnapshotService;
     private readonly IFileStateTrackerAccessor _fileStateTrackerAccessor;
 
     public WorkspaceService(
-        WorkspaceContext workspaceContext,
+        IWorkspaceContextAccessor workspaceContextAccessor,
         ShellCommandRunner shellCommandRunner,
         IFileSnapshotService fileSnapshotService,
         IFileStateTrackerAccessor fileStateTrackerAccessor,
         BackgroundTerminalCommandStore? backgroundTerminalCommandStore = null)
     {
-        _workspaceContext = workspaceContext;
+        _workspaceContextAccessor = workspaceContextAccessor;
         _shellCommandRunner = shellCommandRunner;
         _fileSnapshotService = fileSnapshotService;
         _fileStateTrackerAccessor = fileStateTrackerAccessor;
         _backgroundTerminalCommandStore = backgroundTerminalCommandStore ?? new BackgroundTerminalCommandStore();
     }
 
-    public string WorkspaceRoot => _workspaceContext.WorkspaceRoot;
+    public string WorkspaceRoot => _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot;
 
     public string DescribeWorkspace()
     {

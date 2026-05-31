@@ -10,6 +10,7 @@ import type {
   FileChange,
   FileDiff,
   LogItem,
+  ReasoningSummary,
   ThemeMode,
 } from "@/types";
 
@@ -56,7 +57,41 @@ function inferPhase(event: AgentEvent): AgentPhase | undefined {
   return undefined;
 }
 
+function summarizeReasoning(summary: ReasoningSummary) {
+  const parts: string[] = [];
+
+  if (summary.goal) {
+    parts.push(summary.goal);
+  }
+
+  if (summary.plan.length > 0) {
+    parts.push(`Plan: ${summary.plan.slice(0, 2).join(" · ")}`);
+  }
+
+  if (summary.next) {
+    parts.push(`Next: ${summary.next}`);
+  }
+
+  if (summary.issues.length > 0) {
+    parts.push(`Issues: ${summary.issues.slice(0, 2).join(" · ")}`);
+  }
+
+  if (summary.decisions.length > 0) {
+    parts.push(`Decisions: ${summary.decisions.slice(0, 2).join(" · ")}`);
+  }
+
+  return parts.join(" · ");
+}
+
 function logSummary(event: AgentEvent) {
+  if (event.summary) {
+    return summarizeReasoning(event.summary) || event.text || event.error || event.type;
+  }
+
+  if (event.toolCallName) {
+    return `Tool: ${event.toolCallName}`;
+  }
+
   return event.text ?? event.error ?? event.type;
 }
 
@@ -159,4 +194,3 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
     set({ themeMode });
   },
 }));
-

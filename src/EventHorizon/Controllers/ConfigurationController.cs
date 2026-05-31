@@ -1,3 +1,4 @@
+
 using EventHorizon.Configuration;
 using EventHorizon.DTOs;
 using EventHorizon.Providers;
@@ -39,7 +40,7 @@ public sealed class ConfigurationController : ControllerBase
             CurrentDefaultProvider = providers.CurrentDefaultProvider,
             Providers = providers.Providers
                 .OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(static pair => new ApiProviderViewModel
+                .Select(static pair => new ApiProviderViewModelDTO
                 {
                     Name = pair.Key,
                     Type = pair.Value.Type ?? "openai",
@@ -88,7 +89,7 @@ public sealed class ConfigurationController : ControllerBase
         {
             FilePath = _userConfigurationFileService.FilePath,
             CurrentDefaultProvider = savedProviders.CurrentDefaultProvider,
-            Providers = savedProviders.Providers.Select(static pair => new ApiProviderViewModel
+            Providers = savedProviders.Providers.Select(static pair => new ApiProviderViewModelDTO
             {
                 Name = pair.Key,
                 Type = pair.Value.Type ?? "openai",

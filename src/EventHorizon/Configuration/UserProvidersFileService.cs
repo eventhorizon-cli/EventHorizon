@@ -22,7 +22,7 @@ public sealed class UserProvidersFileService : IUserProvidersFileService
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         if (!File.Exists(FilePath))
         {
-            SafeWrite(CreateInitialContent());
+            SafeWrite("{}" + Environment.NewLine);
         }
     }
 
@@ -32,13 +32,16 @@ public sealed class UserProvidersFileService : IUserProvidersFileService
 
         var persisted = new JsonObject
         {
-            [nameof(ProvidersOptions.CurrentDefaultProvider)] = options.CurrentDefaultProvider,
-            [nameof(ProvidersOptions.Providers)] = JsonSerializer.SerializeToNode(
-                options.Providers.ToDictionary(
-                    static pair => pair.Key,
-                    static pair => CloneProvider(pair.Value),
-                    StringComparer.OrdinalIgnoreCase),
-                EventHorizonJsonContext.Default.DictionaryStringProviderOptions),
+            ["Providers"] = new JsonObject
+            {
+                [nameof(ProvidersOptions.CurrentDefaultProvider)] = options.CurrentDefaultProvider,
+                [nameof(ProvidersOptions.Providers)] = JsonSerializer.SerializeToNode(
+                    options.Providers.ToDictionary(
+                        static pair => pair.Key,
+                        static pair => CloneProvider(pair.Value),
+                        StringComparer.OrdinalIgnoreCase),
+                    EventHorizonJsonContext.Default.DictionaryStringProviderOptions),
+            },
         };
 
         SafeWrite(persisted.ToJsonString(JsonOptions) + Environment.NewLine);
@@ -46,12 +49,6 @@ public sealed class UserProvidersFileService : IUserProvidersFileService
 
     public static string GetDefaultFilePath(IPathEnvironment pathEnvironment)
         => Path.Combine(pathEnvironment.HomeDirectory, ".eventhorizon", "providers.json");
-
-    private static string CreateInitialContent()
-        => new JsonObject
-        {
-            [nameof(ProvidersOptions.Providers)] = new JsonObject(),
-        }.ToJsonString(JsonOptions) + Environment.NewLine;
 
     private void SafeWrite(string content)
     {

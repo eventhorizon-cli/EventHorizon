@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Options;
-
 namespace EventHorizon.Configuration;
 
 internal interface IOptionsNormalizer
@@ -9,8 +7,6 @@ internal interface IOptionsNormalizer
     void NormalizeMcp(McpOptions options);
 
     void NormalizeSkills(SkillsOptions options);
-
-    void NormalizePricing(PricingOptions options);
 
     ProviderOptions ResolveActiveProvider(ProvidersOptions options);
 }
@@ -119,54 +115,3 @@ internal sealed class OptionsNormalizer : IOptionsNormalizer
             : providerType.Trim().ToLowerInvariant();
 }
 
-internal sealed class ProvidersOptionsPostConfigure : IPostConfigureOptions<ProvidersOptions>
-{
-    private readonly IOptionsNormalizer _normalizer;
-
-    public ProvidersOptionsPostConfigure(IOptionsNormalizer normalizer)
-    {
-        _normalizer = normalizer;
-    }
-
-    public void PostConfigure(string? name, ProvidersOptions options)
-        => _normalizer.NormalizeProviders(options);
-}
-
-internal sealed class McpOptionsPostConfigure : IPostConfigureOptions<McpOptions>
-{
-    private readonly IOptionsNormalizer _normalizer;
-
-    public McpOptionsPostConfigure(IOptionsNormalizer normalizer)
-    {
-        _normalizer = normalizer;
-    }
-
-    public void PostConfigure(string? name, McpOptions options)
-        => _normalizer.NormalizeMcp(options);
-}
-
-internal sealed class SkillsOptionsPostConfigure : IPostConfigureOptions<SkillsOptions>
-{
-    private readonly IOptionsNormalizer _normalizer;
-
-    public SkillsOptionsPostConfigure(IOptionsNormalizer normalizer)
-    {
-        _normalizer = normalizer;
-    }
-
-    public void PostConfigure(string? name, SkillsOptions options)
-        => _normalizer.NormalizeSkills(options);
-}
-
-internal sealed class PricingOptionsPostConfigure : IPostConfigureOptions<PricingOptions>
-{
-    private readonly IOptionsNormalizer _normalizer;
-
-    public PricingOptionsPostConfigure(IOptionsNormalizer normalizer)
-    {
-        _normalizer = normalizer;
-    }
-
-    public void PostConfigure(string? name, PricingOptions options)
-        => _normalizer.NormalizePricing(options);
-}

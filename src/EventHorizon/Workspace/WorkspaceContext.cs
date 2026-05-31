@@ -4,14 +4,8 @@ public sealed class WorkspaceContext
 {
     public WorkspaceContext(string workspaceRoot)
     {
-        WorkspaceRoot = workspaceRoot;
+        WorkspaceRoot = Path.GetFullPath(workspaceRoot);
     }
 
-    public string WorkspaceRoot
-    {
-        get => _workspaceRoot;
-        set => _workspaceRoot = Path.GetFullPath(value);
-    }
-
-    private string _workspaceRoot = string.Empty;
+    public string WorkspaceRoot { get; }
 }

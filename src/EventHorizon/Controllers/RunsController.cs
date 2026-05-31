@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using EventHorizon.DTOs;
 using EventHorizon.Engine;
 using EventHorizon.Engine.Runs;
+using EventHorizon.Workspace;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,6 +11,7 @@ namespace EventHorizon.Controllers;
 
 [ApiController]
 [Route("api/sessions/{sessionId}/runs")]
+[ServiceFilter(typeof(SessionWorkspaceContextFilter))]
 public sealed class RunsController : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web)

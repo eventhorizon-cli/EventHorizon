@@ -11,16 +11,16 @@ public sealed class SessionsController : ControllerBase
 {
     private readonly ISessionService _sessionService;
     private readonly ISessionModelService _sessionModelService;
-    private readonly WorkspaceContext _workspaceContext;
+    private readonly IWorkspaceContextAccessor _workspaceContextAccessor;
 
     public SessionsController(
         ISessionService sessionService,
         ISessionModelService sessionModelService,
-        WorkspaceContext workspaceContext)
+        IWorkspaceContextAccessor workspaceContextAccessor)
     {
         _sessionService = sessionService;
         _sessionModelService = sessionModelService;
-        _workspaceContext = workspaceContext;
+        _workspaceContextAccessor = workspaceContextAccessor;
     }
 
     [HttpGet]
@@ -28,6 +28,7 @@ public sealed class SessionsController : ControllerBase
         => _sessionService.ListAsync(cancellationToken);
 
     [HttpGet("{sessionId}")]
+    [ServiceFilter(typeof(SessionWorkspaceContextFilter))]
     public async Task<ActionResult<SessionDetailDTO>> GetAsync(string sessionId, CancellationToken cancellationToken)
     {
         var session = await _sessionService.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
@@ -37,14 +38,12 @@ public sealed class SessionsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<SessionSummaryDTO>> CreateAsync(CreateSessionRequestDTO request, CancellationToken cancellationToken)
     {
-        var workspaceRoot = ResolveWorkspacePath(request.WorkspaceRoot);
-        Directory.CreateDirectory(workspaceRoot);
-        request.WorkspaceRoot = workspaceRoot;
         var session = await _sessionService.CreateAsync(request, cancellationToken).ConfigureAwait(false);
         return Created($"/api/sessions/{session.Id}", session);
     }
 
     [HttpPatch("{sessionId}")]
+    [ServiceFilter(typeof(SessionWorkspaceContextFilter))]
     public async Task<ActionResult<SessionSummaryDTO>> UpdateAsync(string sessionId, UpdateSessionRequestDTO request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title) && request.ProviderName is null && request.Model is null)
@@ -60,6 +59,7 @@ public sealed class SessionsController : ControllerBase
     }
 
     [HttpPut("{sessionId}/model")]
+    [ServiceFilter(typeof(SessionWorkspaceContextFilter))]
     public async Task<ActionResult<SessionModelResponseDTO>> UpdateModelAsync(
         string sessionId,
         UpdateSessionModelRequestDTO request,
@@ -94,6 +94,7 @@ public sealed class SessionsController : ControllerBase
     }
 
     [HttpDelete("{sessionId}")]
+    [ServiceFilter(typeof(SessionWorkspaceContextFilter))]
     public async Task<IActionResult> DeleteAsync(string sessionId, CancellationToken cancellationToken)
     {
         var deleted = await _sessionService.DeleteAsync(sessionId, cancellationToken).ConfigureAwait(false);
@@ -126,6 +127,6 @@ public sealed class SessionsController : ControllerBase
 
     private string ResolveWorkspacePath(string? path)
         => string.IsNullOrWhiteSpace(path)
-            ? _workspaceContext.WorkspaceRoot
-            : Path.GetFullPath(path);
+            ? _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot
+            : Path.GetFullPath(path, _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot);
 }

@@ -11,12 +11,12 @@ public interface ICodingInstructionsBuilder
 
 public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
 {
-    private readonly WorkspaceContext _workspaceContext;
+    private readonly IWorkspaceContextAccessor _workspaceContextAccessor;
     private readonly IOptionsMonitor<McpOptions> _mcpOptionsMonitor;
 
-    public CodingInstructionsBuilder(WorkspaceContext workspaceContext, IOptionsMonitor<McpOptions> mcpOptionsMonitor)
+    public CodingInstructionsBuilder(IWorkspaceContextAccessor workspaceContextAccessor, IOptionsMonitor<McpOptions> mcpOptionsMonitor)
     {
-        _workspaceContext = workspaceContext;
+        _workspaceContextAccessor = workspaceContextAccessor;
         _mcpOptionsMonitor = mcpOptionsMonitor;
     }
 
@@ -44,7 +44,7 @@ public sealed class CodingInstructionsBuilder : ICodingInstructionsBuilder
             sections.Add("Additional MCP tools are connected. Use them when they provide specialized capabilities beyond local workspace operations.");
         }
 
-        sections.Add($"The workspace root is: {_workspaceContext.WorkspaceRoot}");
+        sections.Add($"The workspace root is: {_workspaceContextAccessor.WorkspaceContext.WorkspaceRoot}");
 
         if (options.AdditionalSystemPrompts.Length > 0)
         {

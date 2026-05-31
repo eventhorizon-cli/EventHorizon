@@ -1,5 +1,6 @@
 using EventHorizon.Configuration;
 using EventHorizon.DTOs;
+using EventHorizon.Workspace;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventHorizon.Controllers;
@@ -27,6 +28,7 @@ public sealed class SkillsController : ControllerBase
     }
 
     [HttpDelete("sessions/{sessionId}/{skillName}")]
+    [ServiceFilter(typeof(SessionWorkspaceContextFilter))]
     public async Task<ActionResult<SkillRemoveResponseDTO>> RemoveSessionAsync(string sessionId, string skillName, CancellationToken cancellationToken)
     {
         var result = await _skillService.RemoveSessionAsync(sessionId, skillName, cancellationToken).ConfigureAwait(false);

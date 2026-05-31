@@ -22,7 +22,7 @@ public sealed class UserMcpFileService : IUserMcpFileService
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         if (!File.Exists(FilePath))
         {
-            SafeWrite(CreateInitialContent());
+            SafeWrite("{}" + Environment.NewLine);
         }
     }
 
@@ -32,9 +32,12 @@ public sealed class UserMcpFileService : IUserMcpFileService
 
         var persisted = new JsonObject
         {
-            [nameof(McpOptions.Servers)] = JsonSerializer.SerializeToNode(
-                options.Servers.Select(CloneMcpServer).ToList(),
-                EventHorizonJsonContext.Default.ListMcpServerOptions),
+            ["McpServers"] = new JsonObject
+            {
+                [nameof(McpOptions.Servers)] = JsonSerializer.SerializeToNode(
+                    options.Servers.Select(CloneMcpServer).ToList(),
+                    EventHorizonJsonContext.Default.ListMcpServerOptions),
+            },
         };
 
         SafeWrite(persisted.ToJsonString(JsonOptions) + Environment.NewLine);
@@ -42,12 +45,6 @@ public sealed class UserMcpFileService : IUserMcpFileService
 
     public static string GetDefaultFilePath(IPathEnvironment pathEnvironment)
         => Path.Combine(pathEnvironment.HomeDirectory, ".eventhorizon", "mcp.json");
-
-    private static string CreateInitialContent()
-        => new JsonObject
-        {
-            [nameof(McpOptions.Servers)] = new JsonArray(),
-        }.ToJsonString(JsonOptions) + Environment.NewLine;
 
     private void SafeWrite(string content)
     {

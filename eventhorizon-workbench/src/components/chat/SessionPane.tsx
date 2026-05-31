@@ -34,7 +34,7 @@ export function SessionPane({
   availableModels,
   phase,
   logsCount,
-  logs: _logs,
+  logs,
   changes,
   composerValue,
   isSubmitting,
@@ -52,7 +52,7 @@ export function SessionPane({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentSession?.messages, composerValue]);
+  }, [currentSession?.messages, composerValue, logs.length]);
 
   return (
     <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">

@@ -122,6 +122,11 @@ export function ContextPanel({
             </section>
 
             <section className="rounded-2xl border border-border bg-background/50 p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Workspace directory</div>
+              <div className="mt-2 break-all font-medium">{currentSession?.workspaceRoot ?? "Not selected"}</div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-background/50 p-4">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Status</div>
               <div className="mt-2 font-medium capitalize">{currentRun?.status ?? "idle"}</div>
               <div className="mt-1 text-muted-foreground">Phase: {phase}</div>
@@ -310,7 +315,7 @@ export function ContextPanel({
                 </label>
 
                 <div className="grid gap-1 text-xs text-muted-foreground">
-                  <div>Workspace: {currentSession?.workspaceRoot ?? "Not selected"}</div>
+                  <div>Workspace directory: {currentSession?.workspaceRoot ?? "Not selected"}</div>
                   <div>Resolved provider: {selectedProviderName ?? "None"}</div>
                   <div>Provider type: {currentSession?.providerType ?? selectedProviderType ?? "Unknown"}</div>
                 </div>

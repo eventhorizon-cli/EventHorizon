@@ -2,7 +2,6 @@ using System.Text.RegularExpressions;
 using EventHorizon.DTOs;
 using EventHorizon.Engine.Sessions;
 using EventHorizon.Providers;
-using EventHorizon.Workspace;
 using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Configuration;
@@ -15,22 +14,19 @@ internal sealed class SkillService : ISkillService
     private readonly IUserSkillsFileService _userSkillsFileService;
     private readonly ISessionStore _sessionStore;
     private readonly ISessionAgentManager _agentManager;
-    private readonly WorkspaceContext _workspaceContext;
 
     public SkillService(
         IOptionsMonitor<SkillsOptions> skillsOptionsMonitor,
         IPathEnvironment pathEnvironment,
         IUserSkillsFileService userSkillsFileService,
         ISessionStore sessionStore,
-        ISessionAgentManager agentManager,
-        WorkspaceContext workspaceContext)
+        ISessionAgentManager agentManager)
     {
         _skillsOptionsMonitor = skillsOptionsMonitor;
         _pathEnvironment = pathEnvironment;
         _userSkillsFileService = userSkillsFileService;
         _sessionStore = sessionStore;
         _agentManager = agentManager;
-        _workspaceContext = workspaceContext;
     }
 
     private SkillsOptions Options => _skillsOptionsMonitor.CurrentValue;

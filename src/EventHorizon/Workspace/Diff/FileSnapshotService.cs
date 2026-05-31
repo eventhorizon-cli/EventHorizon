@@ -39,14 +39,14 @@ public sealed class FileSnapshotService : IFileSnapshotService
         "obj",
     };
 
-    private readonly EventHorizon.Workspace.WorkspaceContext _workspaceContext;
+    private readonly IWorkspaceContextAccessor _workspaceContextAccessor;
 
-    public FileSnapshotService(EventHorizon.Workspace.WorkspaceContext workspaceContext)
+    public FileSnapshotService(IWorkspaceContextAccessor workspaceContextAccessor)
     {
-        _workspaceContext = workspaceContext;
+        _workspaceContextAccessor = workspaceContextAccessor;
     }
 
-    public string WorkspaceRoot => _workspaceContext.WorkspaceRoot;
+    public string WorkspaceRoot => _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot;
 
     public FileSnapshot? CaptureFile(string path)
     {

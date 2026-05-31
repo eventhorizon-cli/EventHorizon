@@ -1,6 +1,6 @@
-namespace EventHorizon.Configuration;
+namespace EventHorizon.DTOs;
 
-public sealed class ApiProviderViewModel
+public sealed class ApiProviderViewModelDTO
 {
     public string Name { get; set; } = string.Empty;
 

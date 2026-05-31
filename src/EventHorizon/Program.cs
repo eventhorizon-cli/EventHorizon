@@ -1,4 +1,11 @@
 using EventHorizon.Configuration;
+using EventHorizon.Engine;
+using EventHorizon.Pricing;
+using EventHorizon.Prompting;
+using EventHorizon.Providers;
+using EventHorizon.Workspace;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using Serilog;
 using Serilog.Events;
 
@@ -15,36 +22,13 @@ public static class Program
     internal static IHost BuildHost(string[] args, IPathEnvironment pathEnvironment)
     {
         var builder = WebApplication.CreateBuilder(args);
-        ConfigureConfiguration(builder.Configuration, pathEnvironment);
+        builder.Configuration.AddEventHorizonFiles(pathEnvironment);
         ConfigureLogging(builder, pathEnvironment);
-
-        Startup.ConfigureServices(builder.Services, builder.Configuration);
+        ConfigureServices(builder.Services, builder.Configuration, pathEnvironment);
 
         var app = builder.Build();
-        Startup.Configure(app);
+        ConfigureMiddleware(app);
         return app;
-    }
-
-    private static void ConfigureConfiguration(ConfigurationManager configuration, IPathEnvironment pathEnvironment)
-    {
-        var userConfigFilePath = UserConfigurationFileService.GetDefaultFilePath(pathEnvironment);
-        var userProvidersFilePath = UserProvidersFileService.GetDefaultFilePath(pathEnvironment);
-        var userMcpFilePath = UserMcpFileService.GetDefaultFilePath(pathEnvironment);
-        var userSkillsFilePath = UserSkillsFileService.GetDefaultFilePath(pathEnvironment);
-        EnsureUserConfigExists(userConfigFilePath);
-        EnsureUserProvidersConfigExists(userProvidersFilePath);
-        EnsureUserMcpConfigExists(userMcpFilePath);
-        EnsureUserSkillsConfigExists(userSkillsFilePath);
-
-        configuration.SetBasePath(pathEnvironment.CurrentDirectory);
-        configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: false, reloadOnChange: true);
-        configuration.AddJsonFile(userConfigFilePath, optional: false, reloadOnChange: true);
-        configuration.AddJsonFile(userProvidersFilePath, optional: false, reloadOnChange: true);
-        configuration.AddJsonFile(userMcpFilePath, optional: false, reloadOnChange: true);
-        configuration.AddJsonFile(userSkillsFilePath, optional: false, reloadOnChange: true);
-
-        configuration[nameof(PathEnvironment) + ":CurrentDirectory"] = pathEnvironment.CurrentDirectory;
-        configuration[nameof(PathEnvironment) + ":HomeDirectory"] = pathEnvironment.HomeDirectory;
     }
 
     private static void ConfigureLogging(WebApplicationBuilder builder, IPathEnvironment pathEnvironment)
@@ -66,105 +50,76 @@ public static class Program
         builder.Logging.AddSerilog(logger, dispose: true);
     }
 
-    private static void EnsureUserConfigExists(string userConfigFilePath)
+    private static void ConfigureServices(IServiceCollection services, IConfiguration configuration, IPathEnvironment pathEnvironment)
     {
-        var directory = Path.GetDirectoryName(userConfigFilePath)!;
-        Directory.CreateDirectory(directory);
-        if (File.Exists(userConfigFilePath))
-        {
-            return;
-        }
-
-        var bundledConfigPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-        var initialContent = CreateUserConfigTemplate(bundledConfigPath);
-        File.WriteAllText(userConfigFilePath, initialContent);
+        services
+            .AddEventHorizonConfiguration(pathEnvironment)
+            .AddEventHorizonWorkspace()
+            .AddEventHorizonPrompting()
+            .AddEventHorizonProviders()
+            .AddEventHorizonPricing()
+            .AddEventHorizonEngine();
     }
 
-    private static void EnsureUserProvidersConfigExists(string userProvidersFilePath)
+    private static void ConfigureMiddleware(WebApplication app)
     {
-        var directory = Path.GetDirectoryName(userProvidersFilePath)!;
-        Directory.CreateDirectory(directory);
-        if (File.Exists(userProvidersFilePath))
-        {
-            return;
-        }
+        var fileProvider = GetStaticFileProvider();
 
-        File.WriteAllText(userProvidersFilePath, CreateUserProvidersConfigTemplate());
+        app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = fileProvider });
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = fileProvider,
+            ContentTypeProvider = new FileExtensionContentTypeProvider(),
+        });
+
+        app.MapControllers();
+        app.MapFallback(async context =>
+        {
+            var requestPath = NormalizePath(context.Request.Path.Value);
+            if (requestPath.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            var indexFile = fileProvider.GetFileInfo("index.html");
+            if (!indexFile.Exists)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await using var stream = indexFile.CreateReadStream();
+            await stream.CopyToAsync(context.Response.Body, context.RequestAborted).ConfigureAwait(false);
+        });
     }
 
-    private static string CreateUserConfigTemplate(string bundledConfigPath)
+    private static IFileProvider GetStaticFileProvider()
     {
-        if (!File.Exists(bundledConfigPath))
+        var webRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+        IFileProvider fileProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
+        if (Directory.Exists(webRootPath))
         {
-            return "{}" + Environment.NewLine;
+            fileProvider = new CompositeFileProvider(new PhysicalFileProvider(webRootPath), fileProvider);
         }
 
-        var initialContent = File.ReadAllText(bundledConfigPath);
-        if (string.IsNullOrWhiteSpace(initialContent))
-        {
-            return "{}" + Environment.NewLine;
-        }
-
-        try
-        {
-            var root = System.Text.Json.Nodes.JsonNode.Parse(initialContent)?.AsObject() ?? [];
-
-            root.Remove(nameof(ProvidersOptions.CurrentDefaultProvider));
-            root.Remove(nameof(ProvidersOptions.Providers));
-            root.Remove(nameof(McpOptions.Servers));
-            root.Remove(nameof(SkillsOptions.Imported));
-            root.Remove(nameof(SkillsOptions.StoragePath));
-            root.Remove("Session");
-
-            return root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, }) +
-                   Environment.NewLine;
-        }
-        catch (System.Text.Json.JsonException ex)
-        {
-            throw new InvalidOperationException(
-                $"The bundled configuration template '{bundledConfigPath}' is not valid JSON.", ex);
-        }
+        return fileProvider;
     }
 
-    private static string CreateUserProvidersConfigTemplate()
-        => new System.Text.Json.Nodes.JsonObject
-        {
-            [nameof(ProvidersOptions.Providers)] = new System.Text.Json.Nodes.JsonObject(),
-        }.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, }) + Environment.NewLine;
-
-    private static void EnsureUserMcpConfigExists(string userMcpFilePath)
+    private static string NormalizePath(string? path)
     {
-        var directory = Path.GetDirectoryName(userMcpFilePath)!;
-        Directory.CreateDirectory(directory);
-        if (File.Exists(userMcpFilePath))
+        if (string.IsNullOrWhiteSpace(path) || path == "/")
         {
-            return;
+            return "/";
         }
 
-        File.WriteAllText(userMcpFilePath, CreateUserMcpConfigTemplate());
-    }
-
-    private static void EnsureUserSkillsConfigExists(string userSkillsFilePath)
-    {
-        var directory = Path.GetDirectoryName(userSkillsFilePath)!;
-        Directory.CreateDirectory(directory);
-        if (File.Exists(userSkillsFilePath))
+        var normalized = path.Trim();
+        if (!normalized.StartsWith("/", StringComparison.Ordinal))
         {
-            return;
+            normalized = "/" + normalized;
         }
 
-        File.WriteAllText(userSkillsFilePath, CreateUserSkillsConfigTemplate());
+        return normalized.TrimEnd('/');
     }
-
-    private static string CreateUserMcpConfigTemplate()
-        => new System.Text.Json.Nodes.JsonObject
-        {
-            [nameof(McpOptions.Servers)] = new System.Text.Json.Nodes.JsonArray(),
-        }.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, }) + Environment.NewLine;
-
-    private static string CreateUserSkillsConfigTemplate()
-        => new System.Text.Json.Nodes.JsonObject
-        {
-            [nameof(SkillsOptions.Imported)] = new System.Text.Json.Nodes.JsonArray(),
-        }.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true, }) + Environment.NewLine;
 }

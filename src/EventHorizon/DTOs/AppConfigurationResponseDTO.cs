@@ -8,7 +8,7 @@ public sealed class AppConfigurationResponseDTO
 
     public string? CurrentDefaultProvider { get; set; }
 
-    public IReadOnlyList<ApiProviderViewModel> Providers { get; set; } = Array.Empty<ApiProviderViewModel>();
+    public IReadOnlyList<ApiProviderViewModelDTO> Providers { get; set; } = Array.Empty<ApiProviderViewModelDTO>();
 
     public IReadOnlyList<McpServerOptions> McpServers { get; set; } = Array.Empty<McpServerOptions>();
 
