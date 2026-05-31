@@ -7,10 +7,10 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>EventHorizon.Tool</RootNamespace>
-    <AssemblyName>EventHorizon.Tool</AssemblyName>
+    <AssemblyName>EventHorizon</AssemblyName>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eventhorizon</ToolCommandName>
-    <PackageId>EventHorizon.Tool</PackageId>
+    <PackageId>EventHorizon</PackageId>
     <PackageVersion>0.1.0</PackageVersion>
     <Authors>EventHorizon</Authors>
     <Description>Thin .NET tool wrapper for the main EventHorizon application.</Description>

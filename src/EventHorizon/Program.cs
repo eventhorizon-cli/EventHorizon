@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using EventHorizon.Configuration;
 using EventHorizon.Engine;
 using EventHorizon.Pricing;
@@ -50,8 +51,15 @@ public static class Program
         builder.Logging.AddSerilog(logger, dispose: true);
     }
 
-    private static void ConfigureServices(IServiceCollection services, IConfiguration configuration, IPathEnvironment pathEnvironment)
+    private static void ConfigureServices(IServiceCollection services, IConfiguration configuration,
+        IPathEnvironment pathEnvironment)
     {
+        services.AddHttpClient();
+        services.AddControllers().AddJsonOptions(jsonOptions =>
+        {
+            jsonOptions.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        });
+
         services
             .AddEventHorizonConfiguration(pathEnvironment)
             .AddEventHorizonWorkspace()
@@ -68,8 +76,7 @@ public static class Program
         app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = fileProvider });
         app.UseStaticFiles(new StaticFileOptions
         {
-            FileProvider = fileProvider,
-            ContentTypeProvider = new FileExtensionContentTypeProvider(),
+            FileProvider = fileProvider, ContentTypeProvider = new FileExtensionContentTypeProvider(),
         });
 
         app.MapControllers();
