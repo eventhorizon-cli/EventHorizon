@@ -257,7 +257,7 @@ public sealed class RunService : IRunService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "AG-UI run {RunId} failed.", run.Id);
+            _logger.LogError(ex, "Agent failed while executing run {RunId} in session {SessionId}.", run.Id, run.SessionId);
             run.MarkFailed(ex.Message);
             foreach (var @event in _eventMapper.CompleteAssistantMessage(run, context))
             {

@@ -1,7 +1,6 @@
 import { apiRequest } from "@/api/client";
 import type {
   AppConfiguration,
-  ImportedSkill,
   McpServerConfig,
   McpTestResult,
   ProviderConfig,

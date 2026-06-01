@@ -1,5 +1,3 @@
-import { formatDistanceToNow } from "date-fns";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { DiffViewer } from "@/components/diff/DiffViewer";
 import { cn } from "@/utils/cn";
 import type {
@@ -10,7 +8,6 @@ import type {
   ContextView,
   FileChange,
   FileDiff,
-  LogItem,
   ProviderEntry,
 } from "@/types";
 
@@ -28,7 +25,6 @@ type ContextPanelProps = {
   isImportingSkill: boolean;
   sessionTitleInput: string;
   skillImportPath: string;
-  skillImportTarget: "global" | "session";
   selectedProviderName?: string;
   selectedProviderType?: string;
   availableModels: string[];
@@ -37,13 +33,11 @@ type ContextPanelProps = {
   changes: FileChange[];
   selectedFile?: string;
   currentDiff?: FileDiff;
-  logs: LogItem[];
   phase: AgentPhase;
   resolvedTheme: "light" | "dark";
   onContextViewChange: (view: ContextView) => void;
   onSessionTitleInputChange: (value: string) => void;
   onSkillImportPathChange: (value: string) => void;
-  onSkillImportTargetChange: (target: "global" | "session") => void;
   onSaveSessionTitle: () => Promise<void> | void;
   onDeleteSession: () => Promise<void> | void;
   onChangeSessionProvider: (providerName: string) => Promise<void> | void;
@@ -68,7 +62,6 @@ export function ContextPanel({
   isImportingSkill,
   sessionTitleInput,
   skillImportPath,
-  skillImportTarget,
   selectedProviderName,
   selectedProviderType,
   availableModels,
@@ -77,13 +70,11 @@ export function ContextPanel({
   changes,
   selectedFile,
   currentDiff,
-  logs,
   phase,
   resolvedTheme,
   onContextViewChange,
   onSessionTitleInputChange,
   onSkillImportPathChange,
-  onSkillImportTargetChange,
   onSaveSessionTitle,
   onDeleteSession,
   onChangeSessionProvider,
@@ -97,7 +88,7 @@ export function ContextPanel({
     <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-card/95 shadow-sm">
       <div className="flex shrink-0 items-center border-b border-border/70 px-4 py-3">
         <div className="flex gap-1 rounded-full bg-muted p-1 text-xs">
-          {(["overview", "files", "diff", "logs", "settings"] as const).map((view) => (
+          {(["overview", "files", "diff", "settings"] as const).map((view) => (
             <button
               key={view}
               type="button"
@@ -179,30 +170,6 @@ export function ContextPanel({
               Select a changed file to inspect the diff.
             </div>
           )
-        ) : null}
-
-        {contextView === "logs" ? (
-          <div className="space-y-2">
-            {logs.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">No logs yet.</div>
-            ) : null}
-
-            {logs.map((log) => (
-              <div key={log.id} className="rounded-2xl border border-border bg-background/50 p-3">
-                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                  <span>{log.type}</span>
-                  <span>{formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}</span>
-                </div>
-
-                <div className="mt-2 text-sm">{log.summary || log.event.text || log.event.error || log.event.type}</div>
-
-                <details className="mt-3 text-xs text-muted-foreground">
-                  <summary className="cursor-pointer">Raw JSON</summary>
-                  <pre className="mt-2 overflow-x-auto rounded-xl bg-muted p-3 text-xs">{JSON.stringify(log.event, null, 2)}</pre>
-                </details>
-              </div>
-            ))}
-          </div>
         ) : null}
 
         {contextView === "settings" ? (

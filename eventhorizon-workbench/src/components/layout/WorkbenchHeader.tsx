@@ -1,17 +1,11 @@
-import { formatDistanceToNow } from "date-fns";
 import { Settings2 } from "lucide-react";
 import { ThemeToggle } from "@/theme/ThemeToggle";
-import type { AgentPhase, AgentRun } from "@/types";
 
 type WorkbenchHeaderProps = {
-  currentRun?: AgentRun;
-  phase: AgentPhase;
   onOpenSettings: () => void;
 };
 
-export function WorkbenchHeader({ currentRun, phase, onOpenSettings }: WorkbenchHeaderProps) {
-  const statusLabel = currentRun?.status ?? "idle";
-
+export function WorkbenchHeader({ onOpenSettings }: WorkbenchHeaderProps) {
   return (
     <header className="shrink-0 px-1 pb-3 pt-1">
       <div className="flex flex-wrap items-center justify-between gap-3">

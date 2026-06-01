@@ -8,7 +8,6 @@ import {
 } from "@/utils/configuration";
 import type {
   AppConfiguration,
-  DirectoryItem,
   McpServerConfig,
   ProviderEntry,
 } from "@/types";
@@ -26,7 +25,6 @@ type GlobalSettingsDialogProps = {
   isSavingConfiguration: boolean;
   isImportingSkill: boolean;
   skillImportPath: string;
-  skillImportTarget: "global" | "session";
   mcpTestResults: Record<number, string>;
   providerTestResults: Record<number, string>;
   testingProviderIndexes: Record<number, boolean>;
@@ -45,7 +43,6 @@ type GlobalSettingsDialogProps = {
   onMcpServerChange: (index: number, field: keyof McpServerConfig, value: string | boolean) => void;
   onTestMcpServer: (index: number) => Promise<void> | void;
   onSkillImportPathChange: (value: string) => void;
-  onSkillImportTargetChange: (target: "global" | "session") => void;
   onOpenSkillDirectoryPicker: () => Promise<void> | void;
   onImportSkill: () => Promise<void> | void;
   onRemoveGlobalSkill: (skillName: string) => Promise<void> | void;
@@ -63,7 +60,6 @@ export function GlobalSettingsDialog({
   isSavingConfiguration,
   isImportingSkill,
   skillImportPath,
-  skillImportTarget,
   mcpTestResults,
   providerTestResults,
   testingProviderIndexes,
@@ -82,7 +78,6 @@ export function GlobalSettingsDialog({
   onMcpServerChange,
   onTestMcpServer,
   onSkillImportPathChange,
-  onSkillImportTargetChange,
   onOpenSkillDirectoryPicker,
   onImportSkill,
   onRemoveGlobalSkill,

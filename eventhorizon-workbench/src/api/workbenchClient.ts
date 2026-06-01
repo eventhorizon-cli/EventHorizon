@@ -32,6 +32,7 @@ export function subscribeRunEvents(
     "textMessageContent",
     "textMessageEnd",
     "toolCallStart",
+    "toolCallArgs",
     "toolCallResult",
     "toolCallEnd",
     "toolCallFailed",

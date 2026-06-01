@@ -89,6 +89,24 @@ function logSummary(event: AgentEvent) {
   }
 
   if (event.toolCallName) {
+    if (event.type === "toolCallArgs") {
+      return `Tool: ${event.toolCallName} · arguments updated`;
+    }
+
+    if (event.type === "toolCallResult") {
+      return `Tool: ${event.toolCallName} · result received`;
+    }
+
+    if (event.type === "toolCallFailed") {
+      return `Tool: ${event.toolCallName} · failed`;
+    }
+
+    if (event.type === "toolCallEnd") {
+      return `Tool: ${event.toolCallName} · completed`;
+    }
+  }
+
+  if (event.toolCallName) {
     return `Tool: ${event.toolCallName}`;
   }
 

@@ -1,8 +1,14 @@
 import ReactMarkdown from "react-markdown";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Loader2, Play, Plus, Settings2, Square } from "lucide-react";
 import { ModifiedFilesCard } from "@/components/chat/ModifiedFilesCard";
 import { cn } from "@/utils/cn";
+import {
+  buildToolCallTimeline,
+  formatToolCallSignature,
+  getToolCallStatusIcon,
+  type ToolCallTimelineItem,
+} from "@/utils/toolCalls";
 import { formatDistanceToNow } from "date-fns";
 import type { AgentPhase, AgentRun, AgentSessionDetail, FileChange, LogItem } from "@/types";
 
@@ -11,7 +17,6 @@ type SessionPaneProps = {
   currentRun?: AgentRun;
   availableModels: string[];
   phase: AgentPhase;
-  logsCount: number;
   logs: LogItem[];
   changes: FileChange[];
   composerValue: string;
@@ -24,16 +29,84 @@ type SessionPaneProps = {
   onCancelRun: () => Promise<void> | void;
   onSelectModel: (model: string) => Promise<void> | void;
   onViewFiles: () => void;
-  onViewLogs: () => void;
   onOpenDiff: (change: FileChange) => Promise<void> | void;
 };
+
+function isNearBottom(element: HTMLElement) {
+  return element.scrollHeight - element.scrollTop - element.clientHeight < 96;
+}
+
+function ToolCallActivity({ toolCalls }: { toolCalls: ToolCallTimelineItem[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element || !shouldStickToBottomRef.current) {
+      return;
+    }
+
+    element.scrollTo({ top: element.scrollHeight, behavior: "auto" });
+  }, [toolCalls]);
+
+  if (toolCalls.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-border/70 bg-background/70 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Tool activity</div>
+          <div className="mt-1 text-sm font-medium">Function-style tool calls</div>
+        </div>
+        <div className="text-xs text-muted-foreground">{toolCalls.length} call(s)</div>
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={(event) => {
+          shouldStickToBottomRef.current = isNearBottom(event.currentTarget);
+        }}
+        className="mt-3 grid max-h-72 gap-3 overflow-y-auto pr-1"
+      >
+        {toolCalls.map((toolCall) => {
+          const signature = formatToolCallSignature(toolCall.name, toolCall.arguments);
+
+          return (
+            <div key={toolCall.id} className="rounded-2xl border border-border bg-card/90 px-3 py-2 shadow-sm">
+              <div className="flex items-start gap-2 font-mono text-sm leading-6 break-words text-foreground">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "shrink-0",
+                    toolCall.status === "failed"
+                      ? "text-red-600 dark:text-red-300"
+                      : toolCall.status === "completed"
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-primary",
+                  )}
+                >
+                  {getToolCallStatusIcon(toolCall.status)}
+                </span>
+                <span className="sr-only">{toolCall.status}</span>
+                <span className="min-w-0 break-all" title={signature}>
+                  {signature}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function SessionPane({
   currentSession,
   currentRun,
   availableModels,
   phase,
-  logsCount,
   logs,
   changes,
   composerValue,
@@ -46,17 +119,27 @@ export function SessionPane({
   onCancelRun,
   onSelectModel,
   onViewFiles,
-  onViewLogs,
   onOpenDiff,
 }: SessionPaneProps) {
   const hasActiveSession = !!currentSession;
   const hasConfiguredModels = availableModels.length > 0;
   const canSubmit = hasActiveSession && hasConfiguredModels && composerValue.trim().length > 0 && currentRun?.status !== "running";
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
+  const toolCalls = useMemo(() => buildToolCallTimeline(logs, currentRun?.id), [logs, currentRun?.id]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentSession?.messages, composerValue, logs.length]);
+    const element = messagesScrollRef.current;
+    if (!element || !shouldStickToBottomRef.current) {
+      return;
+    }
+
+    element.scrollTo({ top: element.scrollHeight, behavior: "auto" });
+  }, [currentSession?.messages, currentRun?.status, toolCalls.length]);
+
+  useEffect(() => {
+    shouldStickToBottomRef.current = true;
+  }, [currentSession?.id]);
 
   return (
     <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">
@@ -87,7 +170,13 @@ export function SessionPane({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+      <div
+        ref={messagesScrollRef}
+        onScroll={(event) => {
+          shouldStickToBottomRef.current = isNearBottom(event.currentTarget);
+        }}
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5"
+      >
         {!currentSession ? (
           <div className="flex h-full min-h-[360px] w-full items-center justify-center">
             <div className="w-full rounded-3xl border border-dashed border-border bg-card/80 p-8 text-center shadow-sm">
@@ -186,8 +275,6 @@ export function SessionPane({
                 )}
               </div>
             ))}
-            <div ref={messagesEndRef} />
-
             {currentRun?.status === "running" ? (
               <div className="w-full rounded-3xl border border-primary/20 bg-card p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-sm font-medium">
@@ -198,7 +285,6 @@ export function SessionPane({
                 <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
                   <div>• Current phase: {phase}</div>
                   <div>• Task: {currentRun.task}</div>
-                  <div>• Logs: {logsCount}</div>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -209,16 +295,11 @@ export function SessionPane({
                   >
                     View files
                   </button>
-                  <button
-                    type="button"
-                    onClick={onViewLogs}
-                    className="rounded-xl border border-border px-3 py-1.5 text-xs transition hover:bg-muted"
-                  >
-                    View logs
-                  </button>
                 </div>
               </div>
             ) : null}
+
+            {currentRun && toolCalls.length > 0 ? <ToolCallActivity toolCalls={toolCalls} /> : null}
 
             {currentRun && changes.length > 0 ? (
               <ModifiedFilesCard
