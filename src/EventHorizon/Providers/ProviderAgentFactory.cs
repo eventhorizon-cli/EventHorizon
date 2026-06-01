@@ -32,6 +32,16 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
         }
 
         var chatClient = _providerChatClientFactory.CreateChatClient(providerOptions);
+        if (skillsProvider is null)
+        {
+            return chatClient.AsAIAgent(
+                name: agentOptions.Name,
+                description: agentOptions.Description,
+                instructions: instructions,
+                tools: [.. tools],
+                services: services);
+        }
+
         var chatClientAgentOptions = new ChatClientAgentOptions
         {
             Name = agentOptions.Name,
@@ -41,12 +51,8 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
                 Instructions = instructions,
                 Tools = [.. tools],
             },
+            AIContextProviders = [skillsProvider],
         };
-
-        if (skillsProvider is not null)
-        {
-            chatClientAgentOptions.AIContextProviders = [skillsProvider];
-        }
 
         return chatClient.AsAIAgent(chatClientAgentOptions, services: services);
     }

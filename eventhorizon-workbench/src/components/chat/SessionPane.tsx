@@ -1,8 +1,14 @@
 import ReactMarkdown from "react-markdown";
-import { useEffect, useRef } from "react";
-import { Loader2, Play, Square } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { Loader2, Play, Plus, Settings2, Square } from "lucide-react";
 import { ModifiedFilesCard } from "@/components/chat/ModifiedFilesCard";
 import { cn } from "@/utils/cn";
+import {
+  buildToolCallTimeline,
+  formatToolCallSignature,
+  getToolCallStatusIcon,
+  type ToolCallTimelineItem,
+} from "@/utils/toolCalls";
 import { formatDistanceToNow } from "date-fns";
 import type { AgentPhase, AgentRun, AgentSessionDetail, FileChange, LogItem } from "@/types";
 
@@ -11,7 +17,6 @@ type SessionPaneProps = {
   currentRun?: AgentRun;
   availableModels: string[];
   phase: AgentPhase;
-  logsCount: number;
   logs: LogItem[];
   changes: FileChange[];
   composerValue: string;
@@ -19,19 +24,88 @@ type SessionPaneProps = {
   isUpdatingSession: boolean;
   onComposerChange: (value: string) => void;
   onComposerSubmit: () => Promise<void> | void;
+  onNewChat: () => void;
+  onOpenSettings: () => void;
   onCancelRun: () => Promise<void> | void;
   onSelectModel: (model: string) => Promise<void> | void;
   onViewFiles: () => void;
-  onViewLogs: () => void;
   onOpenDiff: (change: FileChange) => Promise<void> | void;
 };
+
+function isNearBottom(element: HTMLElement) {
+  return element.scrollHeight - element.scrollTop - element.clientHeight < 96;
+}
+
+function ToolCallActivity({ toolCalls }: { toolCalls: ToolCallTimelineItem[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element || !shouldStickToBottomRef.current) {
+      return;
+    }
+
+    element.scrollTo({ top: element.scrollHeight, behavior: "auto" });
+  }, [toolCalls]);
+
+  if (toolCalls.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-border/70 bg-background/70 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Tool activity</div>
+        </div>
+        <div className="text-xs text-muted-foreground">{toolCalls.length} call(s)</div>
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={(event) => {
+          shouldStickToBottomRef.current = isNearBottom(event.currentTarget);
+        }}
+        className="mt-3 grid max-h-72 gap-3 overflow-y-auto pr-1"
+      >
+        {toolCalls.map((toolCall) => {
+          const signature = formatToolCallSignature(toolCall.name, toolCall.arguments);
+
+          return (
+            <div key={toolCall.id} className="rounded-2xl border border-border bg-card/90 px-3 py-2 shadow-sm">
+              <div className="flex items-start gap-2 font-mono text-sm leading-6 break-words text-foreground">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "shrink-0",
+                    toolCall.status === "failed"
+                      ? "text-red-600 dark:text-red-300"
+                      : toolCall.status === "completed"
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-primary",
+                  )}
+                >
+                  {getToolCallStatusIcon(toolCall.status)}
+                </span>
+                <span className="sr-only">{toolCall.status}</span>
+                <span className="min-w-0 break-all" title={signature}>
+                  {signature}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function SessionPane({
   currentSession,
   currentRun,
   availableModels,
   phase,
-  logsCount,
   logs,
   changes,
   composerValue,
@@ -39,18 +113,32 @@ export function SessionPane({
   isUpdatingSession,
   onComposerChange,
   onComposerSubmit,
+  onNewChat,
+  onOpenSettings,
   onCancelRun,
   onSelectModel,
   onViewFiles,
-  onViewLogs,
   onOpenDiff,
 }: SessionPaneProps) {
-  const canSubmit = composerValue.trim().length > 0 && currentRun?.status !== "running";
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasActiveSession = !!currentSession;
+  const hasConfiguredModels = availableModels.length > 0;
+  const canSubmit = hasActiveSession && hasConfiguredModels && composerValue.trim().length > 0 && currentRun?.status !== "running";
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
+  const toolCalls = useMemo(() => buildToolCallTimeline(logs, currentRun?.id), [logs, currentRun?.id]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentSession?.messages, composerValue, logs.length]);
+    const element = messagesScrollRef.current;
+    if (!element || !shouldStickToBottomRef.current) {
+      return;
+    }
+
+    element.scrollTo({ top: element.scrollHeight, behavior: "auto" });
+  }, [currentSession?.messages, currentRun?.status, toolCalls.length]);
+
+  useEffect(() => {
+    shouldStickToBottomRef.current = true;
+  }, [currentSession?.id]);
 
   return (
     <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">
@@ -81,8 +169,66 @@ export function SessionPane({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-        {!currentSession?.messages.length ? (
+      <div
+        ref={messagesScrollRef}
+        onScroll={(event) => {
+          shouldStickToBottomRef.current = isNearBottom(event.currentTarget);
+        }}
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5"
+      >
+        {!currentSession ? (
+          <div className="flex h-full min-h-[360px] w-full items-center justify-center">
+            <div className="w-full rounded-3xl border border-dashed border-border bg-card/80 p-8 text-center shadow-sm">
+              <h1 className="text-2xl font-semibold">Create a session before running tasks</h1>
+              <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+                Pick a workspace directory to start a dedicated session. After that, you can run prompts, inspect changes,
+                and keep the conversation history organized.
+              </p>
+
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={onNewChat}
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+                >
+                  <Plus className="h-4 w-4" />
+                  New Session
+                </button>
+              </div>
+
+              <div className="mx-auto mt-6 grid max-w-3xl gap-2 text-left text-sm text-muted-foreground sm:grid-cols-2">
+                <div className="rounded-2xl bg-muted/60 p-3">Choose the workspace you want the agent to work on.</div>
+                <div className="rounded-2xl bg-muted/60 p-3">Keep each task history grouped inside its own session.</div>
+              </div>
+            </div>
+          </div>
+        ) : !hasConfiguredModels ? (
+          <div className="flex h-full min-h-[360px] w-full items-center justify-center">
+            <div className="w-full rounded-3xl border border-dashed border-border bg-card/80 p-8 text-center shadow-sm">
+              <h1 className="text-2xl font-semibold">Configure a model before running tasks</h1>
+              <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+                This session does not have any available models right now. Add or configure a provider model in Settings,
+                then come back to continue chatting with the agent.
+              </p>
+
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={onOpenSettings}
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+                >
+                  <Settings2 className="h-4 w-4" />
+                  Open Settings
+                </button>
+              </div>
+
+              <div className="mx-auto mt-6 grid max-w-3xl gap-2 text-left text-sm text-muted-foreground sm:grid-cols-2">
+                <div className="rounded-2xl bg-muted/60 p-3">Add at least one provider model in the Providers settings.</div>
+                <div className="rounded-2xl bg-muted/60 p-3">Once a model is available, Run will be enabled automatically.</div>
+              </div>
+            </div>
+          </div>
+        ) : !currentSession.messages.length ? (
           <div className="flex h-full min-h-[360px] w-full items-center justify-center">
             <div className="w-full rounded-3xl border border-dashed border-border bg-card/80 p-8 text-center shadow-sm">
               <h1 className="text-2xl font-semibold">Event Horizon Workbench</h1>
@@ -128,8 +274,6 @@ export function SessionPane({
                 )}
               </div>
             ))}
-            <div ref={messagesEndRef} />
-
             {currentRun?.status === "running" ? (
               <div className="w-full rounded-3xl border border-primary/20 bg-card p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-sm font-medium">
@@ -140,7 +284,6 @@ export function SessionPane({
                 <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
                   <div>• Current phase: {phase}</div>
                   <div>• Task: {currentRun.task}</div>
-                  <div>• Logs: {logsCount}</div>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -151,16 +294,11 @@ export function SessionPane({
                   >
                     View files
                   </button>
-                  <button
-                    type="button"
-                    onClick={onViewLogs}
-                    className="rounded-xl border border-border px-3 py-1.5 text-xs transition hover:bg-muted"
-                  >
-                    View logs
-                  </button>
                 </div>
               </div>
             ) : null}
+
+            {currentRun && toolCalls.length > 0 ? <ToolCallActivity toolCalls={toolCalls} /> : null}
 
             {currentRun && changes.length > 0 ? (
               <ModifiedFilesCard
@@ -184,7 +322,12 @@ export function SessionPane({
           <textarea
             value={composerValue}
             onChange={(event) => onComposerChange(event.target.value)}
+            disabled={!hasActiveSession || !hasConfiguredModels}
             onKeyDown={(event) => {
+              if (!hasActiveSession || !hasConfiguredModels) {
+                return;
+              }
+
               if (event.nativeEvent.isComposing || event.key !== "Enter" || event.altKey) {
                 return;
               }
@@ -192,14 +335,27 @@ export function SessionPane({
               event.preventDefault();
               void onComposerSubmit();
             }}
-            placeholder="Ask the agent to change, explain, test, or refactor your code..."
-            className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-muted-foreground"
+            placeholder={
+              !hasActiveSession
+                ? "Create a new session to start chatting with the agent..."
+                : !hasConfiguredModels
+                  ? "Configure a model in Settings to enable Run..."
+                  : "Ask the agent to change, explain, test, or refactor your code..."
+            }
+            className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
           />
 
           <div className="mt-3 flex items-center justify-between gap-3">
-            <div className="text-xs text-muted-foreground">Enter to send · Alt + Enter for newline</div>
+            <div className="text-xs text-muted-foreground">
+              {!hasActiveSession
+                ? "Create a session first to enable Run"
+                : !hasConfiguredModels
+                  ? "Configure a model first to enable Run"
+                  : "Enter to send · Alt + Enter for newline"}
+            </div>
 
             <div className="flex items-center gap-2">
+
               {currentRun?.status === "running" ? (
                 <button
                   type="button"

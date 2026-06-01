@@ -40,12 +40,6 @@ public sealed class SessionUsageTracker : ISessionUsageTracker
 
     public UsageCost LastTurnCost { get; private set; }
 
-    public void InitializeModelName()
-    {
-        if (_runtime is not null)
-            _modelName = _runtime.ModelName;
-    }
-
     public void StartTurn()
     {
         LastTurnUsage = new UsageDetails();

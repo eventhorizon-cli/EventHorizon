@@ -5,13 +5,8 @@ using EventHorizon.Pricing;
 using EventHorizon.Prompting;
 using EventHorizon.Providers;
 using EventHorizon.Workspace;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 
@@ -25,7 +20,7 @@ public static class Program
         host.Run();
     }
 
-    internal static IHost BuildHost(string[] args, IPathEnvironment pathEnvironment)
+    private static IHost BuildHost(string[] args, IPathEnvironment pathEnvironment)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Configuration.AddEventHorizonFiles(pathEnvironment);
@@ -81,7 +76,8 @@ public static class Program
         app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = fileProvider });
         app.UseStaticFiles(new StaticFileOptions
         {
-            FileProvider = fileProvider, ContentTypeProvider = new FileExtensionContentTypeProvider(),
+            FileProvider = fileProvider,
+            ContentTypeProvider = new FileExtensionContentTypeProvider(),
         });
 
         app.MapControllers();

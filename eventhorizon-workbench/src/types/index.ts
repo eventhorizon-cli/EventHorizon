@@ -2,7 +2,7 @@ export type RunStatus = "idle" | "running" | "completed" | "failed" | "cancelled
 export type SessionStatus = RunStatus;
 export type ThemeMode = "light" | "dark" | "system";
 export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "disconnected";
-export type ContextView = "overview" | "files" | "diff" | "logs" | "settings";
+export type ContextView = "overview" | "files" | "diff" | "settings";
 export type AgentPhase = "idle" | "understanding" | "inspecting" | "planning" | "editing" | "validating" | "summarizing" | "completed" | "failed" | "cancelled";
 export type FileChangeStatus = "added" | "modified" | "deleted" | "renamed";
 export type ProviderType = "openai" | "openai-compatible" | "azure-openai" | "anthropic" | "gemini";
@@ -35,15 +35,14 @@ export type ProviderEntry = {
 };
 
 export type McpServerConfig = {
-  name?: string;
-  command?: string;
-  arguments: string[];
-  url?: string;
-  environmentVariables: Record<string, string>;
   enabled: boolean;
+  name?: string;
+  url: string;
+  headers: Record<string, string>;
 };
 
 export type ImportedSkill = {
+  enabled: boolean;
   name: string;
   path: string;
   description?: string;
@@ -136,6 +135,14 @@ export type ReasoningSummary = {
   decisions: string[];
 };
 
+export type ToolCallDescriptor = {
+  id: string;
+  name: string;
+  arguments?: string | null;
+  status: string;
+  result?: string | null;
+};
+
 export type SessionModelSelection = {
   sessionId: string;
   providerName?: string;
@@ -160,7 +167,7 @@ export type AgentEvent = {
   text?: string;
   error?: string;
   message?: unknown;
-  toolCall?: unknown;
+  toolCall?: ToolCallDescriptor | unknown;
   result?: unknown;
   artifact?: unknown;
   summary?: ReasoningSummary;

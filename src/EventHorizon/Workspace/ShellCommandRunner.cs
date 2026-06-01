@@ -8,7 +8,7 @@ public sealed class ShellCommandRunner
 {
     public async Task<ShellCommandResult> RunAsync(string command, string workingDirectory, int timeoutSeconds, CancellationToken cancellationToken)
     {
-        (var fileName, var arguments) = GetShellInvocation(command);
+        var (fileName, arguments) = GetShellInvocation(command);
 
         using Process process = new();
         process.StartInfo = new ProcessStartInfo
@@ -49,6 +49,7 @@ public sealed class ShellCommandRunner
             }
             catch
             {
+                // ignored
             }
 
             return new ShellCommandResult(-1, stdout.ToString().TrimEnd(), stderr.ToString().TrimEnd(), true);

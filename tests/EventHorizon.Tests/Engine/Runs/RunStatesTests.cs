@@ -203,7 +203,7 @@ public sealed class RunStatesTests
 
         // Assert
         Assert.Equal(state1, state2);
-        Assert.True(string.Equals(state1, state2, StringComparison.Ordinal));
+        Assert.Equal(state2, state1);
     }
 
     [Fact]
@@ -285,7 +285,7 @@ public sealed class RunStatesTests
 
         // Act & Assert
         Assert.True(status == RunStates.Idle);
-        Assert.True(string.Equals(status, RunStates.Idle, StringComparison.Ordinal));
+        Assert.Equal(RunStates.Idle, status);
     }
 
     [Fact]
@@ -309,7 +309,7 @@ public sealed class RunStatesTests
         var nonRunningStatus = RunStates.Completed;
 
         // Act & Assert
-        Assert.True(string.Equals(runningStatus, RunStates.Running, StringComparison.Ordinal));
+        Assert.Equal(RunStates.Running, runningStatus);
         Assert.False(string.Equals(nonRunningStatus, RunStates.Running, StringComparison.Ordinal));
     }
 

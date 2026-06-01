@@ -2,7 +2,6 @@ using EventHorizon.Tests.Fixtures;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
 using EventHorizon.Workspace.Diff;
-using Microsoft.Extensions.AI;
 
 namespace EventHorizon.Tests.Tools;
 
@@ -34,35 +33,12 @@ public sealed class WorkspaceToolTests : IDisposable
         await File.WriteAllTextAsync(filePath, "line1\nline2\nline3\n");
 
         // Use simpler file editing approach
-        var originalContent = await File.ReadAllTextAsync(filePath);
-        var newContent = originalContent.Replace("line1", "modified_line1");
-
         // Act
-        var result = _workspaceService.InsertEditIntoFile(filePath, "line1", "modified_line1");
+        _workspaceService.InsertEditIntoFile(filePath, "line1", "modified_line1");
         var content = await File.ReadAllTextAsync(filePath);
 
         // Assert
         Assert.Contains("modified_line1", content);
-    }
-
-    [Fact]
-    public void AskQuestions_Should_Return_Formatted_Questions()
-    {
-        // Arrange
-        var questions = new[]
-        {
-            new AskQuestionDefinition("Q1", "What is your name?", Options:
-                [new AskQuestionOption("John"), new AskQuestionOption("Jane")]),
-            new AskQuestionDefinition("Q2", "Select an option", MultiSelect: true, Options:
-                [new AskQuestionOption("option1"), new AskQuestionOption("option2")])
-        };
-
-        // Act
-        var result = _workspaceService.AskQuestions(questions);
-
-        // Assert
-        Assert.Contains("Q1", result);
-        Assert.Contains("What is your name?", result);
     }
 
     [Fact]
@@ -148,7 +124,7 @@ public sealed class WorkspaceToolTests : IDisposable
         await File.WriteAllTextAsync(filePath, "Hello Universe\nGoodbye World\n");
 
         // Act
-        var result = _workspaceService.InsertEditIntoFile(filePath, "Universe", "Galaxy");
+        _workspaceService.InsertEditIntoFile(filePath, "Universe", "Galaxy");
 
         // Assert
         var content = await File.ReadAllTextAsync(filePath);
@@ -234,20 +210,6 @@ public sealed class WorkspaceToolTests : IDisposable
     }
 
     [Fact]
-    public void RunSubagent_Should_Return_Subagent_Response()
-    {
-        // Arrange
-        var task = "Find C# files";
-        var agentName = "Search";
-
-        // Act
-        var result = _workspaceService.RunSubagent(task, agentName);
-
-        // Assert
-        Assert.NotEmpty(result);
-    }
-
-    [Fact]
     public async Task SemanticSearch_Should_Return_Ranked_Results()
     {
         // Arrange
@@ -271,7 +233,7 @@ public sealed class WorkspaceToolTests : IDisposable
         var ecosystem = "npm";
 
         // Act
-        var result = await _workspaceService.ValidateCvesAsync(dependencies, ecosystem, CancellationToken.None);
+        var result = await _workspaceService.ValidateCvesAsync(dependencies, ecosystem);
 
         // Assert
         Assert.NotNull(result);
@@ -285,7 +247,7 @@ public sealed class WorkspaceToolTests : IDisposable
         await File.WriteAllTextAsync(filePath, "public class Test { }");
 
         // Act
-        var result = await _workspaceService.GetErrorsAsync([filePath], CancellationToken.None);
+        var result = await _workspaceService.GetErrorsAsync([filePath]);
 
         // Assert
         // Should not throw, result can be empty if no errors
@@ -299,10 +261,11 @@ public sealed class WorkspaceToolTests : IDisposable
         var command = "echo 'Hello Terminal'";
 
         // Act
-        var result = await _workspaceService.RunInTerminalAsync(command, "Test command", isBackground: false, CancellationToken.None);
+        var result = await _workspaceService.RunInTerminalAsync(command, isBackground: false);
 
         // Assert
         Assert.Contains("Hello Terminal", result);
+        Assert.DoesNotContain("Explanation:", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -312,7 +275,7 @@ public sealed class WorkspaceToolTests : IDisposable
         var command = "sleep 10";
 
         // Act
-        var result = await _workspaceService.RunInTerminalAsync(command, "Background test", isBackground: true, CancellationToken.None);
+        var result = await _workspaceService.RunInTerminalAsync(command, isBackground: true);
 
         // Assert
         Assert.Contains("Background", result, StringComparison.OrdinalIgnoreCase);
@@ -325,7 +288,7 @@ public sealed class WorkspaceToolTests : IDisposable
         var command = "echo 'test'";
 
         // Act
-        var result = await _workspaceService.RunInTerminalAsync(command, "Test", isBackground: true, CancellationToken.None);
+        var result = await _workspaceService.RunInTerminalAsync(command, isBackground: true);
 
         // Extract session ID from result (format: "Started background terminal session.\nId: xxx\n...")
         var lines = result.Split('\n');
@@ -357,7 +320,6 @@ public sealed class WorkspaceToolTests : IDisposable
         // Assert
         var toolNames = tools.Select(t => t.Name).ToList();
         Assert.Contains("apply_patch", toolNames);
-        Assert.Contains("ask_questions", toolNames);
         Assert.Contains("create_file", toolNames);
         Assert.Contains("file_search", toolNames);
         Assert.Contains("grep_search", toolNames);
@@ -365,7 +327,6 @@ public sealed class WorkspaceToolTests : IDisposable
         Assert.Contains("list_dir", toolNames);
         Assert.Contains("open_file", toolNames);
         Assert.Contains("read_file", toolNames);
-        Assert.Contains("run_subagent", toolNames);
         Assert.Contains("semantic_search", toolNames);
         Assert.Contains("validate_cves", toolNames);
         Assert.Contains("get_errors", toolNames);
@@ -395,7 +356,6 @@ public sealed class WorkspaceToolTests : IDisposable
         // Assert - verify each tool has an AI function
         foreach (var tool in tools)
         {
-            Assert.NotNull(tool.Tool);
             Assert.NotEmpty(tool.Name);
             Assert.NotEmpty(tool.Description);
         }

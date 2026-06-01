@@ -198,6 +198,7 @@ internal sealed class SkillService : ISkillService
         CopyDirectory(sourcePath, targetPath);
         var skill = new ImportedSkillOptions
         {
+            Enabled = true,
             Name = skillName,
             Path = targetPath,
             Description = ExtractDescription(Path.Combine(targetPath, "SKILL.md")),

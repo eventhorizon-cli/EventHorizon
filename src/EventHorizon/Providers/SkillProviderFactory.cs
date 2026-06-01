@@ -51,14 +51,24 @@ internal sealed class SkillProviderFactory : ISkillProviderFactory
     {
         var skillsOptions = _skillsOptionsMonitor.CurrentValue;
 
-        if (!string.IsNullOrWhiteSpace(skillsOptions.StoragePath))
+        foreach (var path in GetEnabledSkillDirectories(skillsOptions))
         {
-            yield return Path.GetFullPath(skillsOptions.StoragePath);
+            yield return path;
         }
 
-        if (!string.IsNullOrWhiteSpace(sessionDocument?.SessionSkills.StoragePath))
+        if (sessionDocument is null)
         {
-            yield return Path.GetFullPath(sessionDocument.SessionSkills.StoragePath);
+            yield break;
+        }
+
+        foreach (var path in GetEnabledSkillDirectories(sessionDocument.SessionSkills))
+        {
+            yield return path;
         }
     }
+
+    private static IEnumerable<string> GetEnabledSkillDirectories(SkillsOptions options)
+        => options.Imported
+            .Where(static skill => skill.Enabled && !string.IsNullOrWhiteSpace(skill.Path))
+            .Select(static skill => Path.GetFullPath(skill.Path));
 }

@@ -42,6 +42,7 @@ public sealed class UserSkillsFileService : IUserSkillsFileService
                     options.Imported
                         .Select(static item => new ImportedSkillOptions
                         {
+                            Enabled = item.Enabled,
                             Name = item.Name,
                             Path = item.Path,
                             Description = item.Description,

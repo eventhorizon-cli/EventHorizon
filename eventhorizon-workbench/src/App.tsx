@@ -2,6 +2,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { SessionPane } from "@/components/chat/SessionPane";
 import { ContextPanel } from "@/components/context/ContextPanel";
 import { DirectoryPickerDialog } from "@/components/dialogs/DirectoryPickerDialog";
+import { DiffDialog } from "@/components/diff/DiffDialog";
 import { SessionsSidebar } from "@/components/layout/SessionsSidebar";
 import { WorkbenchHeader } from "@/components/layout/WorkbenchHeader";
 import { GlobalSettingsDialog } from "@/components/settings/GlobalSettingsDialog";
@@ -12,7 +13,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-muted/40 p-3 text-foreground">
-      <WorkbenchHeader currentRun={app.currentRun} phase={app.phase} onOpenSettings={app.openSettings} />
+      <WorkbenchHeader onOpenSettings={app.openSettings} />
 
       <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
         <SessionsSidebar
@@ -34,7 +35,6 @@ export default function App() {
               currentRun={app.currentRun}
               availableModels={app.availableModels}
               phase={app.phase}
-              logsCount={app.logs.length}
               logs={app.logs}
               changes={app.changes}
               composerValue={app.composerValue}
@@ -42,10 +42,11 @@ export default function App() {
               isUpdatingSession={app.isUpdatingSession}
               onComposerChange={app.setComposerValue}
               onComposerSubmit={app.handleSubmit}
+              onNewChat={app.handleNewChat}
+              onOpenSettings={app.openSettings}
               onCancelRun={app.handleCancel}
               onSelectModel={app.handleSessionModelChange}
               onViewFiles={app.handleViewFiles}
-              onViewLogs={() => app.setContextView("logs")}
               onOpenDiff={app.openDiff}
             />
           </Panel>
@@ -69,7 +70,6 @@ export default function App() {
               isImportingSkill={app.isImportingSkill}
               sessionTitleInput={app.sessionTitleInput}
               skillImportPath={app.skillImportPath}
-              skillImportTarget={app.skillImportTarget}
               selectedProviderName={app.selectedProviderName}
               selectedProviderType={app.selectedProvider?.provider.type}
               availableModels={app.availableModels}
@@ -77,14 +77,10 @@ export default function App() {
               selectedProviderDefaultModel={app.selectedProviderDefaultModel}
               changes={app.changes}
               selectedFile={app.selectedFile}
-              currentDiff={app.currentDiff}
-              logs={app.logs}
               phase={app.phase}
-              resolvedTheme={app.resolvedTheme === "dark" ? "dark" : "light"}
               onContextViewChange={app.setContextView}
               onSessionTitleInputChange={app.setSessionTitleInput}
               onSkillImportPathChange={app.setSkillImportPath}
-              onSkillImportTargetChange={app.setSkillImportTarget}
               onSaveSessionTitle={app.handleSessionTitleSave}
               onDeleteSession={app.handleDeleteCurrentSession}
               onChangeSessionProvider={app.handleSessionProviderChange}
@@ -100,6 +96,20 @@ export default function App() {
           </Panel>
         </PanelGroup>
       </div>
+
+      <DiffDialog
+        open={app.showDiffDialog}
+        changes={app.changes}
+        selectedFile={app.selectedFile}
+        currentDiff={app.currentDiff}
+        loading={app.isDiffLoading}
+        error={app.diffError}
+        theme={app.resolvedTheme === "dark" ? "dark" : "light"}
+        onClose={app.closeDiffDialog}
+        onSelectChange={app.openDiff}
+        onOpenPrevious={app.openPreviousDiff}
+        onOpenNext={app.openNextDiff}
+      />
 
       <DirectoryPickerDialog
         open={app.workspaceDirectoryPicker.open}
@@ -149,7 +159,6 @@ export default function App() {
         isSavingConfiguration={app.isSavingConfiguration}
         isImportingSkill={app.isImportingSkill}
         skillImportPath={app.skillImportPath}
-        skillImportTarget={app.skillImportTarget}
         mcpTestResults={app.mcpTestResults}
         providerTestResults={app.providerTestResults}
         testingProviderIndexes={app.testingProviderIndexes}
@@ -167,8 +176,8 @@ export default function App() {
         onRemoveMcpServer={app.handleRemoveMcpServer}
         onMcpServerChange={app.handleMcpServerChange}
         onTestMcpServer={app.handleTestMcpServer}
+        onGlobalSkillChange={app.handleGlobalSkillChange}
         onSkillImportPathChange={app.setSkillImportPath}
-        onSkillImportTargetChange={app.setSkillImportTarget}
         onOpenSkillDirectoryPicker={() => {
           app.setSkillImportTarget("global");
           return app.skillDirectoryPicker.openPicker(app.skillImportPath.trim() || app.currentSession?.workspaceRoot);

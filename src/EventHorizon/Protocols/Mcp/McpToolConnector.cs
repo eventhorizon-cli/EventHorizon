@@ -10,13 +10,24 @@ public sealed class McpToolConnector
         List<AITool> tools = [];
         List<IAsyncDisposable> resources = [];
 
-        foreach (var server in servers.Where(static s => s.Enabled))
+        foreach (var server in servers)
         {
-            var client = await McpClient.CreateAsync(new StdioClientTransport(new()
+            if (string.IsNullOrWhiteSpace(server.Url))
             {
-                Name = string.IsNullOrWhiteSpace(server.Name) ? server.Command : server.Name,
-                Command = server.Command,
-                Arguments = [.. server.Arguments],
+                throw new InvalidOperationException($"MCP server '{server.Name}' is missing a URL.");
+            }
+
+            if (!Uri.TryCreate(server.Url, UriKind.Absolute, out var endpoint) ||
+                (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new InvalidOperationException($"MCP server '{server.Name}' has an invalid HTTP URL: {server.Url}");
+            }
+
+            var client = await McpClient.CreateAsync(new HttpClientTransport(new HttpClientTransportOptions
+            {
+                Name = string.IsNullOrWhiteSpace(server.Name) ? endpoint.Host : server.Name,
+                Endpoint = endpoint,
+                AdditionalHeaders = new Dictionary<string, string>(server.Headers, StringComparer.OrdinalIgnoreCase),
             }), cancellationToken: cancellationToken).ConfigureAwait(false);
 
             resources.Add(client);
@@ -26,4 +37,3 @@ public sealed class McpToolConnector
         return (tools, resources);
     }
 }
-

@@ -78,11 +78,9 @@ public sealed class UserMcpFileService : IUserMcpFileService
     private static McpServerOptions CloneMcpServer(McpServerOptions server)
         => new()
         {
-            Name = server.Name,
-            Command = server.Command,
-            Arguments = [.. server.Arguments],
-            Url = server.Url,
-            EnvironmentVariables = new Dictionary<string, string>(server.EnvironmentVariables, StringComparer.OrdinalIgnoreCase),
             Enabled = server.Enabled,
+            Name = server.Name,
+            Url = server.Url,
+            Headers = new Dictionary<string, string>(server.Headers, StringComparer.OrdinalIgnoreCase),
         };
 }

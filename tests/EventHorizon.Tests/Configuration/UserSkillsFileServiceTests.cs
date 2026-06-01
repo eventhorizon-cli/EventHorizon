@@ -85,6 +85,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
             [
                 new ImportedSkillOptions
                 {
+                    Enabled = true,
                     Name = "test-skill",
                     Path = Path.Combine(skillsPath, "test-skill"),
                     Description = "A test skill",
@@ -144,6 +145,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
             [
                 new ImportedSkillOptions
                 {
+                    Enabled = false,
                     Name = "advanced-skill",
                     Path = skillPath,
                     Description = "An advanced skill with features",
@@ -159,6 +161,8 @@ public sealed class UserSkillsFileServiceTests : IDisposable
         var content = File.ReadAllText(service.FilePath);
         Assert.Contains("advanced-skill", content);
         Assert.Contains("An advanced skill with features", content);
+        Assert.Contains("Enabled", content);
+        Assert.Contains("false", content);
     }
 
     [Fact]
@@ -177,6 +181,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
             [
                 new ImportedSkillOptions
                 {
+                    Enabled = true,
                     Name = "skill1",
                     Path = Path.Combine(skillsPath, "skill1"),
                     Description = "First skill",
@@ -184,6 +189,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
                 },
                 new ImportedSkillOptions
                 {
+                    Enabled = false,
                     Name = "skill2",
                     Path = Path.Combine(skillsPath, "skill2"),
                     Description = "Second skill",
@@ -191,6 +197,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
                 },
                 new ImportedSkillOptions
                 {
+                    Enabled = true,
                     Name = "skill3",
                     Path = Path.Combine(skillsPath, "skill3"),
                     Description = "Third skill",
@@ -241,6 +248,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
             [
                 new ImportedSkillOptions
                 {
+                    Enabled = true,
                     Name = "old-skill",
                     Path = Path.Combine(skillsPath, "old-skill"),
                     Description = "Old",
@@ -256,6 +264,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
             [
                 new ImportedSkillOptions
                 {
+                    Enabled = false,
                     Name = "new-skill",
                     Path = Path.Combine(skillsPath, "new-skill"),
                     Description = "New",
@@ -286,6 +295,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
             [
                 new ImportedSkillOptions
                 {
+                    Enabled = true,
                     Name = "alpha",
                     Path = Path.Combine(skillsPath, "alpha"),
                     Description = "First",
@@ -293,6 +303,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
                 },
                 new ImportedSkillOptions
                 {
+                    Enabled = false,
                     Name = "beta",
                     Path = Path.Combine(skillsPath, "beta"),
                     Description = "Second",
@@ -300,6 +311,7 @@ public sealed class UserSkillsFileServiceTests : IDisposable
                 },
                 new ImportedSkillOptions
                 {
+                    Enabled = true,
                     Name = "gamma",
                     Path = Path.Combine(skillsPath, "gamma"),
                     Description = "Third",

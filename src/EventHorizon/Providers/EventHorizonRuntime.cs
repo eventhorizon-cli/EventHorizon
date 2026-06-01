@@ -43,44 +43,17 @@ public sealed class EventHorizonRuntime : IEventHorizonRuntime
         _mcpOptionsMonitor = mcpOptionsMonitor;
     }
 
-    public string ModelName
-    {
-        get
-        {
-            var provider = _providerResolutionService.TryResolveDefault()?.Provider;
-            if (provider is null)
-            {
-                return string.Empty;
-            }
-
-            return string.Equals(provider.Type, "azure-openai", StringComparison.OrdinalIgnoreCase)
-                ? provider.Deployment ?? provider.Model ?? string.Empty
-                : provider.Model ?? string.Empty;
-        }
-    }
-
-    public async ValueTask<SessionContextSnapshot> GetContextSnapshotAsync(CancellationToken cancellationToken = default)
-        => await _sessionContextBuilder.BuildAsync(cancellationToken).ConfigureAwait(false);
-
     public async ValueTask<string> GetInstructionsAsync(CancellationToken cancellationToken = default)
     {
         var agentOptions = _agentOptionsMonitor.CurrentValue;
         var context = await _sessionContextBuilder.BuildAsync(cancellationToken).ConfigureAwait(false);
-        var toolCatalog = _toolCatalogFactory.Create(_workspaceService);
-        return _systemPromptFactory.Build(agentOptions, context, toolCatalog);
-    }
-
-    public IReadOnlyList<ToolDescriptor> GetToolCatalog(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return _toolCatalogFactory.Create(_workspaceService);
+        return _systemPromptFactory.Build(agentOptions, context);
     }
 
     public async ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default)
     {
         var agentOptions = _agentOptionsMonitor.CurrentValue;
-        var toolCatalog = _toolCatalogFactory.Create(_workspaceService);
-        var tools = new List<AITool>(toolCatalog.Select(static d => d.Tool));
+        var tools = new List<AITool>(_toolCatalogFactory.Create(_workspaceService));
 
         if (agentOptions.EnableMcpTools)
         {
@@ -129,7 +102,9 @@ public sealed class EventHorizonRuntime : IEventHorizonRuntime
             }
 
             var (tools, resources) = await _mcpToolConnector
-                .ConnectAsync(_mcpOptionsMonitor.CurrentValue.Servers, cancellationToken)
+                .ConnectAsync(
+                    [.. _mcpOptionsMonitor.CurrentValue.Servers.Where(static server => server.Enabled)],
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             _mcpTools = tools;

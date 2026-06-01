@@ -22,8 +22,7 @@ import {
   isProviderFieldVisible,
   normalizeOptionalText,
 } from "@/utils/configuration";
-import { buildTemporarySessionTitle } from "@/utils/sessionTitle";
-import type { AgentEvent, AgentRun, AgentSessionDetail, AppConfiguration, FileChange, McpServerConfig, ProviderEntry, ProviderType, SkillImportResult } from "@/types";
+import type { AgentEvent, AgentRun, AppConfiguration, FileChange, FileDiff, ImportedSkill, McpServerConfig, ProviderEntry, ProviderType, SkillImportResult } from "@/types";
 
 const leftPaneKey = "event-horizon-workbench-left-pane-collapsed";
 const compactLayoutQuery = "(max-width: 1180px)";
@@ -48,21 +47,6 @@ function mapPhase(event: AgentEvent) {
     default:
       return undefined;
   }
-}
-
-function createDraftSession(task: string): AgentSessionDetail {
-  const id = `draft_${crypto.randomUUID()}`;
-
-  return {
-    id,
-    title: buildTemporarySessionTitle(task),
-    status: "idle",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    isTitleGenerated: false,
-    messages: [],
-    sessionSkills: { imported: [] },
-  };
 }
 
 function formatError(error: unknown) {
@@ -137,19 +121,54 @@ export function useWorkbenchApp() {
   const [isUpdatingSession, setIsUpdatingSession] = useState(false);
   const [sessionTitleInput, setSessionTitleInput] = useState("");
   const [showGlobalSettingsDialog, setShowGlobalSettingsDialog] = useState(false);
+  const [showDiffDialog, setShowDiffDialog] = useState(false);
+  const [diffLoadingPath, setDiffLoadingPath] = useState<string>();
+  const [diffError, setDiffError] = useState<string>();
 
   const eventSubscriptionRef = useRef<(() => void) | null>(null);
   const didAutoOpenInitialSessionRef = useRef(false);
+  const diffCacheRef = useRef<Record<string, FileDiff>>({});
+  const activeDiffPathRef = useRef<string | undefined>(undefined);
+  const diffRequestIdRef = useRef(0);
+  const subscribeToRunRef = useRef<(run: AgentRun, sessionId: string) => void>(() => {});
   const currentSessionId = currentSession?.id;
   const selectedProviderName = currentSession?.providerName ?? configuration?.currentDefaultProvider;
   const selectedProvider = getProvider(configurationDraft ?? configuration, selectedProviderName);
   const selectedProviderDefaultModel = selectedProvider?.provider.model;
   const availableModels = getProviderModels(selectedProvider, currentSession?.model);
+  const hasConfiguredModels = availableModels.length > 0;
   const sessionModelWarning = currentSession?.model && selectedProviderName && selectedProvider
     && !selectedProvider.provider.models.includes(currentSession.model)
     && selectedProvider.provider.model !== currentSession.model
     ? `Current session model '${currentSession.model}' is no longer configured for provider '${selectedProviderName}'. Choose a new model to continue using the latest provider configuration.`
     : undefined;
+  const selectedDiffIndex = useMemo(
+    () => changes.findIndex((change) => change.path === selectedFile),
+    [changes, selectedFile],
+  );
+  const isDiffLoading = !!selectedFile && diffLoadingPath === selectedFile;
+
+  useEffect(() => {
+    diffCacheRef.current = {};
+    activeDiffPathRef.current = undefined;
+    diffRequestIdRef.current = 0;
+    setShowDiffDialog(false);
+    setDiffLoadingPath(undefined);
+    setDiffError(undefined);
+  }, [currentRun?.id, currentSessionId]);
+
+  useEffect(() => {
+    if (!selectedFile || changes.some((change) => change.path === selectedFile)) {
+      return;
+    }
+
+    activeDiffPathRef.current = undefined;
+    setSelectedFile(undefined);
+    setCurrentDiff(undefined);
+    setDiffLoadingPath(undefined);
+    setDiffError(undefined);
+    setShowDiffDialog(false);
+  }, [changes, selectedFile, setCurrentDiff, setSelectedFile]);
 
   const refreshConfiguration = useCallback(async () => {
     setIsLoadingConfiguration(true);
@@ -193,7 +212,7 @@ export function useWorkbenchApp() {
       }
 
       if (run.status === "running") {
-        subscribeToRun(run, detail.id);
+        subscribeToRunRef.current(run, detail.id);
       }
     } else {
       setCurrentRun(undefined);
@@ -368,9 +387,20 @@ export function useWorkbenchApp() {
     });
   }, [addLog, appendAssistantDelta, currentSessionId, openSession, refreshSessions, setChanges, setConnectionStatus, setContextView, setCurrentRun, setPhase, finishAssistantMessage]);
 
+  useEffect(() => {
+    subscribeToRunRef.current = subscribeToRun;
+  }, [subscribeToRun]);
+
   const handleNewChat = useCallback(() => {
     void workspaceDirectoryPicker.openPicker();
   }, [workspaceDirectoryPicker]);
+
+  const openSettings = useCallback(() => {
+    setGlobalSettingsMessage(undefined);
+    setGlobalSettingsError(undefined);
+    setSkillImportTarget("global");
+    setShowGlobalSettingsDialog(true);
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     const task = composerValue.trim();
@@ -378,32 +408,20 @@ export function useWorkbenchApp() {
       return;
     }
 
+    if (!currentSession || currentSession.id.startsWith("draft_")) {
+      await workspaceDirectoryPicker.openPicker();
+      return;
+    }
+
+    if (!hasConfiguredModels) {
+      openSettings();
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      let activeSession = currentSession;
-
-      if (!activeSession) {
-        activeSession = createDraftSession(task);
-        setCurrentSession(activeSession);
-      }
-
-      if (activeSession.id.startsWith("draft_")) {
-        const created = await createSession({
-          initialMessage: task,
-          providerName: currentSession?.providerName,
-          model: currentSession?.model,
-          workspaceRoot: currentSession?.workspaceRoot,
-        });
-        const detail = await getSession(created.id);
-        setCurrentSession(detail);
-        activeSession = detail;
-        await refreshSessions();
-      }
-
-      if (!activeSession) {
-        return;
-      }
+      const activeSession = currentSession;
 
       addUserMessage(activeSession.id, task);
 
@@ -423,7 +441,7 @@ export function useWorkbenchApp() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [addUserMessage, composerValue, currentSession, isSubmitting, refreshSessions, setChanges, setConnectionStatus, setCurrentDiff, setCurrentRun, setCurrentSession, setPhase, setSelectedFile]);
+  }, [addUserMessage, composerValue, currentSession, hasConfiguredModels, isSubmitting, openSettings, setChanges, setConnectionStatus, setCurrentDiff, setCurrentRun, setPhase, setSelectedFile, subscribeToRun, workspaceDirectoryPicker]);
 
   const handleCancel = useCallback(async () => {
     if (currentRun) {
@@ -445,7 +463,7 @@ export function useWorkbenchApp() {
     }
   }, [currentRun, currentSessionId, setCurrentRun, setPhase]);
 
-  const openDiff = useCallback(async (change: FileChange) => {
+  const loadDiff = useCallback(async (change: FileChange) => {
     if (!currentRun) {
       return;
     }
@@ -455,12 +473,67 @@ export function useWorkbenchApp() {
       return;
     }
 
+    activeDiffPathRef.current = change.path;
     setSelectedFile(change.path);
-    setContextView("diff");
-    setCurrentDiff(await getFileDiff(sessionId, currentRun.id, change.path));
-  }, [currentRun, currentSessionId, setContextView, setCurrentDiff, setSelectedFile]);
+    setDiffError(undefined);
+
+    const cachedDiff = diffCacheRef.current[change.path];
+    if (cachedDiff) {
+      setCurrentDiff(cachedDiff);
+      setDiffLoadingPath(undefined);
+      return;
+    }
+
+    setCurrentDiff(undefined);
+    setDiffLoadingPath(change.path);
+
+    const requestId = ++diffRequestIdRef.current;
+
+    try {
+      const diff = await getFileDiff(sessionId, currentRun.id, change.path);
+      diffCacheRef.current[change.path] = diff;
+
+      if (activeDiffPathRef.current !== change.path || diffRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setCurrentDiff(diff);
+      setDiffLoadingPath(undefined);
+    } catch (error) {
+      if (activeDiffPathRef.current !== change.path || diffRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setCurrentDiff(undefined);
+      setDiffLoadingPath(undefined);
+      setDiffError(formatError(error));
+    }
+  }, [currentRun, currentSessionId, setCurrentDiff, setSelectedFile]);
+
+  const openDiff = useCallback(async (change: FileChange) => {
+    setShowDiffDialog(true);
+    setContextView("files");
+    await loadDiff(change);
+  }, [loadDiff, setContextView]);
+
+  const openPreviousDiff = useCallback(async () => {
+    if (selectedDiffIndex <= 0) {
+      return;
+    }
+
+    await openDiff(changes[selectedDiffIndex - 1]);
+  }, [changes, openDiff, selectedDiffIndex]);
+
+  const openNextDiff = useCallback(async () => {
+    if (selectedDiffIndex < 0 || selectedDiffIndex >= changes.length - 1) {
+      return;
+    }
+
+    await openDiff(changes[selectedDiffIndex + 1]);
+  }, [changes, openDiff, selectedDiffIndex]);
 
   const handleViewFiles = useCallback(() => {
+    setShowDiffDialog(false);
     setContextView("files");
   }, [setContextView]);
 
@@ -783,12 +856,8 @@ export function useWorkbenchApp() {
             return server;
           }
 
-          if (field === "arguments" && typeof value === "string") {
-            return { ...server, arguments: value.split("\n").map((item) => item.trim()).filter(Boolean) };
-          }
-
-          if (field === "environmentVariables" && typeof value === "string") {
-            const environmentVariables = value
+          if (field === "headers" && typeof value === "string") {
+            const headers = value
               .split("\n")
               .map((line) => line.trim())
               .filter(Boolean)
@@ -805,7 +874,7 @@ export function useWorkbenchApp() {
                 return result;
               }, {});
 
-            return { ...server, environmentVariables };
+            return { ...server, headers };
           }
 
           return { ...server, [field]: typeof value === "string" ? normalizeOptionalText(value) : value };
@@ -818,7 +887,7 @@ export function useWorkbenchApp() {
     setConfigurationDraft((previous) => previous
       ? {
           ...previous,
-          mcpServers: [...previous.mcpServers, { name: undefined, command: undefined, arguments: [], url: undefined, environmentVariables: {}, enabled: true }],
+          mcpServers: [...previous.mcpServers, { enabled: true, name: undefined, url: "", headers: {} }],
         }
       : previous);
   }, []);
@@ -927,6 +996,28 @@ export function useWorkbenchApp() {
     }
   }, [currentSession?.id, openSession]);
 
+  const handleGlobalSkillChange = useCallback((index: number, field: keyof ImportedSkill, value: string | boolean) => {
+    setConfigurationDraft((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        skills: {
+          ...previous.skills,
+          imported: previous.skills.imported.map((skill, skillIndex) => {
+            if (skillIndex !== index) {
+              return skill;
+            }
+
+            return { ...skill, [field]: typeof value === "string" ? normalizeOptionalText(value) : value };
+          }),
+        },
+      };
+    });
+  }, []);
+
   const handleSaveConfiguration = useCallback(async () => {
     if (!configurationDraft) {
       return;
@@ -1014,6 +1105,10 @@ export function useWorkbenchApp() {
     sessionModelWarning,
     selectedProviderDefaultModel,
     resolvedTheme,
+    showDiffDialog,
+    diffError,
+    isDiffLoading,
+    selectedDiffIndex,
     workspaceDirectoryPicker,
     skillDirectoryPicker,
     setComposerValue,
@@ -1023,19 +1118,17 @@ export function useWorkbenchApp() {
     setSkillImportPath,
     setSkillImportTarget,
     setSessionTitleInput,
-    openSettings: () => {
-      setGlobalSettingsMessage(undefined);
-      setGlobalSettingsError(undefined);
-      setSkillImportTarget("global");
-      setShowGlobalSettingsDialog(true);
-    },
+    openSettings,
     closeSettings: () => setShowGlobalSettingsDialog(false),
+    closeDiffDialog: () => setShowDiffDialog(false),
     toggleLeftPaneCollapsed,
     openSession,
     handleNewChat,
     handleSubmit,
     handleCancel,
     openDiff,
+    openPreviousDiff,
+    openNextDiff,
     handleViewFiles,
     handleDeleteCurrentSession,
     handleSessionTitleSave,
@@ -1052,6 +1145,7 @@ export function useWorkbenchApp() {
     handleAddMcpServer,
     handleRemoveMcpServer,
     handleTestMcpServer,
+    handleGlobalSkillChange,
     handleImportSkill,
     handleRemoveGlobalSkill,
     handleRemoveSessionSkill,

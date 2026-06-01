@@ -89,7 +89,7 @@ public sealed class WorkspaceServiceTests : IDisposable
 *** End Patch
 """;
 
-        var result = service.ApplyPatch("src/patch-demo.txt", patch, "update sample lines");
+        var result = service.ApplyPatch("src/patch-demo.txt", patch);
         var content = File.ReadAllText(Path.Combine(_fixture.Root, "src", "patch-demo.txt"));
 
         Assert.Contains("Applied patch", result);
@@ -109,32 +109,11 @@ public sealed class WorkspaceServiceTests : IDisposable
     }
 
     [Fact]
-    public void AskQuestions_Formats_Structured_Output()
-    {
-        var service = CreateService();
-
-        var result = service.AskQuestions(
-        [
-            new AskQuestionDefinition(
-                "scope",
-                "Which panel should be focused?",
-                Options:
-                [
-                    new AskQuestionOption("Explorer"),
-                    new AskQuestionOption("Inspector"),
-                ])
-        ]);
-
-        Assert.Contains("scope", result);
-        Assert.Contains("Explorer", result);
-    }
-
-    [Fact]
     public async Task RunInTerminal_Background_Session_Can_Be_Inspected()
     {
         var service = CreateService();
 
-        var start = await service.RunInTerminalAsync("dotnet --info | cat", "collect environment", isBackground: true, CancellationToken.None);
+        var start = await service.RunInTerminalAsync("dotnet --info | cat", isBackground: true);
         var id = start.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Single(line => line.StartsWith("Id: ", StringComparison.Ordinal))[4..];
 
         var output = string.Empty;

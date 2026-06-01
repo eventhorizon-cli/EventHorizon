@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -91,6 +92,7 @@ public sealed class WorkspaceService : IWorkspaceService
 
     public string WorkspaceRoot => _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot;
 
+    [Description("High-level description of the configured workspace root and its top-level entries.")]
     public string DescribeWorkspace()
     {
         StringBuilder builder = new();
@@ -104,7 +106,8 @@ public sealed class WorkspaceService : IWorkspaceService
         return builder.ToString().TrimEnd();
     }
 
-    public string ListDir(string path)
+    [Description("List files and folders inside a workspace directory.")]
+    public string ListDir([Description("The directory path to inspect. Use an empty string to list the workspace root.")] string path)
         => ListDirectory(path);
 
     public string ListDirectory(string? relativePath = null)
@@ -120,7 +123,10 @@ public sealed class WorkspaceService : IWorkspaceService
         return builder.ToString().TrimEnd();
     }
 
-    public string OpenFile(string filePath, bool isPreview = false)
+    [Description("Open an existing file and return line-numbered content.")]
+    public string OpenFile(
+        [Description("The file path to open inside the workspace.")] string filePath,
+        [Description("Whether to return a shorter preview instead of the standard view.")] bool isPreview = false)
     {
         var path = ResolvePath(filePath);
         var maxLines = isPreview ? 120 : 250;
@@ -128,7 +134,11 @@ public sealed class WorkspaceService : IWorkspaceService
         return $"Opened {GetDisplayPath(path)} (preview={isPreview.ToString().ToLowerInvariant()})\n\n{ReadFile(filePath, 1, maxLines)}";
     }
 
-    public string ReadFileTool(string filePath, int? offset = null, int? limit = null)
+    [Description("Read a file from the workspace and return line-numbered text.")]
+    public string ReadFileTool(
+        [Description("The file path to read inside the workspace.")] string filePath,
+        [Description("The 1-based starting line number to read from.")] int? offset = null,
+        [Description("The maximum number of lines to return.")] int? limit = null)
         => ReadFile(filePath, offset ?? 1, limit ?? 250);
 
     public string ReadFile(string relativePath, int startLine = 1, int maxLines = 250)
@@ -148,7 +158,10 @@ public sealed class WorkspaceService : IWorkspaceService
         return builder.ToString().TrimEnd();
     }
 
-    public string CreateFile(string filePath, string content)
+    [Description("Create a new file inside the workspace.")]
+    public string CreateFile(
+        [Description("The file path to create inside the workspace.")] string filePath,
+        [Description("The full file content to write.")] string content)
     {
         var path = ResolvePath(filePath);
         if (File.Exists(path))
@@ -183,7 +196,11 @@ public sealed class WorkspaceService : IWorkspaceService
         return $"Appended {content.Length} characters to {GetDisplayPath(path)}.";
     }
 
-    public string InsertEditIntoFile(string filePath, string searchText, string replacementText)
+    [Description("Replace one uniquely matched snippet in an existing file.")]
+    public string InsertEditIntoFile(
+        [Description("The file path to edit inside the workspace.")] string filePath,
+        [Description("The exact existing text to replace. It must match exactly one region.")] string searchText,
+        [Description("The replacement text to insert.")] string replacementText)
     {
         if (string.IsNullOrEmpty(searchText))
         {
@@ -210,7 +227,10 @@ public sealed class WorkspaceService : IWorkspaceService
         return $"Updated 1 region in {GetDisplayPath(path)}.";
     }
 
-    public string ApplyPatch(string filePath, string input, string explanation)
+    [Description("Apply a structured patch to a single file inside the workspace.")]
+    public string ApplyPatch(
+        [Description("The file path the patch targets.")] string filePath,
+        [Description("The patch content to apply.")] string input)
     {
         var normalizedPatch = NormalizePatchEnvelope(filePath, input);
         var operations = ParsePatch(normalizedPatch);
@@ -270,10 +290,13 @@ public sealed class WorkspaceService : IWorkspaceService
             }
         }
 
-        return $"Applied patch to {GetDisplayPath(ResolvePath(filePath))}. Explanation: {explanation}";
+        return $"Applied patch to {GetDisplayPath(ResolvePath(filePath))}.";
     }
 
-    public string FileSearch(string query, int maxResults = 200)
+    [Description("Find files in the workspace by glob-style query.")]
+    public string FileSearch(
+        [Description("The glob-style file query to match.")] string query,
+        [Description("The maximum number of matching file paths to return.")] int maxResults = 200)
     {
         var regex = WildcardToRegex(query);
         var matches = EnumerateWorkspaceFiles()
@@ -289,7 +312,11 @@ public sealed class WorkspaceService : IWorkspaceService
     public string FindFiles(string pattern = "*")
         => FileSearch(pattern, 500);
 
-    public string GrepSearch(string query, bool isRegexp = false, string includePattern = "*")
+    [Description("Search matching lines in workspace files using plain text or regex.")]
+    public string GrepSearch(
+        [Description("The plain text or regex pattern to search for.")] string query,
+        [Description("Whether the query should be treated as a regular expression.")] bool isRegexp = false,
+        [Description("An optional glob pattern to limit which files are searched.")] string includePattern = "*")
     {
         var fileRegex = WildcardToRegex(includePattern);
         Regex searchRegex = new(isRegexp ? query : Regex.Escape(query), RegexOptions.Multiline | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -327,7 +354,10 @@ public sealed class WorkspaceService : IWorkspaceService
     public string Grep(string pattern, string filePattern = "*")
         => GrepSearch(pattern, isRegexp: true, includePattern: filePattern);
 
-    public string SemanticSearch(string query, int maxResults = 8)
+    [Description("Search the workspace semantically and return ranked snippets.")]
+    public string SemanticSearch(
+        [Description("The semantic search query to evaluate.")] string query,
+        [Description("The maximum number of ranked snippets to return.")] int maxResults = 8)
     {
         var terms = ExtractSearchTerms(query);
         if (terms.Length == 0)
@@ -382,21 +412,28 @@ public sealed class WorkspaceService : IWorkspaceService
             ranked.Select(static snippet => $"{snippet.Path}:{snippet.StartLine}-{snippet.EndLine} (score={snippet.Score})\n{snippet.Snippet}"));
     }
 
-    public async Task<string> RunInTerminalAsync(string command, string explanation, bool isBackground, CancellationToken cancellationToken)
+    [Description("Run a terminal command in the workspace or start it in the background.")]
+    public Task<string> RunInTerminalAsync(
+        [Description("The terminal command to execute.")] string command,
+        [Description("Whether the command should be started as a background session.")] bool isBackground)
+        => RunInTerminalCoreAsync(command, isBackground, CancellationToken.None);
+
+    private async Task<string> RunInTerminalCoreAsync(string command, bool isBackground, CancellationToken cancellationToken)
     {
         if (isBackground)
         {
             var id = _backgroundTerminalCommandStore.Start(command, WorkspaceRoot);
-            return $"Started background terminal session.\nId: {id}\nExplanation: {explanation}\nCommand: {command}";
+            return $"Started background terminal session.\nId: {id}\nCommand: {command}";
         }
 
         var beforeSnapshot = CaptureWorkspaceForTracking();
         var result = await _shellCommandRunner.RunAsync(command, WorkspaceRoot, 120, cancellationToken).ConfigureAwait(false);
         TrackWorkspaceTransition(beforeSnapshot, CaptureWorkspaceForTracking());
-        return $"Explanation: {explanation}\n{result}";
+        return result.ToString();
     }
 
-    public string GetTerminalOutput(string id)
+    [Description("Get stdout, stderr, status, and exit code for a background terminal session.")]
+    public string GetTerminalOutput([Description("The id of the background terminal session.")] string id)
         => _backgroundTerminalCommandStore.GetOutput(id);
 
     public async Task<string> RunShellAsync(string command, int timeoutSeconds, CancellationToken cancellationToken)
@@ -405,7 +442,11 @@ public sealed class WorkspaceService : IWorkspaceService
         return result.ToString();
     }
 
-    public async Task<string> GetErrorsAsync(string[] filePaths, CancellationToken cancellationToken)
+    [Description("Run workspace diagnostics and return matched errors for specific files.")]
+    public Task<string> GetErrorsAsync([Description("The file paths to collect diagnostics for.")] string[] filePaths)
+        => GetErrorsCoreAsync(filePaths, CancellationToken.None);
+
+    private async Task<string> GetErrorsCoreAsync(string[] filePaths, CancellationToken cancellationToken)
     {
         if (filePaths.Length == 0)
         {
@@ -456,7 +497,13 @@ public sealed class WorkspaceService : IWorkspaceService
         return $"Build completed with no matched file diagnostics.\n{result}";
     }
 
-    public async Task<string> ValidateCvesAsync(string[] dependencies, string ecosystem, CancellationToken cancellationToken)
+    [Description("Validate package versions against OSV vulnerability data.")]
+    public Task<string> ValidateCvesAsync(
+        [Description("The dependency coordinates to validate, such as package@version.")] string[] dependencies,
+        [Description("The package ecosystem to validate against.")] string ecosystem)
+        => ValidateCvesCoreAsync(dependencies, ecosystem, CancellationToken.None);
+
+    private async Task<string> ValidateCvesCoreAsync(string[] dependencies, string ecosystem, CancellationToken cancellationToken)
     {
         if (dependencies.Length == 0)
         {
@@ -467,10 +514,8 @@ public sealed class WorkspaceService : IWorkspaceService
         OsvBatchQueryRequest request = new(
             dependencies.Select(dependency => ParseDependency(dependency, mappedEcosystem)).ToArray());
 
-        using HttpRequestMessage message = new(HttpMethod.Post, "https://api.osv.dev/v1/querybatch")
-        {
-            Content = new StringContent(JsonSerializer.Serialize(request, JsonSerializerOptions.Web), Encoding.UTF8, "application/json"),
-        };
+        using HttpRequestMessage message = new(HttpMethod.Post, "https://api.osv.dev/v1/querybatch");
+        message.Content = new StringContent(JsonSerializer.Serialize(request, JsonSerializerOptions.Web), Encoding.UTF8, "application/json");
 
         OsvBatchQueryResponse? payload;
         try
@@ -525,85 +570,6 @@ public sealed class WorkspaceService : IWorkspaceService
             }
         }
 
-        return builder.ToString().TrimEnd();
-    }
-
-    public string AskQuestions(AskQuestionDefinition[] questions)
-    {
-        if (questions.Length == 0)
-        {
-            return "No questions were supplied.";
-        }
-
-        StringBuilder builder = new();
-        builder.AppendLine("Prepared question bundle:");
-        foreach (var question in questions)
-        {
-            builder.Append("- ").Append(question.Header).Append(": ").AppendLine(question.Question);
-            builder.Append("  multiSelect=").Append(question.MultiSelect.ToString().ToLowerInvariant())
-                .Append(", allowFreeformInput=")
-                .AppendLine(question.AllowFreeformInput.ToString().ToLowerInvariant());
-
-            if (question.Options is not null)
-            {
-                foreach (var option in question.Options)
-                {
-                    builder.Append("  - ").Append(option.Label);
-                    if (!string.IsNullOrWhiteSpace(option.Description))
-                    {
-                        builder.Append(" — ").Append(option.Description);
-                    }
-
-                    builder.AppendLine();
-                }
-            }
-        }
-
-        builder.AppendLine("Use these questions in your next response and wait for the user's reply.");
-        return builder.ToString().TrimEnd();
-    }
-
-    public string RunSubagent(string task, string agentName, string? description = null)
-    {
-        if (!string.Equals(agentName, "Search", StringComparison.OrdinalIgnoreCase))
-        {
-            return $"Subagent '{agentName}' is not available. Supported agents: Search.";
-        }
-
-        var terms = ExtractSearchTerms(task);
-        var fileCandidates = EnumerateWorkspaceFiles()
-            .Select(path => Path.GetRelativePath(WorkspaceRoot, path))
-            .Where(path => terms.Any(term => path.Contains(term, StringComparison.OrdinalIgnoreCase)))
-            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
-            .Take(10)
-            .ToList();
-
-        var semanticResults = SemanticSearch(task, 5);
-        StringBuilder builder = new();
-        builder.AppendLine("Subagent: Search");
-        if (!string.IsNullOrWhiteSpace(description))
-        {
-            builder.AppendLine($"Description: {description}");
-        }
-
-        builder.AppendLine($"Task: {task}");
-        builder.AppendLine();
-        builder.AppendLine("Candidate files:");
-        if (fileCandidates.Count == 0)
-        {
-            builder.AppendLine("- No file candidates found.");
-        }
-        else
-        {
-            foreach (var candidate in fileCandidates)
-            {
-                builder.Append("- ").AppendLine(candidate);
-            }
-        }
-
-        builder.AppendLine();
-        builder.AppendLine("Semantic findings:");
-        builder.AppendLine(semanticResults);
         return builder.ToString().TrimEnd();
     }
 
