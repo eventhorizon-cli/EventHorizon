@@ -2,6 +2,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { SessionPane } from "@/components/chat/SessionPane";
 import { ContextPanel } from "@/components/context/ContextPanel";
 import { DirectoryPickerDialog } from "@/components/dialogs/DirectoryPickerDialog";
+import { DiffDialog } from "@/components/diff/DiffDialog";
 import { SessionsSidebar } from "@/components/layout/SessionsSidebar";
 import { WorkbenchHeader } from "@/components/layout/WorkbenchHeader";
 import { GlobalSettingsDialog } from "@/components/settings/GlobalSettingsDialog";
@@ -76,9 +77,7 @@ export default function App() {
               selectedProviderDefaultModel={app.selectedProviderDefaultModel}
               changes={app.changes}
               selectedFile={app.selectedFile}
-              currentDiff={app.currentDiff}
               phase={app.phase}
-              resolvedTheme={app.resolvedTheme === "dark" ? "dark" : "light"}
               onContextViewChange={app.setContextView}
               onSessionTitleInputChange={app.setSessionTitleInput}
               onSkillImportPathChange={app.setSkillImportPath}
@@ -97,6 +96,20 @@ export default function App() {
           </Panel>
         </PanelGroup>
       </div>
+
+      <DiffDialog
+        open={app.showDiffDialog}
+        changes={app.changes}
+        selectedFile={app.selectedFile}
+        currentDiff={app.currentDiff}
+        loading={app.isDiffLoading}
+        error={app.diffError}
+        theme={app.resolvedTheme === "dark" ? "dark" : "light"}
+        onClose={app.closeDiffDialog}
+        onSelectChange={app.openDiff}
+        onOpenPrevious={app.openPreviousDiff}
+        onOpenNext={app.openNextDiff}
+      />
 
       <DirectoryPickerDialog
         open={app.workspaceDirectoryPicker.open}
@@ -163,6 +176,7 @@ export default function App() {
         onRemoveMcpServer={app.handleRemoveMcpServer}
         onMcpServerChange={app.handleMcpServerChange}
         onTestMcpServer={app.handleTestMcpServer}
+        onGlobalSkillChange={app.handleGlobalSkillChange}
         onSkillImportPathChange={app.setSkillImportPath}
         onOpenSkillDirectoryPicker={() => {
           app.setSkillImportTarget("global");

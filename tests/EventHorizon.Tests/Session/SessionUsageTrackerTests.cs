@@ -1,9 +1,6 @@
 using EventHorizon.Engine.Sessions;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
-using EventHorizon.Tests.Fixtures;
-using EventHorizon.Tools;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 namespace EventHorizon.Tests.Session;
@@ -44,16 +41,6 @@ public sealed class SessionUsageTrackerTests
         var tracker = new SessionUsageTracker(new ModelPriceCatalogService(Catalog), "demo-model");
 
         Assert.NotNull(tracker.TotalUsage);
-    }
-
-    [Fact]
-    public void InitializeModelName_Sets_Model_From_Runtime()
-    {
-        var tracker = new SessionUsageTracker(new ModelPriceCatalogService(Catalog), FakeRuntime);
-
-        tracker.InitializeModelName();
-
-        // Model name should be set from runtime, used during usage updates
     }
 
     [Fact]
@@ -175,8 +162,6 @@ public sealed class SessionUsageTrackerTests
 
     private sealed class FakeRuntimeForTracker : IEventHorizonRuntime
     {
-        public string ModelName => "demo-model";
-
         public ValueTask<string> GetInstructionsAsync(CancellationToken cancellationToken = default)
             => ValueTask.FromResult("instructions");
 
@@ -188,7 +173,6 @@ public sealed class SessionUsageTrackerTests
                 GitStatus: "clean",
                 ProjectInstructions: "instructions"));
 
-        public IReadOnlyList<ToolDescriptor> GetToolCatalog(CancellationToken cancellationToken = default) => [];
 
         public ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default)
             => ValueTask.FromResult<IReadOnlyList<AITool>>([]);

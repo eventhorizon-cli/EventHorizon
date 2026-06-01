@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { ToggleSwitch } from "@/components/settings/ToggleSwitch";
 import { cn } from "@/utils/cn";
 import {
   getProviderFieldMeta,
@@ -8,6 +9,7 @@ import {
 } from "@/utils/configuration";
 import type {
   AppConfiguration,
+  ImportedSkill,
   McpServerConfig,
   ProviderEntry,
 } from "@/types";
@@ -42,6 +44,7 @@ type GlobalSettingsDialogProps = {
   onRemoveMcpServer: (index: number) => void;
   onMcpServerChange: (index: number, field: keyof McpServerConfig, value: string | boolean) => void;
   onTestMcpServer: (index: number) => Promise<void> | void;
+  onGlobalSkillChange: (index: number, field: keyof ImportedSkill, value: string | boolean) => void;
   onSkillImportPathChange: (value: string) => void;
   onOpenSkillDirectoryPicker: () => Promise<void> | void;
   onImportSkill: () => Promise<void> | void;
@@ -77,6 +80,7 @@ export function GlobalSettingsDialog({
   onRemoveMcpServer,
   onMcpServerChange,
   onTestMcpServer,
+  onGlobalSkillChange,
   onSkillImportPathChange,
   onOpenSkillDirectoryPicker,
   onImportSkill,
@@ -346,14 +350,16 @@ export function GlobalSettingsDialog({
                           </label>
 
                           {isProviderFieldVisible(provider.provider.type, "useDefaultAzureCredential") ? (
-                            <label className="mt-3 flex items-center gap-2 text-sm">
-                              <input
-                                type="checkbox"
+                            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 text-sm">
+                              <div>
+                                <div className="font-medium">Use default Azure credential</div>
+                                <div className="text-xs text-muted-foreground">Use Microsoft Entra authentication instead of an API key.</div>
+                              </div>
+                              <ToggleSwitch
                                 checked={provider.provider.useDefaultAzureCredential}
-                                onChange={(event) => onProviderConfigChange(index, "useDefaultAzureCredential", event.target.checked)}
+                                onCheckedChange={(checked) => onProviderConfigChange(index, "useDefaultAzureCredential", checked)}
                               />
-                              Use default Azure credential
-                            </label>
+                            </div>
                           ) : null}
 
                           {providerTestResults[index] ? (
@@ -373,7 +379,7 @@ export function GlobalSettingsDialog({
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">MCP</div>
-                      <div className="mt-1 text-base font-medium">MCP server configuration</div>
+                      <div className="mt-1 text-base font-medium">HTTP MCP server configuration</div>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -397,10 +403,25 @@ export function GlobalSettingsDialog({
                   {configurationDraft?.mcpServers.length ? (
                     <div className="mt-4 grid gap-4">
                       {configurationDraft.mcpServers.map((server, index) => (
-                        <div key={`${server.name}-${index}`} className="rounded-2xl border border-border bg-card p-4">
+                        <div
+                          key={`${server.name}-${index}`}
+                          className={cn(
+                            "rounded-2xl border border-border p-4 transition-opacity",
+                            server.enabled ? "bg-card" : "bg-card/60 opacity-80",
+                          )}
+                        >
                           <div className="flex items-center justify-between gap-3">
-                            <div className="text-sm font-medium">{server.name || `MCP Server ${index + 1}`}</div>
+                            <div>
+                              <div className="text-sm font-medium">{server.name || `MCP Server ${index + 1}`}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {server.enabled ? "On · Connected automatically after saving." : "Off · Not connected until turned on."}
+                              </div>
+                            </div>
                             <div className="flex gap-2">
+                              <ToggleSwitch
+                                checked={server.enabled}
+                                onCheckedChange={(checked) => onMcpServerChange(index, "enabled", checked)}
+                              />
                               <button
                                 type="button"
                                 onClick={() => void onTestMcpServer(index)}
@@ -428,54 +449,33 @@ export function GlobalSettingsDialog({
                               />
                             </label>
 
-                            <label className="grid gap-2">
-                              <span className="text-xs uppercase tracking-wide text-muted-foreground">Command</span>
-                              <input
-                                value={server.command ?? ""}
-                                onChange={(event) => onMcpServerChange(index, "command", event.target.value)}
-                                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-                              />
-                            </label>
-
                             <label className="grid gap-2 md:col-span-2">
-                              <span className="text-xs uppercase tracking-wide text-muted-foreground">URL</span>
+                              <span className="text-xs uppercase tracking-wide text-muted-foreground">HTTP endpoint URL</span>
                               <input
-                                value={server.url ?? ""}
+                                value={server.url}
                                 onChange={(event) => onMcpServerChange(index, "url", event.target.value)}
+                                placeholder="https://example.com/mcp"
                                 className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                               />
+                              <span className="text-xs text-muted-foreground">
+                                Use the MCP server&apos;s HTTP endpoint. Configured MCP servers are connected automatically. Streamable HTTP is preferred and SSE fallback is handled by the backend transport.
+                              </span>
                             </label>
                           </div>
 
                           <label className="mt-3 grid gap-2">
-                            <span className="text-xs uppercase tracking-wide text-muted-foreground">Arguments</span>
+                            <span className="text-xs uppercase tracking-wide text-muted-foreground">HTTP headers</span>
                             <textarea
-                              value={server.arguments.join("\n")}
-                              onChange={(event) => onMcpServerChange(index, "arguments", event.target.value)}
-                              placeholder="One argument per line"
-                              className="min-h-24 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-                            />
-                          </label>
-
-                          <label className="mt-3 grid gap-2">
-                            <span className="text-xs uppercase tracking-wide text-muted-foreground">Environment variables</span>
-                            <textarea
-                              value={Object.entries(server.environmentVariables)
+                              value={Object.entries(server.headers)
                                 .map(([key, value]) => `${key}=${value}`)
                                 .join("\n")}
-                              onChange={(event) => onMcpServerChange(index, "environmentVariables", event.target.value)}
-                              placeholder="KEY=value"
+                              onChange={(event) => onMcpServerChange(index, "headers", event.target.value)}
+                              placeholder="Authorization=Bearer ..."
                               className="min-h-24 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                             />
-                          </label>
-
-                          <label className="mt-3 flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={server.enabled}
-                              onChange={(event) => onMcpServerChange(index, "enabled", event.target.checked)}
-                            />
-                            Enabled
+                            <span className="text-xs text-muted-foreground">
+                              Optional. Enter one header per line in the format <code>Header-Name=value</code>.
+                            </span>
                           </label>
 
                           {mcpTestResults[index] ? (
@@ -547,21 +547,36 @@ export function GlobalSettingsDialog({
 
                     {configurationDraft?.skills.imported.length ? (
                       <div className="mt-4 grid gap-3">
-                        {configurationDraft.skills.imported.map((skill) => (
-                          <div key={skill.path} className="rounded-2xl border border-border bg-card p-4">
+                        {configurationDraft.skills.imported.map((skill, index) => (
+                          <div
+                            key={skill.path}
+                            className={cn(
+                              "rounded-2xl border border-border p-4 transition-opacity",
+                              skill.enabled ? "bg-card" : "bg-card/60 opacity-80",
+                            )}
+                          >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <div className="text-sm font-medium">{skill.name}</div>
                                 <div className="mt-1 text-xs text-muted-foreground">{skill.path}</div>
+                                <div className="mt-2 text-xs text-muted-foreground">
+                                  {skill.enabled ? "On · Loaded for all conversations." : "Off · Kept in the catalog but not loaded."}
+                                </div>
                                 {skill.description ? <div className="mt-2 text-sm text-muted-foreground">{skill.description}</div> : null}
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => void onRemoveGlobalSkill(skill.name)}
-                                className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
-                              >
-                                Remove
-                              </button>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <ToggleSwitch
+                                  checked={skill.enabled}
+                                  onCheckedChange={(checked) => onGlobalSkillChange(index, "enabled", checked)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => void onRemoveGlobalSkill(skill.name)}
+                                  className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
+                                >
+                                  Remove
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}

@@ -52,7 +52,6 @@ public sealed class SessionContextBuilder : ISessionContextBuilder
         StringBuilder builder = new();
         foreach (var candidate in new[]
                  {
-                     Path.Combine(workspaceRoot, "EVENTHORIZON.md"),
                      Path.Combine(workspaceRoot, "AGENTS.md"),
                      Path.Combine(workspaceRoot, "README.md"),
                  })
@@ -78,7 +77,7 @@ public sealed class SessionContextBuilder : ISessionContextBuilder
         }
 
         return builder.Length == 0
-            ? "No EVENTHORIZON.md, AGENTS.md, or README.md guidance file was found at the workspace root."
+            ? "No AGENTS.md, or README.md guidance file was found at the workspace root."
             : builder.ToString().TrimEnd();
     }
 }

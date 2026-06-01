@@ -28,12 +28,12 @@ export function cloneConfiguration(configuration: AppConfiguration): AppConfigur
     providers: configuration.providers.map(cloneProviderEntry),
     mcpServers: configuration.mcpServers.map((server) => ({
       ...server,
-      arguments: [...server.arguments],
-      environmentVariables: { ...server.environmentVariables },
+      enabled: server.enabled,
+      headers: { ...server.headers },
     })),
     skills: {
       storagePath: configuration.skills.storagePath,
-      imported: configuration.skills.imported.map((skill) => ({ ...skill })),
+      imported: configuration.skills.imported.map((skill) => ({ ...skill, enabled: skill.enabled })),
     },
   };
 }

@@ -119,17 +119,16 @@ internal sealed class AppConfigurationService : IAppConfigurationService
     private static McpServerOptions CloneMcpServer(McpServerOptions server)
         => new()
         {
-            Name = server.Name,
-            Command = server.Command,
-            Arguments = [.. server.Arguments],
-            Url = server.Url,
-            EnvironmentVariables = new Dictionary<string, string>(server.EnvironmentVariables, StringComparer.OrdinalIgnoreCase),
             Enabled = server.Enabled,
+            Name = server.Name,
+            Url = server.Url,
+            Headers = new Dictionary<string, string>(server.Headers, StringComparer.OrdinalIgnoreCase),
         };
 
     private static ImportedSkillOptions CloneSkill(ImportedSkillOptions skill)
         => new()
         {
+            Enabled = skill.Enabled,
             Name = skill.Name,
             Path = skill.Path,
             Description = skill.Description,

@@ -1,18 +1,17 @@
 using System.Text;
 using EventHorizon.Configuration;
 using EventHorizon.Engine.Sessions;
-using EventHorizon.Tools;
 
 namespace EventHorizon.Prompting;
 
 public interface ISystemPromptFactory
 {
-    string Build(AgentOptions options, SessionContextSnapshot snapshot, IReadOnlyList<ToolDescriptor> tools);
+    string Build(AgentOptions options, SessionContextSnapshot snapshot);
 }
 
 public sealed class SystemPromptFactory : ISystemPromptFactory
 {
-    public string Build(AgentOptions options, SessionContextSnapshot snapshot, IReadOnlyList<ToolDescriptor> tools)
+    public string Build(AgentOptions options, SessionContextSnapshot snapshot)
     {
         var builder = new StringBuilder();
         builder.AppendLine("# Role");
@@ -43,19 +42,6 @@ public sealed class SystemPromptFactory : ISystemPromptFactory
         builder.AppendLine(snapshot.ProjectInstructions);
         builder.AppendLine();
 
-        builder.AppendLine("# Tooling contract");
-        builder.AppendLine("Available tools:");
-        foreach (var tool in tools)
-        {
-            builder.Append("- ")
-                .Append(tool.Name)
-                .Append(" [readOnly=")
-                .Append(tool.IsReadOnly ? "true" : "false")
-                .Append(", concurrencySafe=")
-                .Append(tool.IsConcurrencySafe ? "true" : "false")
-                .Append("]: ")
-                .AppendLine(tool.Description);
-        }
 
         if (options.AdditionalSystemPrompts.Length > 0)
         {

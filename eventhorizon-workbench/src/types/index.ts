@@ -35,15 +35,14 @@ export type ProviderEntry = {
 };
 
 export type McpServerConfig = {
-  name?: string;
-  command?: string;
-  arguments: string[];
-  url?: string;
-  environmentVariables: Record<string, string>;
   enabled: boolean;
+  name?: string;
+  url: string;
+  headers: Record<string, string>;
 };
 
 export type ImportedSkill = {
+  enabled: boolean;
   name: string;
   path: string;
   description?: string;

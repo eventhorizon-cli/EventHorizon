@@ -1,6 +1,7 @@
 import { apiRequest } from "@/api/client";
 import type {
   AppConfiguration,
+  ImportedSkill,
   McpServerConfig,
   McpTestResult,
   ProviderConfig,
@@ -55,13 +56,35 @@ function mapProvider(payload: ApiProviderPayload): ProviderEntry {
   };
 }
 
+function mapMcpServer(server: McpServerConfig): McpServerConfig {
+  return {
+    enabled: server.enabled ?? true,
+    name: server.name,
+    url: server.url,
+    headers: server.headers ?? {},
+  };
+}
+
+function mapImportedSkill(skill: ImportedSkill): ImportedSkill {
+  return {
+    enabled: skill.enabled ?? true,
+    name: skill.name,
+    path: skill.path,
+    description: skill.description,
+    importedAt: skill.importedAt,
+  };
+}
+
 function mapConfiguration(payload: ConfigurationPayload): AppConfiguration {
   return {
     filePath: payload.filePath,
     currentDefaultProvider: payload.currentDefaultProvider,
     providers: payload.providers.map(mapProvider),
-    mcpServers: payload.mcpServers ?? [],
-    skills: payload.skills ?? { imported: [] },
+    mcpServers: (payload.mcpServers ?? []).map(mapMcpServer),
+    skills: {
+      storagePath: payload.skills?.storagePath,
+      imported: (payload.skills?.imported ?? []).map(mapImportedSkill),
+    },
   };
 }
 

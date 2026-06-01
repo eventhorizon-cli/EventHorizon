@@ -81,12 +81,10 @@ public sealed class UserMcpFileServiceTests : IDisposable
             [
                 new McpServerOptions
                 {
-                    Name = "test-server",
-                    Command = "node",
-                    Arguments = ["server.js"],
                     Enabled = true,
-                    Url = null,
-                    EnvironmentVariables = []
+                    Name = "test-server",
+                    Url = "https://example.com/mcp",
+                    Headers = []
                 }
             ]
         };
@@ -131,15 +129,13 @@ public sealed class UserMcpFileServiceTests : IDisposable
             [
                 new McpServerOptions
                 {
+                    Enabled = false,
                     Name = "claude-server",
-                    Command = "python",
-                    Arguments = ["-m", "mcp.server.claude"],
-                    Enabled = true,
-                    Url = null,
-                    EnvironmentVariables = new Dictionary<string, string>
+                    Url = "https://claude.example.com/mcp",
+                    Headers = new Dictionary<string, string>
                     {
-                        ["API_KEY"] = "secret",
-                        ["DEBUG"] = "false"
+                        ["Authorization"] = "Bearer secret",
+                        ["X-Debug"] = "false"
                     }
                 }
             ]
@@ -151,8 +147,10 @@ public sealed class UserMcpFileServiceTests : IDisposable
         // Assert
         var content = File.ReadAllText(service.FilePath);
         Assert.Contains("claude-server", content);
-        Assert.Contains("python", content);
-        Assert.Contains("mcp.server.claude", content);
+        Assert.Contains("https://claude.example.com/mcp", content);
+        Assert.Contains("Authorization", content);
+        Assert.Contains("Enabled", content);
+        Assert.Contains("false", content);
     }
 
     [Fact]
@@ -167,19 +165,17 @@ public sealed class UserMcpFileServiceTests : IDisposable
             [
                 new McpServerOptions
                 {
-                    Name = "server1",
-                    Command = "node",
-                    Arguments = [],
                     Enabled = true,
-                    EnvironmentVariables = []
+                    Name = "server1",
+                    Url = "https://example.com/server1",
+                    Headers = []
                 },
                 new McpServerOptions
                 {
-                    Name = "server2",
-                    Command = "python",
-                    Arguments = [],
                     Enabled = false,
-                    EnvironmentVariables = []
+                    Name = "server2",
+                    Url = "https://example.com/server2",
+                    Headers = []
                 }
             ]
         };
@@ -222,11 +218,10 @@ public sealed class UserMcpFileServiceTests : IDisposable
             [
                 new McpServerOptions
                 {
-                    Name = "first",
-                    Command = "node",
-                    Arguments = [],
                     Enabled = true,
-                    EnvironmentVariables = []
+                    Name = "first",
+                    Url = "https://example.com/first",
+                    Headers = []
                 }
             ]
         });
@@ -237,11 +232,10 @@ public sealed class UserMcpFileServiceTests : IDisposable
             [
                 new McpServerOptions
                 {
+                    Enabled = false,
                     Name = "second",
-                    Command = "python",
-                    Arguments = [],
-                    Enabled = true,
-                    EnvironmentVariables = []
+                    Url = "https://example.com/second",
+                    Headers = []
                 }
             ]
         });
@@ -264,27 +258,24 @@ public sealed class UserMcpFileServiceTests : IDisposable
             [
                 new McpServerOptions
                 {
+                    Enabled = true,
                     Name = "alpha",
-                    Command = "node",
-                    Arguments = [],
-                    Enabled = true,
-                    EnvironmentVariables = []
+                    Url = "https://example.com/alpha",
+                    Headers = []
                 },
                 new McpServerOptions
                 {
+                    Enabled = true,
                     Name = "beta",
-                    Command = "python",
-                    Arguments = [],
-                    Enabled = true,
-                    EnvironmentVariables = []
+                    Url = "https://example.com/beta",
+                    Headers = []
                 },
                 new McpServerOptions
                 {
-                    Name = "gamma",
-                    Command = "go",
-                    Arguments = [],
                     Enabled = false,
-                    EnvironmentVariables = []
+                    Name = "gamma",
+                    Url = "https://example.com/gamma",
+                    Headers = []
                 }
             ]
         };

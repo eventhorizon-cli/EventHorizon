@@ -38,7 +38,14 @@ internal sealed class OptionsNormalizer : IOptionsNormalizer
     {
         foreach (var server in options.Servers)
         {
-            server.Name = string.IsNullOrWhiteSpace(server.Name) ? server.Command : server.Name;
+            server.Url = string.IsNullOrWhiteSpace(server.Url) ? string.Empty : server.Url.Trim();
+            server.Name = string.IsNullOrWhiteSpace(server.Name) ? GetDefaultMcpServerName(server.Url) : server.Name.Trim();
+            server.Headers = server.Headers
+                .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key))
+                .ToDictionary(
+                    static pair => pair.Key.Trim(),
+                    static pair => pair.Value.Trim(),
+                    StringComparer.OrdinalIgnoreCase);
         }
     }
 
@@ -113,5 +120,16 @@ internal sealed class OptionsNormalizer : IOptionsNormalizer
         => string.IsNullOrWhiteSpace(providerType)
             ? "openai"
             : providerType.Trim().ToLowerInvariant();
-}
 
+    private static string GetDefaultMcpServerName(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return string.Empty;
+        }
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            ? uri.Host
+            : url.Trim();
+    }
+}

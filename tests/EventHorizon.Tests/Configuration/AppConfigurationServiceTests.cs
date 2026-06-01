@@ -102,11 +102,10 @@ public sealed class AppConfigurationServiceTests
         {
             Servers = [new McpServerOptions
             {
+                Enabled = false,
                 Name = "test",
-                Command = "node",
-                Arguments = [],
-                Enabled = true,
-                EnvironmentVariables = []
+                Url = "https://example.com/mcp",
+                Headers = []
             }]
         };
 
@@ -128,6 +127,7 @@ public sealed class AppConfigurationServiceTests
         // Assert
         Assert.Equal(mcpOptions, result);
         Assert.Single(result.Servers);
+        Assert.False(result.Servers[0].Enabled);
         Assert.Equal("test", result.Servers[0].Name);
     }
 
@@ -140,6 +140,7 @@ public sealed class AppConfigurationServiceTests
             StoragePath = "/home/user/.eventhorizon/skills",
             Imported = [new ImportedSkillOptions
             {
+                Enabled = false,
                 Name = "math",
                 Path = "/home/user/.eventhorizon/skills/math",
                 Description = "Math functions",
@@ -165,6 +166,7 @@ public sealed class AppConfigurationServiceTests
         // Assert
         Assert.Equal(skillsOptions, result);
         Assert.Single(result.Imported);
+        Assert.False(result.Imported[0].Enabled);
         Assert.Equal("math", result.Imported[0].Name);
     }
 
@@ -209,14 +211,45 @@ public sealed class AppConfigurationServiceTests
             }
         };
 
+        var newMcp = new McpOptions
+        {
+            Servers =
+            [
+                new McpServerOptions
+                {
+                    Enabled = false,
+                    Name = "disabled-server",
+                    Url = "https://example.com/mcp",
+                    Headers = []
+                }
+            ]
+        };
+
+        var newSkills = new SkillsOptions
+        {
+            Imported =
+            [
+                new ImportedSkillOptions
+                {
+                    Enabled = false,
+                    Name = "disabled-skill",
+                    Path = "/tmp/disabled-skill",
+                    Description = "Disabled skill",
+                    ImportedAt = DateTimeOffset.UtcNow
+                }
+            ]
+        };
+
         // Act
-        service.Save(newProviders, new McpOptions(), new SkillsOptions(), CancellationToken.None);
+        service.Save(newProviders, newMcp, newSkills, CancellationToken.None);
 
         // Assert
         Assert.Single(userConfigService.Saved);
         Assert.Single(userProvidersService.Saved);
         Assert.Single(userMcpService.Saved);
         Assert.Single(userSkillsService.Saved);
+        Assert.False(userMcpService.Saved[0].Servers[0].Enabled);
+        Assert.False(userSkillsService.Saved[0].Imported[0].Enabled);
     }
 
     [Fact]

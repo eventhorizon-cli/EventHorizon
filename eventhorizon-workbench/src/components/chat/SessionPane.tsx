@@ -58,7 +58,6 @@ function ToolCallActivity({ toolCalls }: { toolCalls: ToolCallTimelineItem[] }) 
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Tool activity</div>
-          <div className="mt-1 text-sm font-medium">Function-style tool calls</div>
         </div>
         <div className="text-xs text-muted-foreground">{toolCalls.length} call(s)</div>
       </div>

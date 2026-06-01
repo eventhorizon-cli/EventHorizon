@@ -1,4 +1,3 @@
-import { DiffViewer } from "@/components/diff/DiffViewer";
 import { cn } from "@/utils/cn";
 import type {
   AgentPhase,
@@ -7,7 +6,6 @@ import type {
   AppConfiguration,
   ContextView,
   FileChange,
-  FileDiff,
   ProviderEntry,
 } from "@/types";
 
@@ -32,9 +30,7 @@ type ContextPanelProps = {
   selectedProviderDefaultModel?: string;
   changes: FileChange[];
   selectedFile?: string;
-  currentDiff?: FileDiff;
   phase: AgentPhase;
-  resolvedTheme: "light" | "dark";
   onContextViewChange: (view: ContextView) => void;
   onSessionTitleInputChange: (value: string) => void;
   onSkillImportPathChange: (value: string) => void;
@@ -69,9 +65,7 @@ export function ContextPanel({
   selectedProviderDefaultModel,
   changes,
   selectedFile,
-  currentDiff,
   phase,
-  resolvedTheme,
   onContextViewChange,
   onSessionTitleInputChange,
   onSkillImportPathChange,
@@ -88,7 +82,7 @@ export function ContextPanel({
     <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-card/95 shadow-sm">
       <div className="flex shrink-0 items-center border-b border-border/70 px-4 py-3">
         <div className="flex gap-1 rounded-full bg-muted p-1 text-xs">
-          {(["overview", "files", "diff", "settings"] as const).map((view) => (
+          {(["overview", "files", "settings"] as const).map((view) => (
             <button
               key={view}
               type="button"
@@ -130,8 +124,12 @@ export function ContextPanel({
           </div>
         ) : null}
 
-        {contextView === "files" ? (
-          <div className="space-y-2">
+        {contextView === "files" || contextView === "diff" ? (
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+              Click a changed file to open its diff in a modal. You can switch between files from the modal list.
+            </div>
+
             {changes.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">No file changes yet.</div>
             ) : null}
@@ -154,22 +152,6 @@ export function ContextPanel({
               </button>
             ))}
           </div>
-        ) : null}
-
-        {contextView === "diff" ? (
-          currentDiff ? (
-            <div className="h-full min-h-[360px] overflow-hidden rounded-2xl border border-border">
-              <DiffViewer
-                {...currentDiff}
-                theme={resolvedTheme === "dark" ? "dark" : "light"}
-                onBack={() => onContextViewChange("files")}
-              />
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-              Select a changed file to inspect the diff.
-            </div>
-          )
         ) : null}
 
         {contextView === "settings" ? (

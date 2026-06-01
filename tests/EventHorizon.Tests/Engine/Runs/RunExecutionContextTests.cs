@@ -286,7 +286,7 @@ public sealed class RunExecutionContextTests
         var count = 100;
 
         // Act
-        for (int i = 0; i < count; i++)
+        for (var i = 0; i < count; i++)
         {
             var state = new RunExecutionContext.ToolCallState
             {

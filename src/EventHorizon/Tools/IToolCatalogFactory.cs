@@ -1,8 +1,9 @@
 using EventHorizon.Workspace;
+using Microsoft.Extensions.AI;
 
 namespace EventHorizon.Tools;
 
 public interface IToolCatalogFactory
 {
-    IReadOnlyList<ToolDescriptor> Create(IWorkspaceService workspaceService);
+    IReadOnlyList<AITool> Create(IWorkspaceService workspaceService);
 }
