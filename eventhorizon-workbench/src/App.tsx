@@ -42,6 +42,8 @@ export default function App() {
               isUpdatingSession={app.isUpdatingSession}
               onComposerChange={app.setComposerValue}
               onComposerSubmit={app.handleSubmit}
+              onNewChat={app.handleNewChat}
+              onOpenSettings={app.openSettings}
               onCancelRun={app.handleCancel}
               onSelectModel={app.handleSessionModelChange}
               onViewFiles={app.handleViewFiles}

@@ -22,8 +22,7 @@ import {
   isProviderFieldVisible,
   normalizeOptionalText,
 } from "@/utils/configuration";
-import { buildTemporarySessionTitle } from "@/utils/sessionTitle";
-import type { AgentEvent, AgentRun, AgentSessionDetail, AppConfiguration, FileChange, McpServerConfig, ProviderEntry, ProviderType, SkillImportResult } from "@/types";
+import type { AgentEvent, AgentRun, AppConfiguration, FileChange, McpServerConfig, ProviderEntry, ProviderType, SkillImportResult } from "@/types";
 
 const leftPaneKey = "event-horizon-workbench-left-pane-collapsed";
 const compactLayoutQuery = "(max-width: 1180px)";
@@ -48,21 +47,6 @@ function mapPhase(event: AgentEvent) {
     default:
       return undefined;
   }
-}
-
-function createDraftSession(task: string): AgentSessionDetail {
-  const id = `draft_${crypto.randomUUID()}`;
-
-  return {
-    id,
-    title: buildTemporarySessionTitle(task),
-    status: "idle",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    isTitleGenerated: false,
-    messages: [],
-    sessionSkills: { imported: [] },
-  };
 }
 
 function formatError(error: unknown) {
@@ -145,6 +129,7 @@ export function useWorkbenchApp() {
   const selectedProvider = getProvider(configurationDraft ?? configuration, selectedProviderName);
   const selectedProviderDefaultModel = selectedProvider?.provider.model;
   const availableModels = getProviderModels(selectedProvider, currentSession?.model);
+  const hasConfiguredModels = availableModels.length > 0;
   const sessionModelWarning = currentSession?.model && selectedProviderName && selectedProvider
     && !selectedProvider.provider.models.includes(currentSession.model)
     && selectedProvider.provider.model !== currentSession.model
@@ -372,38 +357,33 @@ export function useWorkbenchApp() {
     void workspaceDirectoryPicker.openPicker();
   }, [workspaceDirectoryPicker]);
 
+  const openSettings = useCallback(() => {
+    setGlobalSettingsMessage(undefined);
+    setGlobalSettingsError(undefined);
+    setSkillImportTarget("global");
+    setShowGlobalSettingsDialog(true);
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     const task = composerValue.trim();
     if (!task || isSubmitting) {
       return;
     }
 
+    if (!currentSession || currentSession.id.startsWith("draft_")) {
+      await workspaceDirectoryPicker.openPicker();
+      return;
+    }
+
+    if (!hasConfiguredModels) {
+      openSettings();
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      let activeSession = currentSession;
-
-      if (!activeSession) {
-        activeSession = createDraftSession(task);
-        setCurrentSession(activeSession);
-      }
-
-      if (activeSession.id.startsWith("draft_")) {
-        const created = await createSession({
-          initialMessage: task,
-          providerName: currentSession?.providerName,
-          model: currentSession?.model,
-          workspaceRoot: currentSession?.workspaceRoot,
-        });
-        const detail = await getSession(created.id);
-        setCurrentSession(detail);
-        activeSession = detail;
-        await refreshSessions();
-      }
-
-      if (!activeSession) {
-        return;
-      }
+      const activeSession = currentSession;
 
       addUserMessage(activeSession.id, task);
 
@@ -423,7 +403,7 @@ export function useWorkbenchApp() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [addUserMessage, composerValue, currentSession, isSubmitting, refreshSessions, setChanges, setConnectionStatus, setCurrentDiff, setCurrentRun, setCurrentSession, setPhase, setSelectedFile]);
+  }, [addUserMessage, composerValue, currentSession, hasConfiguredModels, isSubmitting, openSettings, setChanges, setConnectionStatus, setCurrentDiff, setCurrentRun, setPhase, setSelectedFile, workspaceDirectoryPicker]);
 
   const handleCancel = useCallback(async () => {
     if (currentRun) {
@@ -1023,12 +1003,7 @@ export function useWorkbenchApp() {
     setSkillImportPath,
     setSkillImportTarget,
     setSessionTitleInput,
-    openSettings: () => {
-      setGlobalSettingsMessage(undefined);
-      setGlobalSettingsError(undefined);
-      setSkillImportTarget("global");
-      setShowGlobalSettingsDialog(true);
-    },
+    openSettings,
     closeSettings: () => setShowGlobalSettingsDialog(false),
     toggleLeftPaneCollapsed,
     openSession,
