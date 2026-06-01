@@ -18,7 +18,7 @@ public sealed class SessionDocument
     public bool IsTitleManuallyEdited { get; set; }
     public string? SerializedSession { get; set; }
     public string? SessionId { get; set; }
-    public EventHorizon.Configuration.SkillsOptions SessionSkills { get; set; } = new();
+    public Configuration.SkillsOptions SessionSkills { get; set; } = new();
     public List<SessionTranscriptEntry> Transcript { get; set; } = [];
     public SessionUsageSnapshot Usage { get; set; } = new();
 }

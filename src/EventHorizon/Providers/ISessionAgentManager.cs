@@ -7,12 +7,10 @@ public interface ISessionAgentManager
 {
     Task<SessionAgentRuntime> GetOrCreateAsync(
         SessionDocument document,
-        ChatRequestOverrides? overrides,
         CancellationToken cancellationToken);
 
     Task<SessionAgentRuntime> RebuildAsync(
         SessionDocument document,
-        ChatRequestOverrides? overrides,
         CancellationToken cancellationToken);
 
     void Invalidate(string sessionId, CancellationToken cancellationToken = default);

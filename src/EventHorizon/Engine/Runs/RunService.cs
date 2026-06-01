@@ -1,13 +1,11 @@
 using System.Text.Json;
 using EventHorizon.DTOs;
 using EventHorizon.Engine.Events;
-using EventHorizon.Engine.Runs;
 using EventHorizon.Engine.Sessions;
 using EventHorizon.Pricing;
 using EventHorizon.Providers;
 using EventHorizon.Workspace.Diff;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Logging;
 
 namespace EventHorizon.Engine.Runs;
 
@@ -67,8 +65,7 @@ public sealed class RunService : IRunService
             throw new ArgumentException($"Session '{request.SessionId}' was not found.", nameof(request));
         }
 
-        var workingDirectory = string.IsNullOrWhiteSpace(request.WorkingDirectory) ? sessionDocument.WorkspaceRoot : request.WorkingDirectory;
-        var normalizedWorkingDirectory = NormalizeWorkingDirectory(workingDirectory);
+        var normalizedWorkingDirectory = NormalizeWorkingDirectory(sessionDocument.WorkspaceRoot);
         var run = new Run
         {
             Id = $"run_{Guid.NewGuid():N}",
@@ -76,13 +73,13 @@ public sealed class RunService : IRunService
             SessionId = sessionDocument.Id,
             Task = request.Task.Trim(),
             WorkingDirectory = normalizedWorkingDirectory,
-            ProviderName = request.ProviderName,
-            Model = request.Model,
+            ProviderName = sessionDocument.ProviderName,
+            Model = sessionDocument.Model,
             CreatedAt = DateTimeOffset.UtcNow,
         };
         run.MarkRunning(RunStates.Planning);
 
-        var session = await _sessionService.StartRunAsync(sessionDocument.Id, run.Id, run.Task, request.ProviderName, request.Model, cancellationToken).ConfigureAwait(false);
+        var session = await _sessionService.StartRunAsync(sessionDocument.Id, run.Id, run.Task, cancellationToken).ConfigureAwait(false);
         if (session is null)
         {
             throw new ArgumentException($"Session '{request.SessionId}' was not found.", nameof(request));
@@ -173,13 +170,8 @@ public sealed class RunService : IRunService
             var sessionId = run.SessionId ?? throw new InvalidOperationException("Run session id is required.");
             var sessionDocument = await _sessionService.GetDocumentAsync(sessionId, CancellationToken.None).ConfigureAwait(false)
                 ?? throw new InvalidOperationException($"Session '{sessionId}' was not found.");
-            var overrides = new ChatRequestOverrides
-            {
-                ProviderName = run.ProviderName,
-                Model = run.Model,
-            };
             var conversationRuntime = await WithSessionInitializationTimeout(
-                _conversationAgentManager.GetOrCreateAsync(sessionDocument, overrides, entry.CancellationTokenSource.Token),
+                _conversationAgentManager.GetOrCreateAsync(sessionDocument, entry.CancellationTokenSource.Token),
                 "Timed out while initializing the conversation agent.",
                 entry.CancellationTokenSource.Token).ConfigureAwait(false);
 

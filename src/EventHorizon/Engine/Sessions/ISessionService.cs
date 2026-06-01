@@ -20,8 +20,6 @@ public interface ISessionService
         string sessionId,
         string runId,
         string task,
-        string? providerName,
-        string? model,
         CancellationToken cancellationToken);
 
     Task RecordRunCompletedAsync(string sessionId, string? assistantMessage, int changedFilesCount, CancellationToken cancellationToken);

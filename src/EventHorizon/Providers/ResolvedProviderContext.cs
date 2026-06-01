@@ -6,6 +6,5 @@ public sealed record ResolvedProviderContext(
     string? ProviderName,
     string ProviderType,
     string Model,
-    ProviderOptions Provider,
-    ChatRequestOverrides Overrides);
+    ProviderOptions Provider);
 

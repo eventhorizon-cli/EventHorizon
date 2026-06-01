@@ -4,7 +4,6 @@ import type { AgentRun } from "@/types";
 export async function createRun(input: {
   sessionId: string;
   task: string;
-  workingDirectory?: string;
   options?: Record<string, unknown>;
 }): Promise<AgentRun> {
   return apiRequest<AgentRun>(`/api/sessions/${encodeURIComponent(input.sessionId)}/runs`, {

@@ -102,8 +102,6 @@ public sealed class SessionService : ISessionService
         string sessionId,
         string runId,
         string task,
-        string? providerName,
-        string? model,
         CancellationToken cancellationToken)
     {
         var document = await _sessionStore.LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
@@ -114,15 +112,6 @@ public sealed class SessionService : ISessionService
 
         document.LastRunId = runId;
         document.Status = RunStates.Running;
-        if (providerName is not null)
-        {
-            document.ProviderName = string.IsNullOrWhiteSpace(providerName) ? null : providerName.Trim();
-        }
-
-        if (model is not null)
-        {
-            document.Model = string.IsNullOrWhiteSpace(model) ? string.Empty : model.Trim();
-        }
 
         document.UpdatedAt = DateTimeOffset.UtcNow;
         AppendUserMessageIfNeeded(document, task);
@@ -211,28 +200,24 @@ public sealed class SessionService : ISessionService
     private SessionDocument CreateSessionDocument(string? initialMessage, string workspaceRoot, string? providerName, string? model)
     {
         var now = DateTimeOffset.UtcNow;
-        var resolved = _providerResolutionService.TryResolveForSession(
-            null,
-            new ChatRequestOverrides
-            {
-                ProviderName = providerName,
-                Model = model,
-            });
-
-        var activeProvider = resolved?.Provider ?? new ProviderOptions();
         var document = new SessionDocument
         {
             Name = BuildInitialTitle(initialMessage),
             Status = RunStates.Idle,
-            ProviderName = resolved?.ProviderName ?? providerName,
-            ProviderType = resolved?.ProviderType ?? activeProvider.Type ?? string.Empty,
-            Model = resolved?.Model ?? model ?? activeProvider.Model ?? string.Empty,
+            ProviderName = string.IsNullOrWhiteSpace(providerName) ? null : providerName.Trim(),
+            Model = string.IsNullOrWhiteSpace(model) ? string.Empty : model.Trim(),
             WorkspaceRoot = workspaceRoot,
             CreatedAt = now,
             UpdatedAt = now,
             IsTitleGenerated = false,
             IsTitleManuallyEdited = false,
         };
+
+        var resolved = _providerResolutionService.TryResolveForSession(document);
+        var activeProvider = resolved?.Provider ?? new ProviderOptions();
+        document.ProviderName = resolved?.ProviderName ?? document.ProviderName;
+        document.ProviderType = resolved?.ProviderType ?? activeProvider.Type ?? string.Empty;
+        document.Model = resolved?.Model ?? document.Model ?? activeProvider.Model ?? string.Empty;
 
         if (!string.IsNullOrWhiteSpace(initialMessage))
         {

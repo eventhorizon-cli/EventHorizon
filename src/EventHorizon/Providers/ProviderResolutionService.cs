@@ -7,12 +7,10 @@ namespace EventHorizon.Providers;
 internal sealed class ProviderResolutionService : IProviderResolutionService
 {
     private readonly IOptionsMonitor<ProvidersOptions> _optionsMonitor;
-    private readonly IProviderConfigurationService _providerConfigurationService;
 
-    public ProviderResolutionService(IOptionsMonitor<ProvidersOptions> optionsMonitor, IProviderConfigurationService providerConfigurationService)
+    public ProviderResolutionService(IOptionsMonitor<ProvidersOptions> optionsMonitor)
     {
         _optionsMonitor = optionsMonitor;
-        _providerConfigurationService = providerConfigurationService;
     }
 
     private ProvidersOptions Options => _optionsMonitor.CurrentValue;
@@ -23,13 +21,13 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
             .Select(static pair => Clone(pair.Key, pair.Value))
             .ToArray();
 
-    public ResolvedProviderContext? TryResolveForSession(SessionDocument? session, ChatRequestOverrides? overrides = null)
+    public ResolvedProviderContext? TryResolveForSession(SessionDocument session)
     {
         var options = Options;
-        var providerName = FirstNonEmpty(overrides?.ProviderName, session?.ProviderName, options.CurrentDefaultProvider, _providerConfigurationService.GetEffectiveProviderName());
+        var providerName = FirstNonEmpty(session.ProviderName, options.CurrentDefaultProvider);
         if (string.IsNullOrWhiteSpace(providerName))
         {
-            return TryResolveDefaultWithModel(overrides?.Model ?? session?.Model);
+            return TryResolveDefaultWithModel(session.Model);
         }
 
         if (!options.Providers.TryGetValue(providerName, out var provider))
@@ -38,22 +36,22 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
         }
 
         var cloned = Clone(providerName, provider);
-        ApplyModelOverride(cloned, overrides?.Model ?? session?.Model);
-        return new ResolvedProviderContext(providerName, cloned.Type ?? "openai", cloned.Model ?? string.Empty, cloned, overrides ?? ChatRequestOverrides.Empty);
+        ApplyModelOverride(cloned, session.Model);
+        return new ResolvedProviderContext(providerName, cloned.Type ?? "openai", cloned.Model ?? string.Empty, cloned);
     }
 
-    public ResolvedProviderContext? TryResolveDefault()
-        => TryResolveForSession(session: null, ChatRequestOverrides.Empty);
 
     private ResolvedProviderContext? TryResolveDefaultWithModel(string? model)
     {
         var options = Options;
-        var activeProvider = _providerConfigurationService.GetActiveProvider();
-        if (HasConfiguredProvider(activeProvider))
+
+        if (!string.IsNullOrWhiteSpace(options.CurrentDefaultProvider) &&
+            options.Providers.TryGetValue(options.CurrentDefaultProvider, out var defaultProvider) &&
+            HasConfiguredProvider(defaultProvider))
         {
-            var provider = Clone(options.CurrentDefaultProvider, activeProvider);
+            var provider = Clone(options.CurrentDefaultProvider, defaultProvider);
             ApplyModelOverride(provider, model);
-            return new ResolvedProviderContext(options.CurrentDefaultProvider, provider.Type ?? "openai", provider.Model ?? string.Empty, provider, ChatRequestOverrides.Empty);
+            return new ResolvedProviderContext(options.CurrentDefaultProvider, provider.Type ?? "openai", provider.Model ?? string.Empty, provider);
         }
 
         if (options.Providers.Count == 1)
@@ -61,7 +59,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
             var pair = options.Providers.Single();
             var provider = Clone(pair.Key, pair.Value);
             ApplyModelOverride(provider, model);
-            return new ResolvedProviderContext(pair.Key, provider.Type ?? "openai", provider.Model ?? string.Empty, provider, ChatRequestOverrides.Empty);
+            return new ResolvedProviderContext(pair.Key, provider.Type ?? "openai", provider.Model ?? string.Empty, provider);
         }
 
         return null;

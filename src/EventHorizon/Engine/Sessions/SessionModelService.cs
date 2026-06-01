@@ -34,13 +34,12 @@ internal sealed class SessionModelService : ISessionModelService
         var normalizedProviderName = NormalizeProviderName(providerName);
         var normalizedModelId = NormalizeModelId(modelId);
 
-        var resolved = _providerResolutionService.TryResolveForSession(
-            document,
-            new ChatRequestOverrides
-            {
-                ProviderName = normalizedProviderName,
-                Model = normalizedModelId,
-            });
+        var resolutionDocument = new SessionDocument
+        {
+            ProviderName = normalizedProviderName ?? document.ProviderName,
+            Model = normalizedModelId ?? document.Model,
+        };
+        var resolved = _providerResolutionService.TryResolveForSession(resolutionDocument);
 
         if (resolved is null)
         {
@@ -65,7 +64,7 @@ internal sealed class SessionModelService : ISessionModelService
         document.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _sessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
-        await _agentManager.RebuildAsync(document, ChatRequestOverrides.Empty, cancellationToken).ConfigureAwait(false);
+        await _agentManager.RebuildAsync(document, cancellationToken).ConfigureAwait(false);
 
         return new SessionModelUpdateResult
         {

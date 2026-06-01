@@ -8,11 +8,6 @@ public sealed class CreateRunRequestDTO
 
     public string Task { get; set; } = string.Empty;
 
-    public string? WorkingDirectory { get; set; }
-
-    public string? ProviderName { get; set; }
-
-    public string? Model { get; set; }
 
     public JsonElement? Options { get; set; }
 }

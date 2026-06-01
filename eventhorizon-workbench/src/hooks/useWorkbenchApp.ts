@@ -428,7 +428,6 @@ export function useWorkbenchApp() {
       const run = await createRun({
         sessionId: activeSession.id,
         task,
-        workingDirectory: activeSession.workspaceRoot,
       });
       setCurrentRun(run);
       setChanges([]);

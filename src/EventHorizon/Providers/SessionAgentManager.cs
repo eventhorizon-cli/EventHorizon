@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using EventHorizon.Configuration;
 using EventHorizon.Engine.Sessions;
 using Microsoft.Agents.AI;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Providers;
@@ -41,25 +40,23 @@ internal sealed class SessionAgentManager : ISessionAgentManager
 
     public async Task<SessionAgentRuntime> GetOrCreateAsync(
         SessionDocument document,
-        ChatRequestOverrides? overrides,
         CancellationToken cancellationToken)
     {
-        if (_cache.TryGetValue(document.Id, out var cached) && IsReusable(cached, document, overrides))
+        if (_cache.TryGetValue(document.Id, out var cached) && IsReusable(cached, document))
         {
             return ToRuntime(cached, wasReused: true);
         }
 
-        return await RebuildAsync(document, overrides, cancellationToken).ConfigureAwait(false);
+        return await RebuildAsync(document, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<SessionAgentRuntime> RebuildAsync(
         SessionDocument document,
-        ChatRequestOverrides? overrides,
         CancellationToken cancellationToken)
     {
         Invalidate(document.Id, cancellationToken);
 
-        var resolved = _providerResolutionService.TryResolveForSession(document, overrides)
+        var resolved = _providerResolutionService.TryResolveForSession(document)
             ?? throw new InvalidOperationException("No provider is configured for the current session.");
         var agentOptions = _agentOptionsMonitor.CurrentValue;
         var skillsProvider = _skillProviderFactory.Create(agentOptions, _services, document);
@@ -119,18 +116,22 @@ internal sealed class SessionAgentManager : ISessionAgentManager
         }
     }
 
-    private bool IsReusable(CachedSessionAgent cached, SessionDocument document, ChatRequestOverrides? overrides)
+    private bool IsReusable(CachedSessionAgent cached, SessionDocument document)
     {
-        var requestedProvider = overrides?.ProviderName ?? document.ProviderName;
-        var requestedModel = overrides?.Model ?? document.Model;
-        if (!string.Equals(cached.ResolvedProvider.ProviderName, requestedProvider, StringComparison.OrdinalIgnoreCase) &&
-            !(string.IsNullOrWhiteSpace(cached.ResolvedProvider.ProviderName) && string.IsNullOrWhiteSpace(requestedProvider)))
+        var resolved = _providerResolutionService.TryResolveForSession(document);
+        if (resolved is null)
         {
             return false;
         }
 
-        if (!string.Equals(cached.ResolvedProvider.Model, requestedModel, StringComparison.OrdinalIgnoreCase) &&
-            !string.IsNullOrWhiteSpace(requestedModel))
+        if (!string.Equals(cached.ResolvedProvider.ProviderName, resolved.ProviderName, StringComparison.OrdinalIgnoreCase) &&
+            !(string.IsNullOrWhiteSpace(cached.ResolvedProvider.ProviderName) && string.IsNullOrWhiteSpace(resolved.ProviderName)))
+        {
+            return false;
+        }
+
+        if (!string.Equals(cached.ResolvedProvider.Model, resolved.Model, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(resolved.Model))
         {
             return false;
         }

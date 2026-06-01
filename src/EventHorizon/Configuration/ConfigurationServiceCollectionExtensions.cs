@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace EventHorizon.Configuration;
 
@@ -25,9 +24,7 @@ public static class ConfigurationServiceCollectionExtensions
         services.AddSingleton<IProviderTestingService, ProviderTestingService>();
         services.AddSingleton<IMcpService, McpService>();
         services.AddSingleton<ISkillService, SkillService>();
-        services.AddSingleton<IProviderConfigurationService, ProviderConfigurationService>();
         services.AddSingleton<Providers.ISkillProviderFactory, Providers.SkillProviderFactory>();
-        services.AddSingleton<IHostedService, CurrentProviderSelectionHostedService>();
         return services;
     }
 }
