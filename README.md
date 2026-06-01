@@ -1,5 +1,4 @@
 EventHorizon
-
 ===========
 
 [![Nuget](https://img.shields.io/nuget/v/EventHorizon)](https://www.nuget.org/packages/EventHorizon/)
