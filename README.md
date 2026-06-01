@@ -23,11 +23,6 @@ Configuration is loaded in this order, with later sources overriding earlier one
 
 On first start, EventHorizon creates `~/.eventhorizon/` and seeds `~/.eventhorizon/appsettings.json` from the bundled `appsettings.json` if needed.
 
-All runtime configuration is bound into `IOptions<Configuration.AppOptions>` and consumed through options injection.
-
-`CurrentProvider` is now replaced by `CurrentDefaultProvider`.
-Legacy `CurrentProvider` is still read during load and migrated in memory. Persisted config only writes `CurrentDefaultProvider`.
-
 ## Run
 
 ```zsh
