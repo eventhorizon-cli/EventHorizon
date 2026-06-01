@@ -1,5 +1,11 @@
 # EventHorizon
 
+===========
+
+[![Nuget](https://img.shields.io/nuget/v/EventHorizon)](https://www.nuget.org/packages/EventHorizon/)
+
+English | [简体中文](./README.zh-CN.md)
+
 EventHorizon is a Code Agent project developed based on the **Microsoft Agent Framework**.
 
 ---
