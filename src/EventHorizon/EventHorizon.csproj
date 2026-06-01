@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -10,7 +10,10 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);MAAI001;MEAI001</NoWarn>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+  </PropertyGroup>
 
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
     <IsPackable>true</IsPackable>
     <ToolCommandName>eventhorizon</ToolCommandName>
     <PackageId>EventHorizon</PackageId>
@@ -40,12 +43,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="wwwroot\**\*" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>
