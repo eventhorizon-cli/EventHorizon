@@ -1,6 +1,6 @@
 import ReactMarkdown from "react-markdown";
-import { useEffect, useMemo, useRef } from "react";
-import { Loader2, Play, Plus, Settings2, Square } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronRight, Loader2, Play, Plus, Settings2, Square } from "lucide-react";
 import { ModifiedFilesCard } from "@/components/chat/ModifiedFilesCard";
 import { cn } from "@/utils/cn";
 import {
@@ -10,13 +10,12 @@ import {
   type ToolCallTimelineItem,
 } from "@/utils/toolCalls";
 import { formatDistanceToNow } from "date-fns";
-import type { AgentPhase, AgentRun, AgentSessionDetail, FileChange, LogItem } from "@/types";
+import type { AgentRun, AgentSessionDetail, FileChange, LogItem } from "@/types";
 
 type SessionPaneProps = {
   currentSession?: AgentSessionDetail;
   currentRun?: AgentRun;
   availableModels: string[];
-  phase: AgentPhase;
   logs: LogItem[];
   changes: FileChange[];
   composerValue: string;
@@ -36,67 +35,192 @@ function isNearBottom(element: HTMLElement) {
   return element.scrollHeight - element.scrollTop - element.clientHeight < 96;
 }
 
+function ToolCallDetailSection({ label, value, tone = "default" }: { label: string; value?: string; tone?: "default" | "error" }) {
+  if (!value) {
+    return null;
+  }
+
+  return (
+    <div className="min-w-0 max-w-full space-y-1">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <pre
+        className={cn(
+          "min-w-0 max-w-full overflow-x-auto rounded-xl border border-border/70 bg-muted/40 px-3 py-2 font-mono text-xs leading-5 whitespace-pre-wrap break-words",
+          tone === "error" && "border-red-200/80 bg-red-50/70 text-red-700 dark:border-red-500/40 dark:bg-red-950/30 dark:text-red-200",
+        )}
+      >
+        {value}
+      </pre>
+    </div>
+  );
+}
+
 function ToolCallActivity({ toolCalls }: { toolCalls: ToolCallTimelineItem[] }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const summaryScrollRef = useRef<HTMLDivElement>(null);
+  const detailScrollRef = useRef<HTMLDivElement>(null);
+  const latestToolCallRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottomRef = useRef(true);
+  const [expanded, setExpanded] = useState(false);
+  const [expandedToolCallIds, setExpandedToolCallIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const element = scrollRef.current;
-    if (!element || !shouldStickToBottomRef.current) {
+    const element = summaryScrollRef.current;
+    if (expanded || !element) {
       return;
     }
 
     element.scrollTo({ top: element.scrollHeight, behavior: "auto" });
-  }, [toolCalls]);
+  }, [expanded, toolCalls]);
+
+  useEffect(() => {
+    if (!expanded || !latestToolCallRef.current) {
+      return;
+    }
+
+    latestToolCallRef.current.scrollIntoView({ block: "nearest", behavior: "auto" });
+  }, [expanded, toolCalls]);
 
   if (toolCalls.length === 0) {
     return null;
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-border/70 bg-background/70 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Tool activity</div>
-        </div>
-        <div className="text-xs text-muted-foreground">{toolCalls.length} call(s)</div>
-      </div>
-
-      <div
-        ref={scrollRef}
-        onScroll={(event) => {
-          shouldStickToBottomRef.current = isNearBottom(event.currentTarget);
+    <div className="mt-4 min-w-0 max-w-full rounded-2xl border border-border/70 bg-background/70 p-3">
+      <button
+        type="button"
+        onClick={() => {
+          setExpanded((current) => {
+            const next = !current;
+            if (next) {
+              shouldStickToBottomRef.current = true;
+            }
+            return next;
+          });
         }}
-        className="mt-3 grid max-h-72 gap-3 overflow-y-auto pr-1"
+        aria-expanded={expanded}
+        className="flex w-full min-w-0 max-w-full items-start justify-between gap-3 text-left"
       >
-        {toolCalls.map((toolCall) => {
-          const signature = formatToolCallSignature(toolCall.name, toolCall.arguments);
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            <span>Tool activity</span>
+            <span className="rounded-full bg-muted px-2 py-0.5 normal-case text-[11px]">{toolCalls.length} call(s)</span>
+          </div>
 
-          return (
-            <div key={toolCall.id} className="rounded-2xl border border-border bg-card/90 px-3 py-2 shadow-sm">
-              <div className="flex items-start gap-2 font-mono text-sm leading-6 break-words text-foreground">
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "shrink-0",
-                    toolCall.status === "failed"
-                      ? "text-red-600 dark:text-red-300"
-                      : toolCall.status === "completed"
-                        ? "text-emerald-700 dark:text-emerald-300"
-                        : "text-primary",
-                  )}
-                >
-                  {getToolCallStatusIcon(toolCall.status)}
-                </span>
-                <span className="sr-only">{toolCall.status}</span>
-                <span className="min-w-0 break-all" title={signature}>
-                  {signature}
-                </span>
+          {!expanded ? (
+            <div className="mt-2 min-w-0 overflow-hidden rounded-2xl border border-border bg-card/90 px-3 py-2 shadow-sm">
+              <div ref={summaryScrollRef} className="h-6 min-w-0 overflow-hidden" aria-live="polite">
+                <div className="min-w-0 space-y-2">
+                  {toolCalls.map((toolCall) => {
+                    const signature = formatToolCallSignature(toolCall.name, toolCall.arguments);
+
+                    return (
+                      <div key={toolCall.id} className="flex h-6 min-w-0 items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "shrink-0",
+                            toolCall.status === "failed"
+                              ? "text-red-600 dark:text-red-300"
+                              : toolCall.status === "completed"
+                                ? "text-emerald-700 dark:text-emerald-300"
+                                : "text-primary",
+                          )}
+                        >
+                          {getToolCallStatusIcon(toolCall.status)}
+                        </span>
+                        <span className="sr-only">{toolCall.status}</span>
+                        <span className="min-w-0 flex-1 truncate font-mono text-sm leading-6 whitespace-nowrap text-foreground" title={signature}>
+                          {signature}
+                        </span>
+                        <span className="shrink-0 text-[11px] uppercase tracking-wide text-muted-foreground">{toolCall.status}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ) : null}
+        </div>
+
+        {expanded ? (
+          <ChevronDown className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
+        )}
+      </button>
+
+      {expanded ? (
+        <div
+          ref={detailScrollRef}
+          onScroll={(event) => {
+            shouldStickToBottomRef.current = isNearBottom(event.currentTarget);
+          }}
+          className="mt-3 grid min-w-0 max-w-full max-h-72 gap-3 overflow-x-hidden overflow-y-auto pr-1"
+        >
+          {toolCalls.map((toolCall, index) => {
+            const signature = formatToolCallSignature(toolCall.name, toolCall.arguments);
+            const isExpanded = !!expandedToolCallIds[toolCall.id];
+            const isLatest = index === toolCalls.length - 1;
+
+            return (
+              <div
+                key={toolCall.id}
+                ref={isLatest ? latestToolCallRef : undefined}
+                className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-card/90 px-3 py-2 shadow-sm"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandedToolCallIds((current) => ({
+                      ...current,
+                      [toolCall.id]: !current[toolCall.id],
+                    }));
+                  }}
+                  aria-expanded={isExpanded}
+                  className="flex min-w-0 w-full max-w-full items-center gap-2 text-left"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "shrink-0",
+                      toolCall.status === "failed"
+                        ? "text-red-600 dark:text-red-300"
+                        : toolCall.status === "completed"
+                          ? "text-emerald-700 dark:text-emerald-300"
+                          : "text-primary",
+                    )}
+                  >
+                    {getToolCallStatusIcon(toolCall.status)}
+                  </span>
+                  <span className="sr-only">{toolCall.status}</span>
+                  <span className="min-w-0 flex-1 truncate font-mono text-sm leading-6 whitespace-nowrap text-foreground" title={signature}>
+                    {signature}
+                  </span>
+                  <span className="shrink-0 text-[11px] uppercase tracking-wide text-muted-foreground">{toolCall.status}</span>
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                </button>
+
+                {isExpanded ? (
+                  <div className="mt-3 min-w-0 max-w-full space-y-3 overflow-hidden border-t border-border/70 pt-3">
+                    <ToolCallDetailSection label="Call" value={signature} />
+                    <ToolCallDetailSection label="Arguments" value={toolCall.arguments} />
+                    <ToolCallDetailSection label="Result" value={toolCall.result} />
+                    <ToolCallDetailSection label="Error" value={toolCall.error} tone="error" />
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                      <span>Started: {new Date(toolCall.startedAt).toLocaleString()}</span>
+                      <span>Updated: {new Date(toolCall.updatedAt).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -105,7 +229,6 @@ export function SessionPane({
   currentSession,
   currentRun,
   availableModels,
-  phase,
   logs,
   changes,
   composerValue,
@@ -123,9 +246,14 @@ export function SessionPane({
   const hasActiveSession = !!currentSession;
   const hasConfiguredModels = availableModels.length > 0;
   const canSubmit = hasActiveSession && hasConfiguredModels && composerValue.trim().length > 0 && currentRun?.status !== "running";
+  const isRunActive = currentRun?.status === "running";
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottomRef = useRef(true);
   const toolCalls = useMemo(() => buildToolCallTimeline(logs, currentRun?.id), [logs, currentRun?.id]);
+  const hasStreamingAssistantMessage = useMemo(
+    () => currentSession?.messages.some((message) => message.role === "assistant" && message.status === "streaming") ?? false,
+    [currentSession?.messages],
+  );
 
   useEffect(() => {
     const element = messagesScrollRef.current;
@@ -249,7 +377,10 @@ export function SessionPane({
             {currentSession.messages.map((message) => (
               <div key={message.id} className="flex flex-col gap-1">
                 {message.role === "assistant" && (
-                  <div className="text-sm font-medium text-muted-foreground">🤖 Assistant</div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <span>🤖 Assistant</span>
+                    {message.status === "streaming" ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : null}
+                  </div>
                 )}
                 {message.role === "user" ? (
                   <div className="ml-auto flex flex-col gap-1">
@@ -274,27 +405,10 @@ export function SessionPane({
                 )}
               </div>
             ))}
-            {currentRun?.status === "running" ? (
-              <div className="w-full rounded-3xl border border-primary/20 bg-card p-4 shadow-sm">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  Agent is working
-                </div>
-
-                <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-                  <div>• Current phase: {phase}</div>
-                  <div>• Task: {currentRun.task}</div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={onViewFiles}
-                    className="rounded-xl border border-border px-3 py-1.5 text-xs transition hover:bg-muted"
-                  >
-                    View files
-                  </button>
-                </div>
+            {isRunActive && !hasStreamingAssistantMessage ? (
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <span>🤖 Assistant</span>
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
               </div>
             ) : null}
 
@@ -342,7 +456,7 @@ export function SessionPane({
                   ? "Configure a model in Settings to enable Run..."
                   : "Ask the agent to change, explain, test, or refactor your code..."
             }
-            className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-16 w-full resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
           />
 
           <div className="mt-3 flex items-center justify-between gap-3">

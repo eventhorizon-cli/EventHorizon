@@ -12,7 +12,7 @@ export default function App() {
   const app = useWorkbenchApp();
 
   return (
-    <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-muted/40 p-3 text-foreground">
+    <div className="box-border flex h-screen min-h-0 flex-col overflow-hidden bg-muted/40 p-3 text-foreground">
       <WorkbenchHeader onOpenSettings={app.openSettings} />
 
       <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
@@ -34,7 +34,6 @@ export default function App() {
               currentSession={app.currentSession}
               currentRun={app.currentRun}
               availableModels={app.availableModels}
-              phase={app.phase}
               logs={app.logs}
               changes={app.changes}
               composerValue={app.composerValue}

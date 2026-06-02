@@ -5,8 +5,6 @@ using EventHorizon.Pricing;
 using EventHorizon.Prompting;
 using EventHorizon.Providers;
 using EventHorizon.Workspace;
-using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.Extensions.FileProviders;
 using Serilog;
 using Serilog.Events;
 
@@ -71,7 +69,7 @@ public static class Program
 
     private static void ConfigureMiddleware(WebApplication app)
     {
-        app.MapStaticAssets();
+        app.UseStaticFiles();
         app.MapControllers();
         app.MapFallback((HttpContext context) =>
         {
