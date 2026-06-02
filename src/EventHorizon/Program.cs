@@ -32,7 +32,7 @@ public static class Program
 
     private static void ConfigureLogging(WebApplicationBuilder builder, IPathEnvironment pathEnvironment)
     {
-        var logFilePath = Path.Combine(pathEnvironment.HomeDirectory, ".config", "eventhorizon", "error.log");
+        var logFilePath = Path.Combine(pathEnvironment.HomeDirectory, ".eventhorizon", "logs", "error.log");
         var loggerConfiguration = new LoggerConfiguration()
             .MinimumLevel.Error()
             .Enrich.FromLogContext()
