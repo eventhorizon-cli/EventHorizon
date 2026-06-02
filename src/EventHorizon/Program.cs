@@ -5,6 +5,8 @@ using EventHorizon.Pricing;
 using EventHorizon.Prompting;
 using EventHorizon.Providers;
 using EventHorizon.Workspace;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using Serilog;
 using Serilog.Events;
 
@@ -69,24 +71,47 @@ public static class Program
 
     private static void ConfigureMiddleware(WebApplication app)
     {
-        app.UseStaticFiles();
+        var fileProvider = GetStaticFileProvider();
+
+        app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = fileProvider });
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = fileProvider, ContentTypeProvider = new FileExtensionContentTypeProvider(),
+        });
+
         app.MapControllers();
-        app.MapFallback((HttpContext context) =>
+        app.MapFallback(async context =>
         {
             var requestPath = NormalizePath(context.Request.Path.Value);
             if (requestPath.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
             {
-                return Results.NotFound();
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
             }
 
-            var indexFile = Path.Combine(app.Environment.WebRootPath, "index.html");
-            if (!File.Exists(indexFile))
+            var indexFile = fileProvider.GetFileInfo("index.html");
+            if (!indexFile.Exists)
             {
-                return Results.NotFound("index.html not found");
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
             }
 
-            return Results.File(indexFile, "text/html");
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await using var stream = indexFile.CreateReadStream();
+            await stream.CopyToAsync(context.Response.Body, context.RequestAborted).ConfigureAwait(false);
         });
+    }
+
+    private static IFileProvider GetStaticFileProvider()
+    {
+        var webRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+        IFileProvider fileProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
+        if (Directory.Exists(webRootPath))
+        {
+            fileProvider = new CompositeFileProvider(new PhysicalFileProvider(webRootPath), fileProvider);
+        }
+
+        return fileProvider;
     }
 
     private static string NormalizePath(string? path)
