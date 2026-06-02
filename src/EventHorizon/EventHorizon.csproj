@@ -33,6 +33,7 @@
     <PackageReference Include="Google.GenAI" />
     <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" />
     <PackageReference Include="ModelContextProtocol" />
     <PackageReference Include="OpenAI" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
