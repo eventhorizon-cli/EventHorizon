@@ -71,48 +71,24 @@ public static class Program
 
     private static void ConfigureMiddleware(WebApplication app)
     {
-        var fileProvider = GetStaticFileProvider();
-
-        app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = fileProvider });
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = fileProvider,
-            ContentTypeProvider = new FileExtensionContentTypeProvider(),
-        });
-
+        app.MapStaticAssets();
         app.MapControllers();
-        app.MapFallback(async context =>
+        app.MapFallback((HttpContext context) =>
         {
             var requestPath = NormalizePath(context.Request.Path.Value);
             if (requestPath.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
             {
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
-                return;
+                return Results.NotFound();
             }
 
-            var indexFile = fileProvider.GetFileInfo("index.html");
-            if (!indexFile.Exists)
+            var indexFile = Path.Combine(app.Environment.WebRootPath, "index.html");
+            if (!File.Exists(indexFile))
             {
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
-                return;
+                return Results.NotFound("index.html not found");
             }
 
-            context.Response.ContentType = "text/html; charset=utf-8";
-            await using var stream = indexFile.CreateReadStream();
-            await stream.CopyToAsync(context.Response.Body, context.RequestAborted).ConfigureAwait(false);
+            return Results.File(indexFile, "text/html");
         });
-    }
-
-    private static IFileProvider GetStaticFileProvider()
-    {
-        var webRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
-        IFileProvider fileProvider = new ManifestEmbeddedFileProvider(typeof(Program).Assembly, "wwwroot");
-        if (Directory.Exists(webRootPath))
-        {
-            fileProvider = new CompositeFileProvider(new PhysicalFileProvider(webRootPath), fileProvider);
-        }
-
-        return fileProvider;
     }
 
     private static string NormalizePath(string? path)
