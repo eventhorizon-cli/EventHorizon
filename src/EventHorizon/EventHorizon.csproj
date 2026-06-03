@@ -8,7 +8,7 @@
     <RootNamespace>EventHorizon</RootNamespace>
     <AssemblyName>EventHorizon</AssemblyName>
     <LangVersion>latest</LangVersion>
-    <NoWarn>$(NoWarn);MAAI001;MEAI001</NoWarn>
+    <NoWarn>$(NoWarn);MAAI001;MEAI001;OPENAI001</NoWarn>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
   </PropertyGroup>
 
@@ -35,7 +35,6 @@
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" />
     <PackageReference Include="ModelContextProtocol" />
-    <PackageReference Include="OpenAI" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Sinks.File" />
   </ItemGroup>

@@ -21,8 +21,9 @@ import {
   globalSettingsTabs,
   isProviderFieldVisible,
   normalizeOptionalText,
+  normalizeProviderType,
 } from "@/utils/configuration";
-import type { AgentEvent, AgentRun, AppConfiguration, FileChange, FileDiff, ImportedSkill, McpServerConfig, ProviderEntry, ProviderType, SkillImportResult } from "@/types";
+import type { AgentEvent, AgentRun, AppConfiguration, FileChange, FileDiff, ImportedSkill, McpServerConfig, ProviderEntry, SkillImportResult } from "@/types";
 
 const leftPaneKey = "event-horizon-workbench-left-pane-collapsed";
 const compactLayoutQuery = "(max-width: 1180px)";
@@ -725,7 +726,7 @@ export function useWorkbenchApp() {
           }
 
           if (field === "type" && typeof value === "string") {
-            const nextType = normalizeOptionalText(value) as ProviderType | undefined;
+            const nextType = normalizeProviderType(value);
 
             return {
               ...provider,
@@ -1033,7 +1034,7 @@ export function useWorkbenchApp() {
           name: provider.name.trim(),
           provider: {
             ...provider.provider,
-            type: provider.provider.type ?? "openai",
+            type: provider.provider.type ?? "openai-chat-completions",
             model: provider.provider.model,
             endpoint: provider.provider.endpoint,
             apiKey: provider.provider.apiKey,

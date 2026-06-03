@@ -1,4 +1,5 @@
 import { cn } from "@/utils/cn";
+import { formatProviderTypeLabel } from "@/utils/configuration";
 import type {
   AgentPhase,
   AgentRun,
@@ -266,7 +267,7 @@ export function ContextPanel({
                 <div className="grid gap-1 text-xs text-muted-foreground">
                   <div>Workspace directory: {currentSession?.workspaceRoot ?? "Not selected"}</div>
                   <div>Resolved provider: {selectedProviderName ?? "None"}</div>
-                  <div>Provider type: {currentSession?.providerType ?? selectedProviderType ?? "Unknown"}</div>
+                  <div>Provider type: {formatProviderTypeLabel(currentSession?.providerType ?? selectedProviderType ?? "Unknown")}</div>
                 </div>
               </div>
             </section>

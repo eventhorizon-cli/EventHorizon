@@ -39,6 +39,20 @@ The application supports these provider types:
 - `anthropic`
 - `gemini`
 
+For `openai`, `openai-compatible`, and `azure-openai`, the settings UI also shows a separate `API type` dropdown:
+
+- `Chat Completions API`
+- `Responses API`
+
+Internally, those three provider families are stored as six concrete provider type values:
+
+- `openai-chat-completions`
+- `openai-responses`
+- `openai-compatible-chat-completions`
+- `openai-compatible-responses`
+- `azure-openai-chat-completions`
+- `azure-openai-responses`
+
 Each provider entry includes:
 
 - `Name`: unique provider name shown in the UI and used for default selection
@@ -57,17 +71,21 @@ Provider behavior notes:
 
 - You can configure multiple providers and choose one as the shared default.
 - Sessions can override the global provider and model selection.
+- For `openai`, choose `Chat Completions API` to use `GetChatClient(model).AsIChatClient()`, or `Responses API` to use `GetResponsesClient().AsIChatClient(model)`.
 - For Azure OpenAI, EventHorizon prefers `Deployment` and falls back to `Model` when needed.
-- For `openai-compatible`, use the provider's base endpoint and set the model IDs exposed by that service.
+- For `azure-openai`, choose `Chat Completions API` to use `GetChatClient(deployment).AsIChatClient()`, or `Responses API` to use `GetResponsesClient().AsIChatClient(deployment)`.
+- For `openai-compatible`, use the provider's base endpoint and choose either `Chat Completions API` or `Responses API` based on the endpoint the service exposes.
 
 Example provider settings:
 
 - OpenAI
-  - Type: `openai`
+  - Provider: `openai`
+  - API type: `Chat Completions API` or `Responses API`
   - API key: your OpenAI API key
   - Default model: `gpt-4.1-mini`
 - Azure OpenAI
-  - Type: `azure-openai`
+  - Provider: `azure-openai`
+  - API type: `Chat Completions API` or `Responses API`
   - Endpoint: your Azure OpenAI resource endpoint
   - Deployment: your deployment name
   - Default model: optional

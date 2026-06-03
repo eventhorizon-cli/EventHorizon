@@ -2,16 +2,25 @@ import { X } from "lucide-react";
 import { ToggleSwitch } from "@/components/settings/ToggleSwitch";
 import { cn } from "@/utils/cn";
 import {
+  getProviderApiType,
+  getProviderApiTypeLabel,
+  getProviderFamily,
+  getProviderFamilyLabel,
   getProviderFieldMeta,
   globalSettingsTabs,
   isProviderFieldVisible,
-  providerTypes,
+  providerApiTypes,
+  providerFamilies,
+  supportsProviderApiType,
+  toProviderType,
 } from "@/utils/configuration";
 import type {
   AppConfiguration,
   ImportedSkill,
   McpServerConfig,
+  ProviderApiType,
   ProviderEntry,
+  ProviderFamily,
 } from "@/types";
 import type { GlobalSettingsTab } from "@/utils/configuration";
 
@@ -224,8 +233,12 @@ export function GlobalSettingsDialog({
                         </div>
                       ) : null}
 
-                      {configurationDraft.providers.map((provider, index) => (
-                        <div key={`provider-${index}`} className="rounded-2xl border border-border bg-card p-4">
+                      {configurationDraft.providers.map((provider, index) => {
+                        const providerFamily = getProviderFamily(provider.provider.type);
+                        const providerApiType = getProviderApiType(provider.provider.type) ?? "chat";
+
+                        return (
+                          <div key={`provider-${index}`} className="rounded-2xl border border-border bg-card p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-sm font-medium">{provider.name || `Provider ${index + 1}`}</div>
                             <div className="flex gap-2">
@@ -258,20 +271,47 @@ export function GlobalSettingsDialog({
                             </label>
 
                             <label className="grid gap-2">
-                              <span className="text-xs uppercase tracking-wide text-muted-foreground">Type</span>
+                              <span className="text-xs uppercase tracking-wide text-muted-foreground">Provider</span>
                               <select
-                                value={provider.provider.type ?? ""}
-                                onChange={(event) => onProviderConfigChange(index, "type", event.target.value)}
+                                value={providerFamily ?? ""}
+                                onChange={(event) =>
+                                  onProviderConfigChange(
+                                    index,
+                                    "type",
+                                    toProviderType((event.target.value || undefined) as ProviderFamily | undefined, "chat") ?? "",
+                                  )}
                                 className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                               >
-                                <option value="">Select provider type</option>
-                                {providerTypes.map((providerType) => (
+                                <option value="">Select provider</option>
+                                {providerFamilies.map((providerType) => (
                                   <option key={providerType} value={providerType}>
-                                    {providerType}
+                                    {getProviderFamilyLabel(providerType)}
                                   </option>
                                 ))}
                               </select>
                             </label>
+
+                            {supportsProviderApiType(providerFamily) ? (
+                              <label className="grid gap-2">
+                                <span className="text-xs uppercase tracking-wide text-muted-foreground">API type</span>
+                                <select
+                                  value={providerApiType}
+                                  onChange={(event) =>
+                                    onProviderConfigChange(
+                                      index,
+                                      "type",
+                                      toProviderType(providerFamily, event.target.value as ProviderApiType) ?? "",
+                                    )}
+                                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                >
+                                  {providerApiTypes.map((apiType) => (
+                                    <option key={apiType} value={apiType}>
+                                      {getProviderApiTypeLabel(apiType)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            ) : null}
 
                             {isProviderFieldVisible(provider.provider.type, "model") ? (
                               <label className="grid gap-2">
@@ -367,8 +407,9 @@ export function GlobalSettingsDialog({
                               {providerTestResults[index]}
                             </div>
                           ) : null}
-                        </div>
-                      ))}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : null}
                 </section>

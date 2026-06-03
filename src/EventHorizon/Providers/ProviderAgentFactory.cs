@@ -26,7 +26,7 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
         AgentSkillsProvider? skillsProvider,
         IServiceProvider services)
     {
-        if (string.Equals(providerOptions.Type, "anthropic", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(providerOptions.Type, ProviderTypes.Anthropic, StringComparison.OrdinalIgnoreCase))
         {
             return CreateAnthropicAgent(agentOptions, providerOptions, instructions, tools);
         }

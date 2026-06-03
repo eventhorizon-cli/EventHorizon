@@ -44,6 +44,7 @@ internal sealed class SessionTitleGenerator : ISessionTitleGenerator
 
         try
         {
+            // TODO: should we use using or pooling for chat clients?
             var client = _chatClientFactory.CreateChatClient(resolved.Provider);
             var messages = new List<ChatMessage>
             {
@@ -51,7 +52,7 @@ internal sealed class SessionTitleGenerator : ISessionTitleGenerator
                 new(ChatRole.User, $"Session excerpt:\n{excerpt}"),
             };
             var response = await client.GetResponseAsync(messages, new ChatOptions { ModelId = resolved.Model }, cancellationToken).ConfigureAwait(false);
-            var title = response.Text?.Trim();
+            var title = response.Text.Trim();
             if (string.IsNullOrWhiteSpace(title))
             {
                 return BuildFallbackTitle(document);

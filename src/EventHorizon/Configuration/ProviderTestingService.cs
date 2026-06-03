@@ -32,7 +32,7 @@ internal sealed class ProviderTestingService : IProviderTestingService
             return new ProviderTestResponseDTO
             {
                 Success = true,
-                Message = string.IsNullOrWhiteSpace(response.Text) ? "Connection succeeded." : "Connection succeeded.",
+                Message = string.IsNullOrWhiteSpace(response.Text) ? "Connection failed." : "Connection succeeded.",
                 Models = models,
             };
         }
@@ -42,7 +42,7 @@ internal sealed class ProviderTestingService : IProviderTestingService
             {
                 Success = false,
                 Message = Sanitize(ex.Message),
-                Models = Array.Empty<string>(),
+                Models = [],
             };
         }
     }

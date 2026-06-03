@@ -33,25 +33,13 @@ public sealed class ConfigurationController : ControllerBase
         var providers = _appConfigurationService.GetProvidersOptions();
         var mcp = _appConfigurationService.GetMcpOptions();
         var skills = _appConfigurationService.GetSkillsOptions();
+        var responseProviders = MapSupportedProviders(providers);
 
         return Ok(new AppConfigurationResponseDTO
         {
             FilePath = _userConfigurationFileService.FilePath,
-            CurrentDefaultProvider = providers.CurrentDefaultProvider,
-            Providers = providers.Providers
-                .OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(static pair => new ApiProviderViewModelDTO
-                {
-                    Name = pair.Key,
-                    Type = pair.Value.Type ?? "openai",
-                    Model = pair.Value.Model,
-                    Models = [.. pair.Value.Models],
-                    Endpoint = pair.Value.Endpoint,
-                    ApiKey = pair.Value.ApiKey,
-                    Deployment = pair.Value.Deployment,
-                    UseDefaultAzureCredential = pair.Value.UseDefaultAzureCredential,
-                })
-                .ToArray(),
+            CurrentDefaultProvider = ResolveCurrentDefaultProvider(providers.CurrentDefaultProvider, responseProviders),
+            Providers = responseProviders,
             McpServers = [.. mcp.Servers],
             Skills = skills,
         });
@@ -84,24 +72,48 @@ public sealed class ConfigurationController : ControllerBase
         var savedProviders = _appConfigurationService.GetProvidersOptions();
         var savedMcp = _appConfigurationService.GetMcpOptions();
         var savedSkills = _appConfigurationService.GetSkillsOptions();
+        var responseProviders = MapSupportedProviders(savedProviders);
 
         return Ok(new AppConfigurationResponseDTO
         {
             FilePath = _userConfigurationFileService.FilePath,
-            CurrentDefaultProvider = savedProviders.CurrentDefaultProvider,
-            Providers = savedProviders.Providers.Select(static pair => new ApiProviderViewModelDTO
-            {
-                Name = pair.Key,
-                Type = pair.Value.Type ?? "openai",
-                Model = pair.Value.Model,
-                Models = [.. pair.Value.Models],
-                Endpoint = pair.Value.Endpoint,
-                ApiKey = pair.Value.ApiKey,
-                Deployment = pair.Value.Deployment,
-                UseDefaultAzureCredential = pair.Value.UseDefaultAzureCredential,
-            }).ToArray(),
+            CurrentDefaultProvider = ResolveCurrentDefaultProvider(savedProviders.CurrentDefaultProvider, responseProviders),
+            Providers = responseProviders,
             McpServers = [.. savedMcp.Servers],
             Skills = savedSkills,
         });
     }
+
+    private static ApiProviderViewModelDTO[] MapSupportedProviders(ProvidersOptions providers)
+        => providers.Providers
+            .OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(static pair =>
+            {
+                var normalizedType = ProviderTypes.Normalize(pair.Value.Type);
+                return new
+                {
+                    pair.Key,
+                    Provider = pair.Value,
+                    Type = normalizedType,
+                    Supported = ProviderTypes.IsSupported(normalizedType),
+                };
+            })
+            .Where(static provider => provider.Supported)
+            .Select(static provider => new ApiProviderViewModelDTO
+            {
+                Name = provider.Key,
+                Type = provider.Type,
+                Model = provider.Provider.Model,
+                Models = [.. provider.Provider.Models],
+                Endpoint = provider.Provider.Endpoint,
+                ApiKey = provider.Provider.ApiKey,
+                Deployment = provider.Provider.Deployment,
+                UseDefaultAzureCredential = provider.Provider.UseDefaultAzureCredential,
+            })
+            .ToArray();
+
+    private static string? ResolveCurrentDefaultProvider(string? currentDefaultProvider, IReadOnlyCollection<ApiProviderViewModelDTO> providers)
+        => !string.IsNullOrWhiteSpace(currentDefaultProvider) && providers.Any(provider => provider.Name == currentDefaultProvider)
+            ? currentDefaultProvider
+            : null;
 }

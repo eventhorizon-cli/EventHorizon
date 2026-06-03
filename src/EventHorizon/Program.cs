@@ -76,7 +76,8 @@ public static class Program
         app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = fileProvider });
         app.UseStaticFiles(new StaticFileOptions
         {
-            FileProvider = fileProvider, ContentTypeProvider = new FileExtensionContentTypeProvider(),
+            FileProvider = fileProvider,
+            ContentTypeProvider = new FileExtensionContentTypeProvider(),
         });
 
         app.MapControllers();

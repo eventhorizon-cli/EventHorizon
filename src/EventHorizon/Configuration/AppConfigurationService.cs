@@ -65,6 +65,8 @@ internal sealed class AppConfigurationService : IAppConfigurationService
         CopySkillsInto(skillsOptions, skills);
 
         _normalizer.NormalizeProviders(providersOptions);
+        RemoveUnsupportedProviders(providersOptions);
+        _normalizer.NormalizeProviders(providersOptions);
         _normalizer.NormalizeMcp(mcpOptions);
         _normalizer.NormalizeSkills(skillsOptions);
 
@@ -90,6 +92,21 @@ internal sealed class AppConfigurationService : IAppConfigurationService
             static pair => pair.Key,
             pair => MergeProvider(pair.Value, target.Providers.TryGetValue(pair.Key, out var existingProvider) ? existingProvider : null),
             StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static void RemoveUnsupportedProviders(ProvidersOptions options)
+    {
+        var supportedProviders = options.Providers
+            .Where(static pair => ProviderTypes.IsSupported(pair.Value.Type))
+            .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(options.CurrentDefaultProvider) &&
+            !supportedProviders.ContainsKey(options.CurrentDefaultProvider))
+        {
+            options.CurrentDefaultProvider = null;
+        }
+
+        options.Providers = supportedProviders;
     }
 
     private static void CopyMcpInto(McpOptions target, McpOptions source)

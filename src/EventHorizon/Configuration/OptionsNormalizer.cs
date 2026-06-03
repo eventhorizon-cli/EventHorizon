@@ -117,9 +117,7 @@ internal sealed class OptionsNormalizer : IOptionsNormalizer
     }
 
     private static string NormalizeProviderType(string? providerType)
-        => string.IsNullOrWhiteSpace(providerType)
-            ? "openai"
-            : providerType.Trim().ToLowerInvariant();
+        => ProviderTypes.Normalize(providerType);
 
     private static string GetDefaultMcpServerName(string? url)
     {

@@ -5,7 +5,17 @@ export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "di
 export type ContextView = "overview" | "files" | "diff" | "settings";
 export type AgentPhase = "idle" | "understanding" | "inspecting" | "planning" | "editing" | "validating" | "summarizing" | "completed" | "failed" | "cancelled";
 export type FileChangeStatus = "added" | "modified" | "deleted" | "renamed";
-export type ProviderType = "openai" | "openai-compatible" | "azure-openai" | "anthropic" | "gemini";
+export type ProviderFamily = "openai" | "openai-compatible" | "azure-openai" | "anthropic" | "gemini";
+export type ProviderApiType = "chat" | "responses";
+export type ProviderType =
+  | "openai-chat-completions"
+  | "openai-responses"
+  | "openai-compatible-chat-completions"
+  | "openai-compatible-responses"
+  | "azure-openai-chat-completions"
+  | "azure-openai-responses"
+  | "anthropic"
+  | "gemini";
 
 export type DirectoryItem = {
   path: string;

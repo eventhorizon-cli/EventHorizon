@@ -1,6 +1,19 @@
-import type { AppConfiguration, ProviderEntry, ProviderType } from "@/types";
+import type { AppConfiguration, ProviderApiType, ProviderEntry, ProviderFamily, ProviderType } from "@/types";
 
-export const providerTypes: ProviderType[] = ["openai", "openai-compatible", "azure-openai", "anthropic", "gemini"];
+export const providerTypes: ProviderType[] = [
+  "openai-chat-completions",
+  "openai-responses",
+  "openai-compatible-chat-completions",
+  "openai-compatible-responses",
+  "azure-openai-chat-completions",
+  "azure-openai-responses",
+  "anthropic",
+  "gemini",
+];
+
+export const providerFamilies: ProviderFamily[] = ["openai", "openai-compatible", "azure-openai", "anthropic", "gemini"];
+
+export const providerApiTypes: ProviderApiType[] = ["chat", "responses"];
 
 export const globalSettingsTabs = ["providers", "mcp", "skills"] as const;
 
@@ -80,11 +93,117 @@ export function normalizeOptionalText(value: string) {
   return trimmed ? trimmed : undefined;
 }
 
+export function isSupportedProviderType(type?: string): type is ProviderType {
+  return !!type && providerTypes.includes(type as ProviderType);
+}
+
+export function normalizeProviderType(type?: string): ProviderType | undefined {
+  const normalized = normalizeOptionalText(type ?? "")?.toLowerCase();
+  return isSupportedProviderType(normalized) ? normalized : undefined;
+}
+
+export function getProviderFamily(providerType?: ProviderType | string): ProviderFamily | undefined {
+  switch (normalizeProviderType(providerType)) {
+    case "openai-chat-completions":
+    case "openai-responses":
+      return "openai";
+    case "openai-compatible-chat-completions":
+    case "openai-compatible-responses":
+      return "openai-compatible";
+    case "azure-openai-chat-completions":
+    case "azure-openai-responses":
+      return "azure-openai";
+    case "anthropic":
+      return "anthropic";
+    case "gemini":
+      return "gemini";
+    default:
+      return undefined;
+  }
+}
+
+export function getProviderApiType(providerType?: ProviderType | string): ProviderApiType | undefined {
+  switch (normalizeProviderType(providerType)) {
+    case "openai-chat-completions":
+    case "openai-compatible-chat-completions":
+    case "azure-openai-chat-completions":
+      return "chat";
+    case "openai-responses":
+    case "openai-compatible-responses":
+    case "azure-openai-responses":
+      return "responses";
+    default:
+      return undefined;
+  }
+}
+
+export function supportsProviderApiType(providerFamily?: ProviderFamily | string) {
+  return providerFamily === "openai" || providerFamily === "openai-compatible" || providerFamily === "azure-openai";
+}
+
+export function toProviderType(providerFamily?: ProviderFamily, apiType: ProviderApiType = "chat"): ProviderType | undefined {
+  switch (providerFamily) {
+    case "openai":
+      return apiType === "responses" ? "openai-responses" : "openai-chat-completions";
+    case "openai-compatible":
+      return apiType === "responses" ? "openai-compatible-responses" : "openai-compatible-chat-completions";
+    case "azure-openai":
+      return apiType === "responses" ? "azure-openai-responses" : "azure-openai-chat-completions";
+    case "anthropic":
+      return "anthropic";
+    case "gemini":
+      return "gemini";
+    default:
+      return undefined;
+  }
+}
+
+export function getProviderFamilyLabel(providerFamily: ProviderFamily) {
+  switch (providerFamily) {
+    case "openai":
+      return "OpenAI";
+    case "openai-compatible":
+      return "OpenAI Compatible";
+    case "azure-openai":
+      return "Azure OpenAI";
+    case "anthropic":
+      return "Anthropic";
+    case "gemini":
+      return "Gemini";
+  }
+}
+
+export function getProviderApiTypeLabel(providerApiType: ProviderApiType) {
+  return providerApiType === "responses" ? "Responses API" : "Chat Completions API";
+}
+
+export function formatProviderTypeLabel(providerType?: ProviderType | string) {
+  const normalizedProviderType = normalizeProviderType(providerType);
+
+  if (!normalizedProviderType) {
+    return providerType ?? "Unknown";
+  }
+
+  const providerFamily = getProviderFamily(normalizedProviderType);
+  if (!providerFamily) {
+    return normalizedProviderType;
+  }
+
+  if (!supportsProviderApiType(providerFamily)) {
+    return getProviderFamilyLabel(providerFamily);
+  }
+
+  const apiType = getProviderApiType(normalizedProviderType);
+  return apiType
+    ? `${getProviderFamilyLabel(providerFamily)} / ${getProviderApiTypeLabel(apiType)}`
+    : getProviderFamilyLabel(providerFamily);
+}
+
 export function isProviderFieldVisible(
   providerType: ProviderType | undefined,
   field: "model" | "endpoint" | "apiKey" | "deployment" | "useDefaultAzureCredential",
 ) {
-  switch (providerType) {
+  switch (getProviderFamily(providerType)) {
     case "openai":
     case "anthropic":
     case "gemini":
@@ -102,12 +221,14 @@ export function getProviderFieldMeta(
   providerType: ProviderType | undefined,
   field: "model" | "endpoint" | "apiKey" | "deployment",
 ) {
+  const providerFamily = getProviderFamily(providerType);
+
   if (field === "apiKey") {
-    if (providerType === "azure-openai") {
+    if (providerFamily === "azure-openai") {
       return { label: "API key (optional)", hint: "Leave empty to use Default Azure Credential." };
     }
 
-    if (providerType === "openai-compatible") {
+    if (providerFamily === "openai-compatible") {
       return { label: "API key (optional)", hint: "Optional for compatible endpoints that do not require authentication." };
     }
 
@@ -123,7 +244,7 @@ export function getProviderFieldMeta(
   }
 
   return {
-    label: providerType === "azure-openai" ? "Default model (optional)" : "Default model",
-    hint: providerType === "azure-openai" ? "Optional when deployment is set explicitly." : "Required",
+    label: providerFamily === "azure-openai" ? "Default model (optional)" : "Default model",
+    hint: providerFamily === "azure-openai" ? "Optional when deployment is set explicitly." : "Required",
   };
 }

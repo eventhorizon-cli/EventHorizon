@@ -253,6 +253,55 @@ public sealed class AppConfigurationServiceTests
     }
 
     [Fact]
+    public void Save_Removes_Unsupported_Providers_Before_Persisting()
+    {
+        // Arrange
+        var providersOptions = new ProvidersOptions();
+        var userProvidersService = new StubUserProvidersFileService();
+
+        var service = new AppConfigurationService(
+            new StubOptionsMonitor<AgentOptions>(),
+            new StubOptionsMonitor<PricingOptions>(),
+            new StubOptionsMonitor<ProvidersOptions>(providersOptions),
+            new StubOptionsMonitor<McpOptions>(),
+            new StubOptionsMonitor<SkillsOptions>(),
+            new StubOptionsNormalizer(),
+            new StubUserConfigurationFileService(),
+            userProvidersService,
+            new StubUserMcpFileService(),
+            new StubUserSkillsFileService());
+
+        var newProviders = new ProvidersOptions
+        {
+            CurrentDefaultProvider = "legacy",
+            Providers = new Dictionary<string, ProviderOptions>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["legacy"] = new ProviderOptions
+                {
+                    Name = "legacy",
+                    Type = "legacy-provider",
+                },
+                ["openai"] = new ProviderOptions
+                {
+                    Name = "openai",
+                    Type = ProviderTypes.OpenAiChatCompletions,
+                },
+            },
+        };
+
+        // Act
+        service.Save(newProviders, new McpOptions(), new SkillsOptions(), CancellationToken.None);
+
+        // Assert
+        Assert.Single(userProvidersService.Saved);
+        var persisted = userProvidersService.Saved[0];
+        Assert.Null(persisted.CurrentDefaultProvider);
+        Assert.Single(persisted.Providers);
+        Assert.True(persisted.Providers.ContainsKey("openai"));
+        Assert.False(persisted.Providers.ContainsKey("legacy"));
+    }
+
+    [Fact]
     public void SetDefaultProvider_Persists_Selection()
     {
         // Arrange

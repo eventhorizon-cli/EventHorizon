@@ -41,6 +41,20 @@ eventhorizon
 - `anthropic`
 - `gemini`
 
+对于 `openai`、`openai-compatible` 和 `azure-openai`，设置界面还会额外显示一个单独的 `API type` 下拉框：
+
+- `Chat Completions API`
+- `Responses API`
+
+这三个 provider family 在内部会展开为六种具体 provider type：
+
+- `openai-chat-completions`
+- `openai-responses`
+- `openai-compatible-chat-completions`
+- `openai-compatible-responses`
+- `azure-openai-chat-completions`
+- `azure-openai-responses`
+
 每个 provider 条目包含以下基础配置：
 
 - `Name`：Provider 的唯一名称，会显示在 UI 中，也可用于默认选择
@@ -59,17 +73,21 @@ Provider 行为说明：
 
 - 你可以配置多个 provider，并选择其中一个作为全局默认 provider。
 - 每个会话都可以单独覆盖全局 provider 和 model 选择。
+- 对于 `openai`，你可以选择 `Chat Completions API`（使用 `GetChatClient(model).AsIChatClient()`）或 `Responses API`（使用 `GetResponsesClient().AsIChatClient(model)`）。
 - 对于 Azure OpenAI，EventHorizon 会优先使用 `Deployment`，必要时回退到 `Model`。
-- 对于 `openai-compatible`，请填写该服务的基础 endpoint，并配置该服务实际支持的 model ID。
+- 对于 `azure-openai`，你可以选择 `Chat Completions API`（使用 `GetChatClient(deployment).AsIChatClient()`）或 `Responses API`（使用 `GetResponsesClient().AsIChatClient(deployment)`）。
+- 对于 `openai-compatible`，请填写该服务的基础 endpoint，并根据服务实际暴露的接口选择 `Chat Completions API` 或 `Responses API`。
 
 配置示例：
 
 - OpenAI
-  - Type: `openai`
+  - Provider: `openai`
+  - API type: `Chat Completions API` 或 `Responses API`
   - API key: 你的 OpenAI API Key
   - Default model: `gpt-4.1-mini`
 - Azure OpenAI
-  - Type: `azure-openai`
+  - Provider: `azure-openai`
+  - API type: `Chat Completions API` 或 `Responses API`
   - Endpoint: 你的 Azure OpenAI 资源地址
   - Deployment: 你的 deployment 名称
   - Default model: 可选

@@ -31,7 +31,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
 
         var cloned = Clone(providerName, provider);
         ApplyModelOverride(cloned, session.Model);
-        return new ResolvedProviderContext(providerName, cloned.Type ?? "openai", cloned.Model ?? string.Empty, cloned);
+        return new ResolvedProviderContext(providerName, ProviderTypes.Normalize(cloned.Type), cloned.Model ?? string.Empty, cloned);
     }
 
 
@@ -45,7 +45,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
         {
             var provider = Clone(options.CurrentDefaultProvider, defaultProvider);
             ApplyModelOverride(provider, model);
-            return new ResolvedProviderContext(options.CurrentDefaultProvider, provider.Type ?? "openai", provider.Model ?? string.Empty, provider);
+            return new ResolvedProviderContext(options.CurrentDefaultProvider, ProviderTypes.Normalize(provider.Type), provider.Model ?? string.Empty, provider);
         }
 
         if (options.Providers.Count == 1)
@@ -53,7 +53,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
             var pair = options.Providers.Single();
             var provider = Clone(pair.Key, pair.Value);
             ApplyModelOverride(provider, model);
-            return new ResolvedProviderContext(pair.Key, provider.Type ?? "openai", provider.Model ?? string.Empty, provider);
+            return new ResolvedProviderContext(pair.Key, ProviderTypes.Normalize(provider.Type), provider.Model ?? string.Empty, provider);
         }
 
         return null;
@@ -67,7 +67,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
         }
 
         provider.Model = model.Trim();
-        if (string.Equals(provider.Type, "azure-openai", StringComparison.OrdinalIgnoreCase))
+        if (ProviderTypes.IsAzureOpenAi(provider.Type))
         {
             provider.Deployment = provider.Model;
         }

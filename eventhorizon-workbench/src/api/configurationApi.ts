@@ -1,4 +1,5 @@
 import { apiRequest } from "@/api/client";
+import { normalizeProviderType } from "@/utils/configuration";
 import type {
   AppConfiguration,
   ImportedSkill,
@@ -31,29 +32,8 @@ type ConfigurationPayload = {
   skills: SkillCatalog;
 };
 
-const providerTypes: ProviderType[] = ["openai", "openai-compatible", "azure-openai", "anthropic", "gemini"];
-
 function mapProviderType(type?: string): ProviderType | undefined {
-  if (!type) {
-    return undefined;
-  }
-
-  return providerTypes.find((value) => value === type);
-}
-
-function mapProvider(payload: ApiProviderPayload): ProviderEntry {
-  return {
-    name: payload.name,
-    provider: {
-      type: mapProviderType(payload.type),
-      model: payload.model,
-      models: payload.models ?? [],
-      endpoint: payload.endpoint,
-      apiKey: payload.apiKey,
-      deployment: payload.deployment,
-      useDefaultAzureCredential: payload.useDefaultAzureCredential ?? false,
-    },
-  };
+  return normalizeProviderType(type);
 }
 
 function mapMcpServer(server: McpServerConfig): McpServerConfig {
@@ -76,10 +56,33 @@ function mapImportedSkill(skill: ImportedSkill): ImportedSkill {
 }
 
 function mapConfiguration(payload: ConfigurationPayload): AppConfiguration {
+  const providers = payload.providers
+    .map((provider) => ({
+      payload: provider,
+      type: mapProviderType(provider.type),
+    }))
+    .filter((provider) => provider.type)
+    .map(({ payload, type }) => ({
+      name: payload.name,
+      provider: {
+        type,
+        model: payload.model,
+        models: payload.models ?? [],
+        endpoint: payload.endpoint,
+        apiKey: payload.apiKey,
+        deployment: payload.deployment,
+        useDefaultAzureCredential: payload.useDefaultAzureCredential ?? false,
+      },
+    }));
+
+  const currentDefaultProvider = providers.some((provider) => provider.name === payload.currentDefaultProvider)
+    ? payload.currentDefaultProvider
+    : undefined;
+
   return {
     filePath: payload.filePath,
-    currentDefaultProvider: payload.currentDefaultProvider,
-    providers: payload.providers.map(mapProvider),
+    currentDefaultProvider,
+    providers,
     mcpServers: (payload.mcpServers ?? []).map(mapMcpServer),
     skills: {
       storagePath: payload.skills?.storagePath,
