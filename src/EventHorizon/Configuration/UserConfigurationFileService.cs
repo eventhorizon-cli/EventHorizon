@@ -7,11 +7,7 @@ public interface IUserConfigurationFileService
 {
     string FilePath { get; }
 
-    void EnsureExists();
-
     void Save(AgentOptions agentOptions, PricingOptions pricingOptions);
-
-    string CreateInitialContent();
 }
 
 public sealed class UserConfigurationFileService : IUserConfigurationFileService

@@ -14,6 +14,7 @@ public sealed class ToolCatalog : IToolCatalogFactory
             AIFunctionFactory.Create(workspaceService.FileSearch, name: "file_search"),
             AIFunctionFactory.Create(workspaceService.GrepSearch, name: "grep_search"),
             AIFunctionFactory.Create(workspaceService.InsertEditIntoFile, name: "insert_edit_into_file"),
+            AIFunctionFactory.Create(workspaceService.ReplaceStringInFile, name: "replace_string_in_file"),
             AIFunctionFactory.Create(workspaceService.ListDir, name: "list_dir"),
             AIFunctionFactory.Create(workspaceService.OpenFile, name: "open_file"),
             AIFunctionFactory.Create(workspaceService.ReadFileTool, name: "read_file"),

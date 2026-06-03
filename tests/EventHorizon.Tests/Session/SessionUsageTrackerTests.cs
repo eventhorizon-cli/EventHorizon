@@ -171,7 +171,9 @@ public sealed class SessionUsageTrackerTests
                 WorkspaceRoot: "/tmp/workspace",
                 WorkspaceSummary: "summary",
                 GitStatus: "clean",
-                ProjectInstructions: "instructions"));
+                ProjectInstructions: "instructions",
+                SystemEnvironment: "Operating system: macOS (Darwin)",
+                ShellTooling: "- `run_in_terminal` executes a shell command from the workspace root."));
 
 
         public ValueTask<IReadOnlyList<AITool>> GetToolsAsync(CancellationToken cancellationToken = default)

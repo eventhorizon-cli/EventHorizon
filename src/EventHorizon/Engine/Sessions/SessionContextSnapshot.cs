@@ -5,6 +5,8 @@ public sealed record SessionContextSnapshot(
     string WorkspaceRoot,
     string WorkspaceSummary,
     string GitStatus,
-    string ProjectInstructions);
+    string ProjectInstructions,
+    string SystemEnvironment,
+    string ShellTooling);
 
 

@@ -8,18 +8,17 @@ namespace EventHorizon.Tests.Tools;
 public sealed class WorkspaceToolTests : IDisposable
 {
     private readonly TemporaryWorkspaceFixture _fixture;
-    private readonly StubWorkspaceContextAccessor _workspaceContextAccessor;
     private readonly WorkspaceService _workspaceService;
     private readonly ToolCatalog _toolCatalog;
 
     public WorkspaceToolTests()
     {
         _fixture = new TemporaryWorkspaceFixture();
-        _workspaceContextAccessor = new StubWorkspaceContextAccessor(_fixture.Root);
+        var workspaceContextAccessor = new StubWorkspaceContextAccessor(_fixture.Root);
         _workspaceService = new WorkspaceService(
-            _workspaceContextAccessor,
+            workspaceContextAccessor,
             new ShellCommandRunner(),
-            new FileSnapshotService(_workspaceContextAccessor),
+            new FileSnapshotService(workspaceContextAccessor),
             new FileStateTrackerAccessor(),
             new BackgroundTerminalCommandStore());
         _toolCatalog = new ToolCatalog();
@@ -132,6 +131,22 @@ public sealed class WorkspaceToolTests : IDisposable
     }
 
     [Fact]
+    public async Task ReplaceStringInFile_Should_Replace_Unique_Text()
+    {
+        // Arrange
+        var filePath = Path.Combine(_fixture.Root, "replace.txt");
+        await File.WriteAllTextAsync(filePath, "Header\nOld Value\nFooter\n");
+
+        // Act
+        var result = _workspaceService.ReplaceStringInFile(filePath, "Header\nOld Value\nFooter", "Header\nNew Value\nFooter");
+
+        // Assert
+        var content = await File.ReadAllTextAsync(filePath);
+        Assert.Contains("Updated 1 region", result);
+        Assert.Contains("New Value", content);
+    }
+
+    [Fact]
     public async Task ListDir_Should_List_Directory_Contents()
     {
         // Arrange
@@ -240,21 +255,6 @@ public sealed class WorkspaceToolTests : IDisposable
     }
 
     [Fact]
-    public async Task GetErrors_Should_Return_Diagnostics()
-    {
-        // Arrange
-        var filePath = Path.Combine(_fixture.Root, "Test.cs");
-        await File.WriteAllTextAsync(filePath, "public class Test { }");
-
-        // Act
-        var result = await _workspaceService.GetErrorsAsync([filePath]);
-
-        // Assert
-        // Should not throw, result can be empty if no errors
-        Assert.NotNull(result);
-    }
-
-    [Fact]
     public async Task RunInTerminalAsync_Should_Execute_Command()
     {
         // Arrange
@@ -327,6 +327,7 @@ public sealed class WorkspaceToolTests : IDisposable
         Assert.Contains("list_dir", toolNames);
         Assert.Contains("open_file", toolNames);
         Assert.Contains("read_file", toolNames);
+        Assert.Contains("replace_string_in_file", toolNames);
         Assert.Contains("semantic_search", toolNames);
         Assert.Contains("validate_cves", toolNames);
         Assert.Contains("get_errors", toolNames);

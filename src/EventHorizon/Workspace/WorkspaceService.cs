@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using EventHorizon.Tools;
 using EventHorizon.Workspace.Diff;
 
 namespace EventHorizon.Workspace;
@@ -186,25 +185,40 @@ public sealed class WorkspaceService : IWorkspaceService
         return $"Wrote {content.Length} characters to {GetDisplayPath(path)}.";
     }
 
-    public string AppendFile(string relativePath, string content)
-    {
-        var path = ResolvePath(relativePath);
-        TrackBaseline(path);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.AppendAllText(path, content);
-        TrackCurrent(path);
-        return $"Appended {content.Length} characters to {GetDisplayPath(path)}.";
-    }
-
     [Description("Replace one uniquely matched snippet in an existing file.")]
     public string InsertEditIntoFile(
         [Description("The file path to edit inside the workspace.")] string filePath,
         [Description("The exact existing text to replace. It must match exactly one region.")] string searchText,
         [Description("The replacement text to insert.")] string replacementText)
+        => ReplaceUniqueStringInFile(
+            filePath,
+            searchText,
+            replacementText,
+            "insert_edit_into_file",
+            "searchText must be provided for insert_edit_into_file.");
+
+    [Description("Replace a specific string in a file with new content. For best results, include 3-5 lines of surrounding context so the old string is unique.")]
+    public string ReplaceStringInFile(
+        [Description("The file path to edit inside the workspace.")] string filePath,
+        [Description("The exact existing string to replace. Include enough surrounding context to make it unique.")] string oldString,
+        [Description("The new content that should replace the matched string.")] string newContent)
+        => ReplaceUniqueStringInFile(
+            filePath,
+            oldString,
+            newContent,
+            "replace_string_in_file",
+            "oldString must be provided for replace_string_in_file.");
+
+    private string ReplaceUniqueStringInFile(
+        string filePath,
+        string searchText,
+        string replacementText,
+        string toolName,
+        string missingSearchTextError)
     {
         if (string.IsNullOrEmpty(searchText))
         {
-            throw new InvalidOperationException("searchText must be provided for insert_edit_into_file.");
+            throw new InvalidOperationException(missingSearchTextError);
         }
 
         var path = ResolvePath(filePath);
@@ -218,7 +232,7 @@ public sealed class WorkspaceService : IWorkspaceService
 
         if (occurrenceCount > 1)
         {
-            throw new InvalidOperationException($"The requested text matched {occurrenceCount} regions in '{GetDisplayPath(path)}'. Provide a more specific snippet.");
+            throw new InvalidOperationException($"The requested text matched {occurrenceCount} regions in '{GetDisplayPath(path)}'. Provide a more specific snippet for {toolName}.");
         }
 
         var updated = ReplaceFirstOccurrence(content, searchText, replacementText);
@@ -443,59 +457,10 @@ public sealed class WorkspaceService : IWorkspaceService
     }
 
     [Description("Run workspace diagnostics and return matched errors for specific files.")]
-    public Task<string> GetErrorsAsync([Description("The file paths to collect diagnostics for.")] string[] filePaths)
-        => GetErrorsCoreAsync(filePaths, CancellationToken.None);
-
-    private async Task<string> GetErrorsCoreAsync(string[] filePaths, CancellationToken cancellationToken)
-    {
-        if (filePaths.Length == 0)
-        {
-            return "No files were supplied.";
-        }
-
-        var buildTarget = FindDotNetBuildTarget();
-        if (buildTarget is null)
-        {
-            return "No .NET solution or project was found for diagnostics.";
-        }
-
-        var requestedPaths = filePaths
-            .Select(ResolvePath)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var result = await _shellCommandRunner
-            .RunAsync($"dotnet build \"{buildTarget}\" --nologo --no-restore", WorkspaceRoot, 180, cancellationToken)
-            .ConfigureAwait(false);
-
-        var combinedOutput = string.Join(
-            Environment.NewLine,
-            new[] { result.StandardOutput, result.StandardError }.Where(static value => !string.IsNullOrWhiteSpace(value)));
-
-        List<string> matches = [];
-        Regex regex = new(@"^(?<path>.+?)\((?<line>\d+)(,(?<column>\d+))?\): (?<severity>error|warning) (?<code>[^:]+): (?<message>.+)$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
-        foreach (Match match in regex.Matches(combinedOutput))
-        {
-            var diagnosticPath = Path.GetFullPath(match.Groups["path"].Value);
-            if (!requestedPaths.Contains(diagnosticPath))
-            {
-                continue;
-            }
-
-            matches.Add(match.Value.Trim());
-        }
-
-        if (matches.Count > 0)
-        {
-            return string.Join(Environment.NewLine, matches);
-        }
-
-        if (result.ExitCode == 0)
-        {
-            return "No diagnostics found for the requested files.";
-        }
-
-        return $"Build completed with no matched file diagnostics.\n{result}";
-    }
+    public Task<string> GetErrorsAsync(
+        [Description("The terminal command to execute.")] string command,
+        [Description("Whether the command should be started as a background session.")] bool isBackground)
+        => RunInTerminalCoreAsync(command, isBackground, CancellationToken.None);
 
     [Description("Validate package versions against OSV vulnerability data.")]
     public Task<string> ValidateCvesAsync(
@@ -807,27 +772,6 @@ public sealed class WorkspaceService : IWorkspaceService
         }
 
         return -1;
-    }
-
-    private string? FindDotNetBuildTarget()
-    {
-        var slnx = Directory.EnumerateFiles(WorkspaceRoot, "*.slnx", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
-        if (slnx is not null)
-        {
-            return Path.GetRelativePath(WorkspaceRoot, slnx);
-        }
-
-        var sln = Directory.EnumerateFiles(WorkspaceRoot, "*.sln", SearchOption.TopDirectoryOnly).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
-        if (sln is not null)
-        {
-            return Path.GetRelativePath(WorkspaceRoot, sln);
-        }
-
-        var project = Directory.EnumerateFiles(WorkspaceRoot, "*.csproj", SearchOption.AllDirectories)
-            .Where(path => !IsIgnoredPath(path))
-            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault();
-        return project is null ? null : Path.GetRelativePath(WorkspaceRoot, project);
     }
 
     private static string[] ExtractSearchTerms(string query)

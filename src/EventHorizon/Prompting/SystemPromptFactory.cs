@@ -4,11 +4,6 @@ using EventHorizon.Engine.Sessions;
 
 namespace EventHorizon.Prompting;
 
-public interface ISystemPromptFactory
-{
-    string Build(AgentOptions options, SessionContextSnapshot snapshot);
-}
-
 public sealed class SystemPromptFactory : ISystemPromptFactory
 {
     public string Build(AgentOptions options, SessionContextSnapshot snapshot)
@@ -31,6 +26,12 @@ public sealed class SystemPromptFactory : ISystemPromptFactory
         builder.AppendLine("# Session context");
         builder.AppendLine(snapshot.CurrentDate);
         builder.AppendLine($"Workspace root: {snapshot.WorkspaceRoot}");
+        builder.AppendLine();
+        builder.AppendLine("## System environment");
+        builder.AppendLine(snapshot.SystemEnvironment);
+        builder.AppendLine();
+        builder.AppendLine("## Shell tools");
+        builder.AppendLine(snapshot.ShellTooling);
         builder.AppendLine();
         builder.AppendLine("## Workspace snapshot");
         builder.AppendLine(snapshot.WorkspaceSummary);
