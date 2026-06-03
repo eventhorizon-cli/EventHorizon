@@ -15,7 +15,6 @@ public sealed class EventHorizonRuntime : IEventHorizonRuntime
     private readonly ISessionContextBuilder _sessionContextBuilder;
     private readonly IToolCatalogFactory _toolCatalogFactory;
     private readonly ISystemPromptFactory _systemPromptFactory;
-    private readonly IProviderResolutionService _providerResolutionService;
     private readonly McpToolConnector _mcpToolConnector;
     private readonly IOptionsMonitor<AgentOptions> _agentOptionsMonitor;
     private readonly IOptionsMonitor<McpOptions> _mcpOptionsMonitor;
@@ -37,7 +36,6 @@ public sealed class EventHorizonRuntime : IEventHorizonRuntime
         _sessionContextBuilder = sessionContextBuilder;
         _toolCatalogFactory = toolCatalogFactory;
         _systemPromptFactory = systemPromptFactory;
-        _providerResolutionService = providerResolutionService;
         _mcpToolConnector = mcpToolConnector;
         _agentOptionsMonitor = agentOptionsMonitor;
         _mcpOptionsMonitor = mcpOptionsMonitor;

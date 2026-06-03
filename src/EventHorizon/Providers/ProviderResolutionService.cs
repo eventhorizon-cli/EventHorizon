@@ -15,12 +15,6 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
 
     private ProvidersOptions Options => _optionsMonitor.CurrentValue;
 
-    public IReadOnlyList<ProviderOptions> GetProviderOptions()
-        => Options.Providers
-            .OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(static pair => Clone(pair.Key, pair.Value))
-            .ToArray();
-
     public ResolvedProviderContext? TryResolveForSession(SessionDocument session)
     {
         var options = Options;
