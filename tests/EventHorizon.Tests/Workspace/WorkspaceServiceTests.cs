@@ -1,5 +1,4 @@
 using EventHorizon.Tests.Fixtures;
-using EventHorizon.Tools;
 using EventHorizon.Workspace;
 using EventHorizon.Workspace.Diff;
 
@@ -66,6 +65,31 @@ public sealed class WorkspaceServiceTests : IDisposable
         Assert.Contains("Created src/editor.cs", createResult);
         Assert.Contains("Updated 1 region", editResult);
         Assert.Contains("Console.WriteLine(\"updated\")", content);
+    }
+
+    [Fact]
+    public void ReplaceStringInFile_Updates_Unique_Match()
+    {
+        var service = CreateService();
+        service.WriteFile("src/replace-demo.txt", "before\nalpha\nbeta\ngamma\nafter\n");
+
+        var result = service.ReplaceStringInFile("src/replace-demo.txt", "alpha\nbeta\ngamma", "alpha\nbeta-2\ngamma");
+        var content = service.ReadFile("src/replace-demo.txt");
+
+        Assert.Contains("Updated 1 region", result);
+        Assert.Contains("beta-2", content);
+    }
+
+    [Fact]
+    public void ReplaceStringInFile_Rejects_Ambiguous_Match()
+    {
+        var service = CreateService();
+        service.WriteFile("src/replace-demo.txt", "same\nseparator\nsame\n");
+
+        var ex = Assert.Throws<InvalidOperationException>(() => service.ReplaceStringInFile("src/replace-demo.txt", "same", "updated"));
+
+        Assert.Contains("matched 2 regions", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("replace_string_in_file", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

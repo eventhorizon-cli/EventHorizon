@@ -65,14 +65,31 @@ public sealed class ShellCommandRunner
             return ("cmd.exe", "/c " + command);
         }
 
+        var shell = GetDefaultShellPath();
+
+        return (shell, "-lc \"" + command.Replace("\"", "\\\"") + "\"");
+    }
+
+    internal static string GetDefaultShellPath()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return "cmd.exe";
+        }
+
         var shell = Environment.GetEnvironmentVariable("SHELL");
         if (string.IsNullOrWhiteSpace(shell) || !File.Exists(shell))
         {
             shell = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "/bin/zsh" : "/bin/bash";
         }
 
-        return (shell, "-lc \"" + command.Replace("\"", "\\\"") + "\"");
+        return shell;
     }
+
+    internal static string GetInvocationExample()
+        => OperatingSystem.IsWindows()
+            ? "cmd.exe /c <command>"
+            : $"{GetDefaultShellPath()} -lc \"<command>\"";
 }
 
 public readonly record struct ShellCommandResult(int ExitCode, string StandardOutput, string StandardError, bool TimedOut)

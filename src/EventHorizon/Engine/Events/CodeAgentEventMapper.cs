@@ -20,6 +20,7 @@ public sealed class CodeAgentEventMapper
                 break;
             case "apply_patch":
             case "insert_edit_into_file":
+            case "replace_string_in_file":
                 events.Add(CreateCustomEvent(run, "file.write", toolCall.Id, new
                 {
                     toolCall.Name,

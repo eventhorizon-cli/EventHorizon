@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using EventHorizon.Tools;
 
 namespace EventHorizon.Workspace;
 
@@ -35,6 +34,12 @@ public interface IWorkspaceService
         [Description("The exact existing text to replace. It must match exactly one region.")] string searchText,
         [Description("The replacement text to insert.")] string replacementText);
 
+    [Description("Replace a specific string in a file with new content. For best results, include 3-5 lines of surrounding context so the old string is unique.")]
+    string ReplaceStringInFile(
+        [Description("The file path to edit inside the workspace.")] string filePath,
+        [Description("The exact existing string to replace. Include enough surrounding context to make it unique.")] string oldString,
+        [Description("The new content that should replace the matched string.")] string newContent);
+
     [Description("Apply a structured patch to a single file inside the workspace.")]
     string ApplyPatch(
         [Description("The file path the patch targets.")] string filePath,
@@ -64,8 +69,10 @@ public interface IWorkspaceService
     [Description("Get stdout, stderr, status, and exit code for a background terminal session.")]
     string GetTerminalOutput([Description("The id of the background terminal session.")] string id);
 
-    [Description("Run workspace diagnostics and return matched errors for specific files.")]
-    Task<string> GetErrorsAsync([Description("The file paths to collect diagnostics for.")] string[] filePaths);
+    [Description("Get any compile or lint errors in a code file. If the user mentions errors or problems in a file, they may be referring to these. Use the tool to see the same errors that the user is seeing. Also use this tool after editing a file to validate the change.")]
+    Task<string> GetErrorsAsync(
+        [Description("The terminal command to execute.")] string command,
+        [Description("Whether the command should be started as a background session.")] bool isBackground);
 
     [Description("Validate package versions against OSV vulnerability data.")]
     Task<string> ValidateCvesAsync(
