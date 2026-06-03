@@ -60,6 +60,29 @@ type GlobalSettingsDialogProps = {
   onRemoveGlobalSkill: (skillName: string) => Promise<void> | void;
 };
 
+const singleLineFieldClassName =
+  "h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary";
+
+const secondaryButtonClassName =
+  "inline-flex h-10 items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-medium transition hover:bg-muted";
+
+const primaryButtonClassName =
+  "inline-flex h-10 items-center justify-center rounded-xl bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
+
+const compactButtonClassName =
+  "inline-flex h-8 items-center justify-center rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
+
+const fieldLabelClassName = "text-xs font-medium text-muted-foreground uppercase";
+
+function FieldLabel({ label, status }: { label: string; status?: "required" | "optional" }) {
+  return (
+    <span className={fieldLabelClassName}>
+      {label}
+      {status ? <span className="font-normal text-muted-foreground/80"> ({status})</span> : null}
+    </span>
+  );
+}
+
 export function GlobalSettingsDialog({
   open,
   configuration,
@@ -173,23 +196,23 @@ export function GlobalSettingsDialog({
 
               {globalSettingsTab === "providers" ? (
                 <section className="rounded-2xl border border-border bg-background/50 p-4">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">Providers</div>
                       <div className="mt-1 text-base font-medium">Provider configuration</div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex shrink-0 flex-wrap items-start gap-2">
                       <button
                         type="button"
                         onClick={() => void onRefreshConfiguration()}
-                        className="rounded-xl border border-border px-3 py-2 text-xs font-medium transition hover:bg-muted"
+                        className={secondaryButtonClassName}
                       >
                         Refresh
                       </button>
                       <button
                         type="button"
                         onClick={onAddProvider}
-                        className="rounded-xl border border-border px-3 py-2 text-xs font-medium transition hover:bg-muted"
+                        className={secondaryButtonClassName}
                       >
                         Add provider
                       </button>
@@ -197,7 +220,7 @@ export function GlobalSettingsDialog({
                         type="button"
                         onClick={() => void onSaveConfiguration()}
                         disabled={!configurationDraft || isSavingConfiguration}
-                        className="rounded-xl bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        className={primaryButtonClassName}
                       >
                         {isSavingConfiguration ? "Saving..." : "Save config"}
                       </button>
@@ -207,7 +230,7 @@ export function GlobalSettingsDialog({
                   {configurationDraft ? (
                     <div className="mt-4 grid gap-4">
                       <label className="grid gap-2">
-                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Current default provider</span>
+                        <FieldLabel label="Current default provider" />
                         <select
                           value={configurationDraft.currentDefaultProvider ?? ""}
                           onChange={(event) =>
@@ -216,7 +239,7 @@ export function GlobalSettingsDialog({
                               currentDefaultProvider: event.target.value || undefined,
                             })
                           }
-                          className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                          className={singleLineFieldClassName}
                         >
                           <option value="">None</option>
                           {configurationDraft.providers.map((provider) => (
@@ -236,6 +259,10 @@ export function GlobalSettingsDialog({
                       {configurationDraft.providers.map((provider, index) => {
                         const providerFamily = getProviderFamily(provider.provider.type);
                         const providerApiType = getProviderApiType(provider.provider.type) ?? "chat";
+                        const modelFieldMeta = getProviderFieldMeta(provider.provider.type, "model");
+                        const endpointFieldMeta = getProviderFieldMeta(provider.provider.type, "endpoint");
+                        const apiKeyFieldMeta = getProviderFieldMeta(provider.provider.type, "apiKey");
+                        const deploymentFieldMeta = getProviderFieldMeta(provider.provider.type, "deployment");
 
                         return (
                           <div key={`provider-${index}`} className="rounded-2xl border border-border bg-card p-4">
@@ -246,14 +273,14 @@ export function GlobalSettingsDialog({
                                 type="button"
                                 onClick={() => void onTestProvider(index)}
                                 disabled={testingProviderIndexes[index]}
-                                className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                                className={compactButtonClassName}
                               >
                                 {testingProviderIndexes[index] ? "Testing..." : "Test"}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => onRemoveProvider(index)}
-                                className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
+                                className={compactButtonClassName}
                               >
                                 Remove
                               </button>
@@ -262,16 +289,16 @@ export function GlobalSettingsDialog({
 
                           <div className="mt-4 grid gap-3 md:grid-cols-2">
                             <label className="grid gap-2">
-                              <span className="text-xs uppercase tracking-wide text-muted-foreground">Name</span>
+                              <FieldLabel label="Name" />
                               <input
                                 value={provider.name}
                                 onChange={(event) => onConfigurationFieldChange(index, "name", event.target.value)}
-                                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                className={singleLineFieldClassName}
                               />
                             </label>
 
                             <label className="grid gap-2">
-                              <span className="text-xs uppercase tracking-wide text-muted-foreground">Provider</span>
+                              <FieldLabel label="Provider" />
                               <select
                                 value={providerFamily ?? ""}
                                 onChange={(event) =>
@@ -280,7 +307,7 @@ export function GlobalSettingsDialog({
                                     "type",
                                     toProviderType((event.target.value || undefined) as ProviderFamily | undefined, "chat") ?? "",
                                   )}
-                                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                className={singleLineFieldClassName}
                               >
                                 <option value="">Select provider</option>
                                 {providerFamilies.map((providerType) => (
@@ -293,7 +320,7 @@ export function GlobalSettingsDialog({
 
                             {supportsProviderApiType(providerFamily) ? (
                               <label className="grid gap-2">
-                                <span className="text-xs uppercase tracking-wide text-muted-foreground">API type</span>
+                                <FieldLabel label="API type" />
                                 <select
                                   value={providerApiType}
                                   onChange={(event) =>
@@ -302,7 +329,7 @@ export function GlobalSettingsDialog({
                                       "type",
                                       toProviderType(providerFamily, event.target.value as ProviderApiType) ?? "",
                                     )}
-                                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                   className={singleLineFieldClassName}
                                 >
                                   {providerApiTypes.map((apiType) => (
                                     <option key={apiType} value={apiType}>
@@ -315,72 +342,55 @@ export function GlobalSettingsDialog({
 
                             {isProviderFieldVisible(provider.provider.type, "model") ? (
                               <label className="grid gap-2">
-                                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                                  {getProviderFieldMeta(provider.provider.type, "model").label}
-                                </span>
+                                <FieldLabel label={modelFieldMeta.label} status={modelFieldMeta.status} />
                                 <input
                                   value={provider.provider.model ?? ""}
                                   onChange={(event) => onProviderConfigChange(index, "model", event.target.value)}
-                                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder={modelFieldMeta.placeholder}
+                                  className={singleLineFieldClassName}
                                 />
-                                <span className="text-xs text-muted-foreground">
-                                  {getProviderFieldMeta(provider.provider.type, "model").hint}
-                                </span>
                               </label>
                             ) : null}
 
                             {isProviderFieldVisible(provider.provider.type, "endpoint") ? (
                               <label className="grid gap-2">
-                                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                                  {getProviderFieldMeta(provider.provider.type, "endpoint").label}
-                                </span>
+                                <FieldLabel label={endpointFieldMeta.label} status={endpointFieldMeta.status} />
                                 <input
                                   value={provider.provider.endpoint ?? ""}
                                   onChange={(event) => onProviderConfigChange(index, "endpoint", event.target.value)}
-                                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder={endpointFieldMeta.placeholder}
+                                  className={singleLineFieldClassName}
                                 />
-                                <span className="text-xs text-muted-foreground">
-                                  {getProviderFieldMeta(provider.provider.type, "endpoint").hint}
-                                </span>
                               </label>
                             ) : null}
 
                             {isProviderFieldVisible(provider.provider.type, "apiKey") ? (
                               <label className="grid gap-2">
-                                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                                  {getProviderFieldMeta(provider.provider.type, "apiKey").label}
-                                </span>
+                                <FieldLabel label={apiKeyFieldMeta.label} status={apiKeyFieldMeta.status} />
                                 <input
                                   value={provider.provider.apiKey ?? ""}
                                   onChange={(event) => onProviderConfigChange(index, "apiKey", event.target.value)}
-                                  placeholder="Set API key"
-                                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder={apiKeyFieldMeta.placeholder ?? "Set API key"}
+                                  className={singleLineFieldClassName}
                                 />
-                                <span className="text-xs text-muted-foreground">
-                                  {getProviderFieldMeta(provider.provider.type, "apiKey").hint}
-                                </span>
                               </label>
                             ) : null}
 
                             {isProviderFieldVisible(provider.provider.type, "deployment") ? (
                               <label className="grid gap-2">
-                                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                                  {getProviderFieldMeta(provider.provider.type, "deployment").label}
-                                </span>
+                                <FieldLabel label={deploymentFieldMeta.label} status={deploymentFieldMeta.status} />
                                 <input
                                   value={provider.provider.deployment ?? ""}
                                   onChange={(event) => onProviderConfigChange(index, "deployment", event.target.value)}
-                                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder={deploymentFieldMeta.placeholder}
+                                  className={singleLineFieldClassName}
                                 />
-                                <span className="text-xs text-muted-foreground">
-                                  {getProviderFieldMeta(provider.provider.type, "deployment").hint}
-                                </span>
                               </label>
                             ) : null}
                           </div>
 
                           <label className="mt-3 grid gap-2">
-                            <span className="text-xs uppercase tracking-wide text-muted-foreground">Available models</span>
+                            <FieldLabel label="Available models" />
                             <textarea
                               value={provider.provider.models.join("\n")}
                               onChange={(event) => onProviderConfigChange(index, "models", event.target.value)}
@@ -417,16 +427,16 @@ export function GlobalSettingsDialog({
 
               {globalSettingsTab === "mcp" ? (
                 <section className="rounded-2xl border border-border bg-background/50 p-4">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">MCP</div>
                       <div className="mt-1 text-base font-medium">HTTP MCP server configuration</div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex shrink-0 flex-wrap items-start gap-2">
                       <button
                         type="button"
                         onClick={onAddMcpServer}
-                        className="rounded-xl border border-border px-3 py-2 text-xs font-medium transition hover:bg-muted"
+                        className={secondaryButtonClassName}
                       >
                         Add server
                       </button>
@@ -434,7 +444,7 @@ export function GlobalSettingsDialog({
                         type="button"
                         onClick={() => void onSaveConfiguration()}
                         disabled={!configurationDraft || isSavingConfiguration}
-                        className="rounded-xl bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        className={primaryButtonClassName}
                       >
                         {isSavingConfiguration ? "Saving..." : "Save config"}
                       </button>
@@ -451,14 +461,14 @@ export function GlobalSettingsDialog({
                             server.enabled ? "bg-card" : "bg-card/60 opacity-80",
                           )}
                         >
-                          <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-start justify-between gap-3">
                             <div>
                               <div className="text-sm font-medium">{server.name || `MCP Server ${index + 1}`}</div>
                               <div className="mt-1 text-xs text-muted-foreground">
                                 {server.enabled ? "On · Connected automatically after saving." : "Off · Not connected until turned on."}
                               </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex shrink-0 flex-wrap items-start gap-2">
                               <ToggleSwitch
                                 checked={server.enabled}
                                 onCheckedChange={(checked) => onMcpServerChange(index, "enabled", checked)}
@@ -466,14 +476,14 @@ export function GlobalSettingsDialog({
                               <button
                                 type="button"
                                 onClick={() => void onTestMcpServer(index)}
-                                className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
+                                className={compactButtonClassName}
                               >
                                 Test
                               </button>
                               <button
                                 type="button"
                                 onClick={() => onRemoveMcpServer(index)}
-                                className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
+                                className={compactButtonClassName}
                               >
                                 Remove
                               </button>
@@ -482,21 +492,21 @@ export function GlobalSettingsDialog({
 
                           <div className="mt-4 grid gap-3 md:grid-cols-2">
                             <label className="grid gap-2">
-                              <span className="text-xs uppercase tracking-wide text-muted-foreground">Name</span>
+                              <FieldLabel label="Name" />
                               <input
                                 value={server.name ?? ""}
                                 onChange={(event) => onMcpServerChange(index, "name", event.target.value)}
-                                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                className={singleLineFieldClassName}
                               />
                             </label>
 
                             <label className="grid gap-2 md:col-span-2">
-                              <span className="text-xs uppercase tracking-wide text-muted-foreground">HTTP endpoint URL</span>
+                              <FieldLabel label="HTTP endpoint URL" />
                               <input
                                 value={server.url}
                                 onChange={(event) => onMcpServerChange(index, "url", event.target.value)}
                                 placeholder="https://example.com/mcp"
-                                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                className={singleLineFieldClassName}
                               />
                               <span className="text-xs text-muted-foreground">
                                 Use the MCP server&apos;s HTTP endpoint. Configured MCP servers are connected automatically. Streamable HTTP is preferred and SSE fallback is handled by the backend transport.
@@ -505,7 +515,7 @@ export function GlobalSettingsDialog({
                           </div>
 
                           <label className="mt-3 grid gap-2">
-                            <span className="text-xs uppercase tracking-wide text-muted-foreground">HTTP headers</span>
+                            <FieldLabel label="HTTP headers" />
                             <textarea
                               value={Object.entries(server.headers)
                                 .map(([key, value]) => `${key}=${value}`)
@@ -537,7 +547,7 @@ export function GlobalSettingsDialog({
 
               {globalSettingsTab === "skills" ? (
                 <section className="rounded-2xl border border-border bg-background/50 p-4">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">Skills</div>
                       <div className="mt-1 text-base font-medium">Imported skills</div>
@@ -546,7 +556,7 @@ export function GlobalSettingsDialog({
                       type="button"
                       onClick={() => void onSaveConfiguration()}
                       disabled={!configurationDraft || isSavingConfiguration}
-                      className="rounded-xl bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      className={primaryButtonClassName}
                     >
                       {isSavingConfiguration ? "Saving..." : "Save config"}
                     </button>
@@ -554,18 +564,18 @@ export function GlobalSettingsDialog({
 
                   <div className="mt-4 grid gap-3">
                     <label className="grid gap-2">
-                      <span className="text-xs uppercase tracking-wide text-muted-foreground">Skill import path</span>
+                      <FieldLabel label="Skill import path" />
                       <div className="flex gap-2">
                         <input
                           value={skillImportPath}
                           onChange={(event) => onSkillImportPathChange(event.target.value)}
                           placeholder="/path/to/skill-folder"
-                          className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                          className={cn("min-w-0 flex-1", singleLineFieldClassName)}
                         />
                         <button
                           type="button"
                           onClick={() => void onOpenSkillDirectoryPicker()}
-                          className="rounded-xl border border-border px-3 py-2 text-xs font-medium transition hover:bg-muted"
+                          className={secondaryButtonClassName}
                         >
                           Browse
                         </button>
@@ -573,7 +583,7 @@ export function GlobalSettingsDialog({
                           type="button"
                           onClick={() => void onImportSkill()}
                           disabled={!skillImportPath.trim() || isImportingSkill}
-                          className="rounded-xl border border-border px-3 py-2 text-xs font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                          className={cn(secondaryButtonClassName, "disabled:cursor-not-allowed disabled:opacity-50")}
                         >
                           {isImportingSkill ? "Importing..." : "Import"}
                         </button>
@@ -605,7 +615,7 @@ export function GlobalSettingsDialog({
                                 </div>
                                 {skill.description ? <div className="mt-2 text-sm text-muted-foreground">{skill.description}</div> : null}
                               </div>
-                              <div className="flex shrink-0 items-center gap-2">
+                              <div className="flex shrink-0 items-start gap-2">
                                 <ToggleSwitch
                                   checked={skill.enabled}
                                   onCheckedChange={(checked) => onGlobalSkillChange(index, "enabled", checked)}
@@ -613,7 +623,7 @@ export function GlobalSettingsDialog({
                                 <button
                                   type="button"
                                   onClick={() => void onRemoveGlobalSkill(skill.name)}
-                                  className="rounded-xl border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-muted"
+                                  className={compactButtonClassName}
                                 >
                                   Remove
                                 </button>

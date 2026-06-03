@@ -19,6 +19,12 @@ export const globalSettingsTabs = ["providers", "mcp", "skills"] as const;
 
 export type GlobalSettingsTab = (typeof globalSettingsTabs)[number];
 
+type ProviderFieldMeta = {
+  label: string;
+  status?: "required" | "optional";
+  placeholder?: string;
+};
+
 export function cloneProviderEntry(entry: ProviderEntry): ProviderEntry {
   return {
     name: entry.name,
@@ -220,31 +226,44 @@ export function isProviderFieldVisible(
 export function getProviderFieldMeta(
   providerType: ProviderType | undefined,
   field: "model" | "endpoint" | "apiKey" | "deployment",
-) {
+): ProviderFieldMeta {
   const providerFamily = getProviderFamily(providerType);
 
   if (field === "apiKey") {
     if (providerFamily === "azure-openai") {
-      return { label: "API key (optional)", hint: "Leave empty to use Default Azure Credential." };
+      return {
+        label: "API key",
+        status: "optional",
+        placeholder: "Leave empty to use Default Azure Credential.",
+      };
     }
 
     if (providerFamily === "openai-compatible") {
-      return { label: "API key (optional)", hint: "Optional for compatible endpoints that do not require authentication." };
+      return {
+        label: "API key",
+        status: "optional",
+        placeholder: "Compatible endpoints may not require authentication.",
+      };
     }
 
-    return { label: "API key", hint: "Required" };
+    return { label: "API key", status: "required" };
   }
 
   if (field === "deployment") {
-    return { label: "Deployment", hint: "Required for Azure OpenAI unless you reuse the model name." };
+    return {
+      label: "Deployment",
+      status: "required",
+      placeholder: "Required for Azure OpenAI unless you reuse the model name.",
+    };
   }
 
   if (field === "endpoint") {
-    return { label: "Endpoint", hint: "Required" };
+    return { label: "Endpoint", status: "required" };
   }
 
   return {
-    label: providerFamily === "azure-openai" ? "Default model (optional)" : "Default model",
-    hint: providerFamily === "azure-openai" ? "Optional when deployment is set explicitly." : "Required",
+    label: "Default model",
+    status: providerFamily === "azure-openai" ? "optional" : "required",
+    placeholder: providerFamily === "azure-openai" ? "Optional when deployment is set explicitly." : undefined,
   };
 }
