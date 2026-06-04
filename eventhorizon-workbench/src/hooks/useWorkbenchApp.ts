@@ -128,11 +128,13 @@ export function useWorkbenchApp() {
 
   const eventSubscriptionRef = useRef<(() => void) | null>(null);
   const didAutoOpenInitialSessionRef = useRef(false);
+  const didAutoOpenProviderSetupRef = useRef(false);
   const diffCacheRef = useRef<Record<string, FileDiff>>({});
   const activeDiffPathRef = useRef<string | undefined>(undefined);
   const diffRequestIdRef = useRef(0);
   const subscribeToRunRef = useRef<(run: AgentRun, sessionId: string) => void>(() => {});
   const currentSessionId = currentSession?.id;
+  const hasConfiguredProviders = (configuration?.providers.length ?? 0) > 0;
   const selectedProviderName = currentSession?.providerName ?? configuration?.currentDefaultProvider;
   const selectedProvider = getProvider(configurationDraft ?? configuration, selectedProviderName);
   const selectedProviderDefaultModel = selectedProvider?.provider.model;
@@ -188,6 +190,21 @@ export function useWorkbenchApp() {
     }
   }, []);
 
+  const openSettings = useCallback(() => {
+    setGlobalSettingsMessage(undefined);
+    setGlobalSettingsError(undefined);
+    setSkillImportTarget("global");
+    setShowGlobalSettingsDialog(true);
+  }, []);
+
+  const openProviderSetup = useCallback(() => {
+    setGlobalSettingsTab("providers");
+    setGlobalSettingsMessage(undefined);
+    setGlobalSettingsError(undefined);
+    setSkillImportTarget("global");
+    setShowGlobalSettingsDialog(true);
+  }, []);
+
   const openSession = useCallback(async (sessionId: string) => {
     setDetailsMessage(undefined);
     setDetailsError(undefined);
@@ -235,6 +252,11 @@ export function useWorkbenchApp() {
   }, [currentSessionId, openSession, setSessions]);
 
   const handleConfirmCreateSession = useCallback(async (selectedPath: string) => {
+    if (!hasConfiguredProviders) {
+      openProviderSetup();
+      return;
+    }
+
     eventSubscriptionRef.current?.();
     eventSubscriptionRef.current = null;
 
@@ -253,7 +275,7 @@ export function useWorkbenchApp() {
     setChanges([]);
     setContextView("overview");
     setComposerValue("");
-  }, [refreshSessions, setChanges, setContextView, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
+  }, [hasConfiguredProviders, openProviderSetup, refreshSessions, setChanges, setContextView, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
 
   const workspaceDirectoryPicker = useDirectoryPicker({ onConfirm: handleConfirmCreateSession });
   const skillDirectoryPicker = useDirectoryPicker({
@@ -393,19 +415,41 @@ export function useWorkbenchApp() {
   }, [subscribeToRun]);
 
   const handleNewChat = useCallback(() => {
-    void workspaceDirectoryPicker.openPicker();
-  }, [workspaceDirectoryPicker]);
+    if (!hasConfiguredProviders) {
+      openProviderSetup();
+      return;
+    }
 
-  const openSettings = useCallback(() => {
-    setGlobalSettingsMessage(undefined);
-    setGlobalSettingsError(undefined);
-    setSkillImportTarget("global");
-    setShowGlobalSettingsDialog(true);
-  }, []);
+    void workspaceDirectoryPicker.openPicker();
+  }, [hasConfiguredProviders, openProviderSetup, workspaceDirectoryPicker]);
+
+
+  useEffect(() => {
+    if (
+      didAutoOpenProviderSetupRef.current
+      || !didAutoOpenInitialSessionRef.current
+      || isLoadingConfiguration
+      || !!configurationError
+      || !configuration
+      || hasConfiguredProviders
+      || sessions.length > 0
+      || !!currentSessionId
+    ) {
+      return;
+    }
+
+    didAutoOpenProviderSetupRef.current = true;
+    openProviderSetup();
+  }, [configuration, configurationError, currentSessionId, hasConfiguredProviders, isLoadingConfiguration, openProviderSetup, sessions.length]);
 
   const handleSubmit = useCallback(async () => {
     const task = composerValue.trim();
     if (!task || isSubmitting) {
+      return;
+    }
+
+    if (!hasConfiguredProviders) {
+      openProviderSetup();
       return;
     }
 
@@ -441,7 +485,7 @@ export function useWorkbenchApp() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [addUserMessage, composerValue, currentSession, hasConfiguredModels, isSubmitting, openSettings, setChanges, setConnectionStatus, setCurrentDiff, setCurrentRun, setPhase, setSelectedFile, subscribeToRun, workspaceDirectoryPicker]);
+  }, [addUserMessage, composerValue, currentSession, hasConfiguredModels, hasConfiguredProviders, isSubmitting, openProviderSetup, openSettings, setChanges, setConnectionStatus, setCurrentDiff, setCurrentRun, setPhase, setSelectedFile, subscribeToRun, workspaceDirectoryPicker]);
 
   const handleCancel = useCallback(async () => {
     if (currentRun) {
@@ -1099,6 +1143,7 @@ export function useWorkbenchApp() {
     testingProviderIndexes,
     sessionTitleInput,
     showGlobalSettingsDialog,
+    hasConfiguredProviders,
     selectedProviderName,
     selectedProvider,
     availableModels,

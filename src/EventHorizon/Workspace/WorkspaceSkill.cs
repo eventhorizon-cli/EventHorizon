@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using Microsoft.Agents.AI;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace EventHorizon.Workspace;
 

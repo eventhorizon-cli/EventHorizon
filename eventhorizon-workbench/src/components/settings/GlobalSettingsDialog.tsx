@@ -252,7 +252,8 @@ export function GlobalSettingsDialog({
 
                       {configurationDraft.providers.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-                          No providers configured yet.
+                          <div className="font-medium text-foreground">Configure a provider to get started.</div>
+                          <div className="mt-1">Add your first provider, set a default model, save the configuration, and then create your first session.</div>
                         </div>
                       ) : null}
 

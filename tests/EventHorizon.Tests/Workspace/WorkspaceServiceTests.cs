@@ -1,6 +1,7 @@
 using EventHorizon.Tests.Fixtures;
 using EventHorizon.Workspace;
 using EventHorizon.Workspace.Diff;
+using Moq;
 
 namespace EventHorizon.Tests.Workspace;
 
@@ -136,7 +137,8 @@ public sealed class WorkspaceServiceTests : IDisposable
         => new(
             _workspaceContextAccessor,
             new FileSnapshotService(_workspaceContextAccessor),
-            new FileStateTrackerAccessor());
+            new FileStateTrackerAccessor(),
+            Mock.Of<IHttpClientFactory>());
 
     public void Dispose()
     {

@@ -19,6 +19,7 @@ export default function App() {
         <SessionsSidebar
           sessions={app.sessions}
           currentSessionId={app.currentSession?.id}
+          hasConfiguredProviders={app.hasConfiguredProviders}
           leftPaneCollapsed={app.leftPaneCollapsed}
           isCompactLayout={app.isCompactLayout}
           onToggleCollapsed={app.toggleLeftPaneCollapsed}
@@ -33,6 +34,7 @@ export default function App() {
             <SessionPane
               currentSession={app.currentSession}
               currentRun={app.currentRun}
+              hasConfiguredProviders={app.hasConfiguredProviders}
               availableModels={app.availableModels}
               logs={app.logs}
               changes={app.changes}

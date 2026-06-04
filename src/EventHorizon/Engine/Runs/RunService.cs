@@ -20,7 +20,7 @@ public sealed class RunService : IRunService
     private readonly ISessionService _sessionService;
     private readonly EventMapper _eventMapper;
     private readonly CodeAgentEventMapper _codeAgentEventMapper;
-    private readonly ISessionAgentManager _conversationAgentManager;
+    private readonly ISessionAgentManager _sessionAgentManager;
     private readonly ILogger<RunService> _logger;
 
     public RunService(
@@ -32,7 +32,7 @@ public sealed class RunService : IRunService
         ISessionService sessionService,
         EventMapper eventMapper,
         CodeAgentEventMapper codeAgentEventMapper,
-        ISessionAgentManager conversationAgentManager,
+        ISessionAgentManager sessionAgentManager,
         ILogger<RunService> logger)
     {
         _runStore = runStore;
@@ -43,7 +43,7 @@ public sealed class RunService : IRunService
         _sessionService = sessionService;
         _eventMapper = eventMapper;
         _codeAgentEventMapper = codeAgentEventMapper;
-        _conversationAgentManager = conversationAgentManager;
+        _sessionAgentManager = sessionAgentManager;
         _logger = logger;
     }
 
@@ -126,7 +126,7 @@ public sealed class RunService : IRunService
 
         if (!string.IsNullOrWhiteSpace(entry.Run.SessionId))
         {
-            _conversationAgentManager.Invalidate(entry.Run.SessionId, CancellationToken.None);
+            _sessionAgentManager.Invalidate(entry.Run.SessionId, CancellationToken.None);
             _ = _sessionService.RecordRunCancelledAsync(entry.Run.SessionId, CancellationToken.None);
         }
 
@@ -170,14 +170,14 @@ public sealed class RunService : IRunService
             var sessionId = run.SessionId ?? throw new InvalidOperationException("Run session id is required.");
             var sessionDocument = await _sessionService.GetDocumentAsync(sessionId, CancellationToken.None).ConfigureAwait(false)
                 ?? throw new InvalidOperationException($"Session '{sessionId}' was not found.");
-            var conversationRuntime = await WithSessionInitializationTimeout(
-                _conversationAgentManager.GetOrCreateAsync(sessionDocument, entry.CancellationTokenSource.Token),
-                "Timed out while initializing the conversation agent.",
+            var sessionRuntime = await WithSessionInitializationTimeout(
+                _sessionAgentManager.GetOrCreateAsync(sessionDocument, entry.CancellationTokenSource.Token),
+                "Timed out while initializing the session agent.",
                 entry.CancellationTokenSource.Token).ConfigureAwait(false);
 
-            var agent = conversationRuntime.Agent;
-            var session = conversationRuntime.Session;
-            var resolvedProvider = conversationRuntime.ResolvedProvider;
+            var agent = sessionRuntime.Agent;
+            var session = sessionRuntime.Session;
+            var resolvedProvider = sessionRuntime.ResolvedProvider;
             var usageTracker = new SessionUsageTracker(_priceCatalogService, resolvedProvider.Model);
 
             Publish(entry, _eventMapper.CreateRunStarted(run, resolvedProvider.Model, run.WorkingDirectory, options));
@@ -190,7 +190,7 @@ public sealed class RunService : IRunService
             using var fileTrackingScope = _fileStateTrackerAccessor.BeginScope(entry.FileStateTracker);
             usageTracker.StartTurn();
 
-            var messages = !conversationRuntime.WasReused
+            var messages = !sessionRuntime.WasReused
                 ? BuildMessages(run, sessionDocument.Transcript)
                 : BuildMessages(run);
 
@@ -223,7 +223,7 @@ public sealed class RunService : IRunService
                 var assistantMessage = context.AssistantText.Length == 0 ? null : context.AssistantText.ToString();
                 var changedFilesCount = entry.FileStateTracker.GetChanges().Count;
                 await _sessionService.RecordRunCompletedAsync(run.SessionId, assistantMessage, changedFilesCount, CancellationToken.None).ConfigureAwait(false);
-                _conversationAgentManager.MarkTranscriptCount(run.SessionId, sessionDocument.Transcript.Count + (string.IsNullOrWhiteSpace(assistantMessage) ? 1 : 2));
+                _sessionAgentManager.MarkTranscriptCount(run.SessionId, sessionDocument.Transcript.Count + (string.IsNullOrWhiteSpace(assistantMessage) ? 1 : 2));
             }
         }
         catch (OperationCanceledException)
@@ -243,7 +243,7 @@ public sealed class RunService : IRunService
             Publish(entry, _eventMapper.CreateReasoningSummaryUpdated(run, BuildCancelledSummary(run)));
             if (!string.IsNullOrWhiteSpace(run.SessionId))
             {
-                _conversationAgentManager.Invalidate(run.SessionId, CancellationToken.None);
+                _sessionAgentManager.Invalidate(run.SessionId, CancellationToken.None);
                 await _sessionService.RecordRunCancelledAsync(run.SessionId, CancellationToken.None).ConfigureAwait(false);
             }
         }
@@ -265,7 +265,7 @@ public sealed class RunService : IRunService
             Publish(entry, _eventMapper.CreateRunFailed(run, ex.Message));
             if (!string.IsNullOrWhiteSpace(run.SessionId))
             {
-                _conversationAgentManager.Invalidate(run.SessionId, CancellationToken.None);
+                _sessionAgentManager.Invalidate(run.SessionId, CancellationToken.None);
                 await _sessionService.RecordRunFailedAsync(run.SessionId, ex.Message, CancellationToken.None).ConfigureAwait(false);
             }
         }

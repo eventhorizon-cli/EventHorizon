@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { PanelLeftClose, PanelLeftOpen, Plus, MoreHorizontal, Trash2, Edit3 } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Plus, MoreHorizontal, Trash2, Edit3, Settings2 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
 import type { AgentSession } from "@/types";
@@ -8,6 +8,7 @@ import type { AgentSession } from "@/types";
 type SessionsSidebarProps = {
   sessions: AgentSession[];
   currentSessionId?: string;
+  hasConfiguredProviders: boolean;
   leftPaneCollapsed: boolean;
   isCompactLayout: boolean;
   onToggleCollapsed: () => void;
@@ -20,6 +21,7 @@ type SessionsSidebarProps = {
 export function SessionsSidebar({
   sessions,
   currentSessionId,
+  hasConfiguredProviders,
   leftPaneCollapsed,
   isCompactLayout,
   onToggleCollapsed,
@@ -118,9 +120,9 @@ export function SessionsSidebar({
               "inline-flex items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm transition hover:opacity-90",
               leftPaneCollapsed ? "h-10 w-10" : "px-3 py-2 text-xs font-medium",
             )}
-            title="New Chat"
+            title={hasConfiguredProviders ? "New Session" : "Configure Provider"}
           >
-            {leftPaneCollapsed ? <Plus className="h-4 w-4" /> : "New Session"}
+            {leftPaneCollapsed ? (hasConfiguredProviders ? <Plus className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />) : hasConfiguredProviders ? "New Session" : "Setup Provider"}
           </button>
         </div>
       </div>
@@ -133,7 +135,7 @@ export function SessionsSidebar({
               leftPaneCollapsed && "p-2 text-center text-xs",
             )}
           >
-            {leftPaneCollapsed ? "Empty" : "No sessions yet."}
+            {leftPaneCollapsed ? (hasConfiguredProviders ? "Empty" : "Setup") : hasConfiguredProviders ? "No sessions yet." : "Configure a provider to create your first session."}
           </div>
         ) : null}
 

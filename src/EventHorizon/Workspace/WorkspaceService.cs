@@ -8,7 +8,7 @@ namespace EventHorizon.Workspace;
 
 public sealed class WorkspaceService : IWorkspaceService
 {
-    private static readonly HttpClient OsvHttpClient = new();
+    private readonly IHttpClientFactory _httpClientFactory;
 
     private static readonly HashSet<string> IgnoredDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -76,11 +76,13 @@ public sealed class WorkspaceService : IWorkspaceService
     public WorkspaceService(
         IWorkspaceContextAccessor workspaceContextAccessor,
         IFileSnapshotService fileSnapshotService,
-        IFileStateTrackerAccessor fileStateTrackerAccessor)
+        IFileStateTrackerAccessor fileStateTrackerAccessor,
+        IHttpClientFactory httpClientFactory)
     {
         _workspaceContextAccessor = workspaceContextAccessor;
         _fileSnapshotService = fileSnapshotService;
         _fileStateTrackerAccessor = fileStateTrackerAccessor;
+        _httpClientFactory = httpClientFactory;
     }
 
     public string WorkspaceRoot => _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot;
@@ -444,7 +446,8 @@ public sealed class WorkspaceService : IWorkspaceService
         OsvBatchQueryResponse? payload;
         try
         {
-            using var response = await OsvHttpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            using var httpClient = _httpClientFactory.CreateClient();
+            using var response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             payload = JsonSerializer.Deserialize<OsvBatchQueryResponse>(content, JsonSerializerOptions.Web);

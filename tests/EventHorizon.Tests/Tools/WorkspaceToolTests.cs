@@ -2,6 +2,7 @@ using EventHorizon.Tests.Fixtures;
 using EventHorizon.Tools;
 using EventHorizon.Workspace;
 using EventHorizon.Workspace.Diff;
+using Moq;
 
 namespace EventHorizon.Tests.Tools;
 
@@ -15,10 +16,13 @@ public sealed class WorkspaceToolTests : IDisposable
     {
         _fixture = new TemporaryWorkspaceFixture();
         var workspaceContextAccessor = new StubWorkspaceContextAccessor(_fixture.Root);
+        var httpClientFactory = new Mock<IHttpClientFactory>();
+        httpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
         _workspaceService = new WorkspaceService(
             workspaceContextAccessor,
             new FileSnapshotService(workspaceContextAccessor),
-            new FileStateTrackerAccessor());
+            new FileStateTrackerAccessor(),
+            httpClientFactory.Object);
         _toolCatalog = new ToolCatalog();
     }
 

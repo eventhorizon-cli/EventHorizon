@@ -7,8 +7,6 @@ internal interface IOptionsNormalizer
     void NormalizeMcp(McpOptions options);
 
     void NormalizeSkills(SkillsOptions options);
-
-    ProviderOptions ResolveActiveProvider(ProvidersOptions options);
 }
 
 internal sealed class OptionsNormalizer : IOptionsNormalizer

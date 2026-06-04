@@ -3,6 +3,7 @@ using EventHorizon.DTOs;
 using EventHorizon.Engine.Sessions;
 using EventHorizon.Tests.Fixtures;
 using Microsoft.AspNetCore.Mvc;
+using Moq;
 
 namespace EventHorizon.Tests.Sessions;
 
@@ -78,53 +79,14 @@ public sealed class SessionsControllerTests : IDisposable
     }
 
     private SessionsController CreateController()
-        => new(new StubSessionService(), new StubSessionModelService(), _workspaceContextAccessor);
+        => new(
+            Mock.Of<ISessionService>(),
+            Mock.Of<ISessionModelService>(),
+            _workspaceContextAccessor);
 
     public void Dispose()
     {
         _fixture.Dispose();
-    }
-
-    private sealed class StubSessionService : ISessionService
-    {
-        public Task<IReadOnlyList<SessionSummaryDTO>> ListAsync(CancellationToken cancellationToken)
-            => Task.FromResult<IReadOnlyList<SessionSummaryDTO>>([]);
-
-        public Task<SessionDetailDTO?> GetAsync(string sessionId, CancellationToken cancellationToken)
-            => Task.FromResult<SessionDetailDTO?>(null);
-
-        public Task<SessionDocument?> GetDocumentAsync(string sessionId, CancellationToken cancellationToken)
-            => Task.FromResult<SessionDocument?>(null);
-
-        public Task<SessionSummaryDTO> CreateAsync(CreateSessionRequestDTO request, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
-
-        public Task<SessionSummaryDTO?> UpdateAsync(string sessionId, UpdateSessionRequestDTO request, CancellationToken cancellationToken)
-            => Task.FromResult<SessionSummaryDTO?>(null);
-
-        public Task<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken)
-            => Task.FromResult(false);
-
-        public Task<SessionDocument?> StartRunAsync(string sessionId, string runId, string task, CancellationToken cancellationToken)
-            => Task.FromResult<SessionDocument?>(null);
-
-        public Task RecordRunCompletedAsync(string sessionId, string? assistantMessage, int changedFilesCount, CancellationToken cancellationToken)
-            => Task.CompletedTask;
-
-        public Task RecordRunFailedAsync(string sessionId, string error, CancellationToken cancellationToken)
-            => Task.CompletedTask;
-
-        public Task RecordRunCancelledAsync(string sessionId, CancellationToken cancellationToken)
-            => Task.CompletedTask;
-
-        public Task GenerateTitleIfNeededAsync(string sessionId, CancellationToken cancellationToken)
-            => Task.CompletedTask;
-    }
-
-    private sealed class StubSessionModelService : ISessionModelService
-    {
-        public Task<SessionModelUpdateResult?> UpdateAsync(string sessionId, string? providerName, string? modelId, CancellationToken cancellationToken)
-            => Task.FromResult<SessionModelUpdateResult?>(null);
     }
 }
 

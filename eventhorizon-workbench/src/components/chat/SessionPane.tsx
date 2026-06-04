@@ -15,6 +15,7 @@ import type { AgentRun, AgentSessionDetail, FileChange, LogItem } from "@/types"
 type SessionPaneProps = {
   currentSession?: AgentSessionDetail;
   currentRun?: AgentRun;
+  hasConfiguredProviders: boolean;
   availableModels: string[];
   logs: LogItem[];
   changes: FileChange[];
@@ -228,6 +229,7 @@ function ToolCallActivity({ toolCalls }: { toolCalls: ToolCallTimelineItem[] }) 
 export function SessionPane({
   currentSession,
   currentRun,
+  hasConfiguredProviders,
   availableModels,
   logs,
   changes,
@@ -307,27 +309,55 @@ export function SessionPane({
         {!currentSession ? (
           <div className="flex h-full min-h-[360px] w-full items-center justify-center">
             <div className="w-full rounded-3xl border border-dashed border-border bg-card/80 p-8 text-center shadow-sm">
-              <h1 className="text-2xl font-semibold">Create a session before running tasks</h1>
-              <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-                Pick a workspace directory to start a dedicated session. After that, you can run prompts, inspect changes,
-                and keep the conversation history organized.
-              </p>
+              {hasConfiguredProviders ? (
+                <>
+                  <h1 className="text-2xl font-semibold">Create a session before running tasks</h1>
+                  <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+                    Pick a workspace directory to start a dedicated session. After that, you can run prompts, inspect changes,
+                    and keep the conversation history organized.
+                  </p>
 
-              <div className="mt-6 flex justify-center">
-                <button
-                  type="button"
-                  onClick={onNewChat}
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Session
-                </button>
-              </div>
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={onNewChat}
+                      className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+                    >
+                      <Plus className="h-4 w-4" />
+                      New Session
+                    </button>
+                  </div>
 
-              <div className="mx-auto mt-6 grid max-w-3xl gap-2 text-left text-sm text-muted-foreground sm:grid-cols-2">
-                <div className="rounded-2xl bg-muted/60 p-3">Choose the workspace you want the agent to work on.</div>
-                <div className="rounded-2xl bg-muted/60 p-3">Keep each task history grouped inside its own session.</div>
-              </div>
+                  <div className="mx-auto mt-6 grid max-w-3xl gap-2 text-left text-sm text-muted-foreground sm:grid-cols-2">
+                    <div className="rounded-2xl bg-muted/60 p-3">Choose the workspace you want the agent to work on.</div>
+                    <div className="rounded-2xl bg-muted/60 p-3">Keep each task history grouped inside its own session.</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-2xl font-semibold">Configure a provider before creating your first session</h1>
+                  <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+                    Before the workbench can create a session, it needs at least one provider. Open Settings, add a provider,
+                    save the configuration, and then create your first session.
+                  </p>
+
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={onNewChat}
+                      className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+                    >
+                      <Settings2 className="h-4 w-4" />
+                      Open Settings
+                    </button>
+                  </div>
+
+                  <div className="mx-auto mt-6 grid max-w-3xl gap-2 text-left text-sm text-muted-foreground sm:grid-cols-2">
+                    <div className="rounded-2xl bg-muted/60 p-3">Add your first provider in the Providers tab.</div>
+                    <div className="rounded-2xl bg-muted/60 p-3">Save the configuration before creating a session.</div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ) : !hasConfiguredModels ? (
@@ -451,7 +481,9 @@ export function SessionPane({
             }}
             placeholder={
               !hasActiveSession
-                ? "Create a new session to start chatting with the agent..."
+                ? hasConfiguredProviders
+                  ? "Create a new session to start chatting with the agent..."
+                  : "Configure a provider in Settings to create your first session..."
                 : !hasConfiguredModels
                   ? "Configure a model in Settings to enable Run..."
                   : "Ask the agent to change, explain, test, or refactor your code..."
@@ -462,7 +494,9 @@ export function SessionPane({
           <div className="mt-3 flex items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground">
               {!hasActiveSession
-                ? "Create a session first to enable Run"
+                ? hasConfiguredProviders
+                  ? "Create a session first to enable Run"
+                  : "Configure a provider first to create your first session"
                 : !hasConfiguredModels
                   ? "Configure a model first to enable Run"
                   : "Enter to send · Alt + Enter for newline"}
