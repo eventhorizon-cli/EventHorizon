@@ -170,7 +170,6 @@ public sealed class SessionUsageTrackerTests
                 CurrentDate: "Today's date is 2026-05-21.",
                 WorkspaceRoot: "/tmp/workspace",
                 WorkspaceSummary: "summary",
-                GitStatus: "clean",
                 ProjectInstructions: "instructions"));
 
 

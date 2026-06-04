@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text;
 using EventHorizon.Workspace;
 
@@ -22,55 +21,13 @@ public sealed class SessionContextBuilder : ISessionContextBuilder
     {
         var workspaceRoot = _workspaceService.WorkspaceRoot;
         var workspaceSummary = _workspaceService.DescribeWorkspace();
-        var gitStatus = await TryGetGitStatusAsync(cancellationToken).ConfigureAwait(false);
         var projectInstructions = ReadProjectInstructions(workspaceRoot);
 
         return new SessionContextSnapshot(
             CurrentDate: $"Today's date is {DateTimeOffset.Now:yyyy-MM-dd}.",
             WorkspaceRoot: workspaceRoot,
             WorkspaceSummary: workspaceSummary,
-            GitStatus: gitStatus,
             ProjectInstructions: projectInstructions);
-    }
-
-    private async Task<string> TryGetGitStatusAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "git",
-                    Arguments = "--no-pager status --short --branch",
-                    WorkingDirectory = _workspaceService.WorkspaceRoot,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                },
-            };
-
-            process.Start();
-
-            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutSource.CancelAfter(TimeSpan.FromSeconds(15));
-
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(timeoutSource.Token);
-            var stderrTask = process.StandardError.ReadToEndAsync(timeoutSource.Token);
-            await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
-
-            var stdout = (await stdoutTask.ConfigureAwait(false)).TrimEnd();
-            var stderr = (await stderrTask.ConfigureAwait(false)).TrimEnd();
-            var status = string.IsNullOrWhiteSpace(stdout) ? stderr : stdout;
-            return string.IsNullOrWhiteSpace(status)
-                ? "Git status unavailable."
-                : status;
-        }
-        catch (Exception ex)
-        {
-            return $"Git status unavailable: {ex.Message}";
-        }
     }
 
     private static string ReadProjectInstructions(string workspaceRoot)

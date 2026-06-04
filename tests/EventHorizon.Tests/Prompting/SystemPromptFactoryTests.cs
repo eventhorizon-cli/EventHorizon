@@ -18,7 +18,6 @@ public sealed class SystemPromptFactoryTests
             CurrentDate: "Today's date is 2026-05-20.",
             WorkspaceRoot: "/workspace/demo",
             WorkspaceSummary: "Top-level entries:\n- src/",
-            GitStatus: "## main",
             ProjectInstructions: "[README.md]\nFollow the repo conventions.");
         var promptFactory = new SystemPromptFactory();
         var prompt = promptFactory.Build(options, snapshot);

@@ -30,9 +30,6 @@ public sealed class SystemPromptFactory : ISystemPromptFactory
         builder.AppendLine("## Workspace snapshot");
         builder.AppendLine(snapshot.WorkspaceSummary);
         builder.AppendLine();
-        builder.AppendLine("## Git snapshot");
-        builder.AppendLine(snapshot.GitStatus);
-        builder.AppendLine();
         builder.AppendLine("## Project guidance");
         builder.AppendLine(snapshot.ProjectInstructions);
         builder.AppendLine();
