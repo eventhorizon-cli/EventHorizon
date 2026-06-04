@@ -212,7 +212,7 @@ internal sealed class SessionAgentManager : ISessionAgentManager, IAsyncDisposab
     {
         var shell = new LocalShellExecutor(new LocalShellExecutorOptions
         {
-            Mode = ShellMode.Persistent,
+            Mode = ShellMode.Stateless,
             AcknowledgeUnsafe = true,
             WorkingDirectory = workspaceRoot,
             ConfineWorkingDirectory = true,
