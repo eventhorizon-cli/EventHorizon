@@ -27,7 +27,7 @@ public sealed class CodeAgentEventMapper
                     toolCall.Arguments,
                 }));
                 break;
-            case "run_in_terminal":
+            case "run_shell":
                 events.Add(CreateCustomEvent(run, "command.started", toolCall.Id, new
                 {
                     toolCall.Name,
@@ -52,7 +52,7 @@ public sealed class CodeAgentEventMapper
         List<EventEnvelope> events = [];
         switch (toolCall.Name)
         {
-            case "run_in_terminal":
+            case "run_shell":
                 if (!string.IsNullOrWhiteSpace(resultText))
                 {
                     events.Add(CreateCustomEvent(run, "command.output", toolCall.Id, new
@@ -73,15 +73,6 @@ public sealed class CodeAgentEventMapper
                     }));
                 }
 
-                break;
-            case "get_errors":
-                if (!string.IsNullOrWhiteSpace(resultText))
-                {
-                    events.Add(CreateCustomEvent(run, "diagnostic.created", toolCall.Id, new
-                    {
-                        Diagnostics = Truncate(resultText, 4000),
-                    }));
-                }
 
                 break;
         }

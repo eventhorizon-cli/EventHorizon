@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Text;
 using EventHorizon.Workspace;
 
@@ -24,24 +24,45 @@ public sealed class SessionContextBuilder : ISessionContextBuilder
         var workspaceSummary = _workspaceService.DescribeWorkspace();
         var gitStatus = await TryGetGitStatusAsync(cancellationToken).ConfigureAwait(false);
         var projectInstructions = ReadProjectInstructions(workspaceRoot);
-        var systemEnvironment = DescribeSystemEnvironment();
-        var shellTooling = DescribeShellTooling();
 
         return new SessionContextSnapshot(
             CurrentDate: $"Today's date is {DateTimeOffset.Now:yyyy-MM-dd}.",
             WorkspaceRoot: workspaceRoot,
             WorkspaceSummary: workspaceSummary,
             GitStatus: gitStatus,
-            ProjectInstructions: projectInstructions,
-            SystemEnvironment: systemEnvironment,
-            ShellTooling: shellTooling);
+            ProjectInstructions: projectInstructions);
     }
 
     private async Task<string> TryGetGitStatusAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var status = await _workspaceService.RunShellAsync("git --no-pager status --short --branch | cat", 15, cancellationToken).ConfigureAwait(false);
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "git",
+                    Arguments = "--no-pager status --short --branch",
+                    WorkingDirectory = _workspaceService.WorkspaceRoot,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                },
+            };
+
+            process.Start();
+
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutSource.CancelAfter(TimeSpan.FromSeconds(15));
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(timeoutSource.Token);
+            var stderrTask = process.StandardError.ReadToEndAsync(timeoutSource.Token);
+            await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
+
+            var stdout = (await stdoutTask.ConfigureAwait(false)).TrimEnd();
+            var stderr = (await stderrTask.ConfigureAwait(false)).TrimEnd();
+            var status = string.IsNullOrWhiteSpace(stdout) ? stderr : stdout;
             return string.IsNullOrWhiteSpace(status)
                 ? "Git status unavailable."
                 : status;
@@ -86,59 +107,5 @@ public sealed class SessionContextBuilder : ISessionContextBuilder
             : builder.ToString().TrimEnd();
     }
 
-    private static string DescribeSystemEnvironment()
-    {
-        var operatingSystem = GetOperatingSystemName();
-        var osDescription = RuntimeInformation.OSDescription.Trim();
-        var architecture = RuntimeInformation.OSArchitecture.ToString();
-        var shellPath = ShellCommandRunner.GetDefaultShellPath();
-        var shellName = Path.GetFileName(shellPath);
-
-        return string.Join(
-            Environment.NewLine,
-            [
-                $"Operating system: {operatingSystem} ({osDescription})",
-                $"OS architecture: {architecture}",
-                $"Default shell: {shellName} ({shellPath})",
-            ]);
-    }
-
-    private static string DescribeShellTooling()
-    {
-        var shellPath = ShellCommandRunner.GetDefaultShellPath();
-        var invocation = ShellCommandRunner.GetInvocationExample();
-
-        return string.Join(
-            Environment.NewLine,
-            [
-                "- `run_in_terminal` executes a shell command from the workspace root.",
-                "- Use `run_in_terminal` for builds, tests, git inspection, and short-lived scripts.",
-                "- Set `isBackground=true` for long-running processes such as local servers or watch tasks.",
-                "- Foreground terminal commands time out after 120 seconds.",
-                "- Use `get_terminal_output` with the returned session id to inspect stdout, stderr, exit code, and status for background commands.",
-                $"- Current shell invocation pattern: `{invocation}`.",
-                $"- Current shell executable: `{shellPath}`.",
-            ]);
-    }
-
-    private static string GetOperatingSystemName()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return "Windows";
-        }
-
-        if (OperatingSystem.IsMacOS())
-        {
-            return "macOS";
-        }
-
-        if (OperatingSystem.IsLinux())
-        {
-            return "Linux";
-        }
-
-        return "Unknown";
-    }
 }
 

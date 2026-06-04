@@ -125,8 +125,56 @@ public sealed class SessionsController : ControllerBase
         return Ok(new DirectoryListingDTO(targetPath, items));
     }
 
+    [HttpPost("directories")]
+    public ActionResult<DirectoryItemDTO> CreateDirectory(CreateDirectoryRequestDTO request)
+    {
+        var directoryName = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(directoryName))
+        {
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [nameof(request.Name)] = ["Folder name is required."],
+            }));
+        }
+
+        if (!IsValidDirectoryName(directoryName))
+        {
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [nameof(request.Name)] = ["Folder name contains invalid characters or path separators."],
+            }));
+        }
+
+        var parentPath = ResolveWorkspacePath(request.ParentPath);
+        if (!Directory.Exists(parentPath))
+        {
+            return NotFound();
+        }
+
+        var targetPath = Path.Combine(parentPath, directoryName);
+        if (Directory.Exists(targetPath) || System.IO.File.Exists(targetPath))
+        {
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [nameof(request.Name)] = ["A file or directory with the same name already exists."],
+            }));
+        }
+
+        Directory.CreateDirectory(targetPath);
+
+        return Created(
+            $"/api/sessions/directories?path={Uri.EscapeDataString(targetPath)}",
+            new DirectoryItemDTO(targetPath, directoryName, true, parentPath));
+    }
+
     private string ResolveWorkspacePath(string? path)
         => string.IsNullOrWhiteSpace(path)
             ? _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot
             : Path.GetFullPath(path, _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot);
+
+    private static bool IsValidDirectoryName(string directoryName)
+        => directoryName is not "." and not ".."
+            && directoryName.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
+            && !directoryName.Contains(Path.DirectorySeparatorChar)
+            && !directoryName.Contains(Path.AltDirectorySeparatorChar);
 }

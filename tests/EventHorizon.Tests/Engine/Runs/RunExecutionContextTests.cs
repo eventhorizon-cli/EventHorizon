@@ -465,7 +465,7 @@ public sealed class RunExecutionContextTests
         var toolCall2 = new RunExecutionContext.ToolCallState
         {
             Id = "tool_2",
-            Name = "run_in_terminal",
+            Name = "run_shell",
             Arguments = """{"command": "dotnet test"}""",
         };
         toolCall2.StartPublished = true;

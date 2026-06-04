@@ -19,20 +19,17 @@ public sealed class SystemPromptFactoryTests
             WorkspaceRoot: "/workspace/demo",
             WorkspaceSummary: "Top-level entries:\n- src/",
             GitStatus: "## main",
-            ProjectInstructions: "[README.md]\nFollow the repo conventions.",
-            SystemEnvironment: "Operating system: macOS (Darwin)",
-            ShellTooling: "- `run_in_terminal` executes a shell command from the workspace root.");
+            ProjectInstructions: "[README.md]\nFollow the repo conventions.");
         var promptFactory = new SystemPromptFactory();
         var prompt = promptFactory.Build(options, snapshot);
 
         Assert.Contains("# Role", prompt, StringComparison.Ordinal);
         Assert.Contains("# Working style", prompt, StringComparison.Ordinal);
         Assert.Contains("# Session context", prompt, StringComparison.Ordinal);
-        Assert.Contains("## System environment", prompt, StringComparison.Ordinal);
-        Assert.Contains("## Shell tools", prompt, StringComparison.Ordinal);
         Assert.Contains("# Additional guidance", prompt, StringComparison.Ordinal);
         Assert.DoesNotContain("# Tooling contract", prompt, StringComparison.Ordinal);
-        Assert.Contains("run_in_terminal", prompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("## System environment", prompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("## Shell tools", prompt, StringComparison.Ordinal);
         Assert.Contains("Keep answers concise.", prompt, StringComparison.Ordinal);
     }
 }

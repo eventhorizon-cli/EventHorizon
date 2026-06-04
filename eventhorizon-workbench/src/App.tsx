@@ -120,10 +120,19 @@ export default function App() {
         pathInput={app.workspaceDirectoryPicker.pathInput}
         directories={app.workspaceDirectoryPicker.directories}
         isLoading={app.workspaceDirectoryPicker.isLoading}
+        errorMessage={app.workspaceDirectoryPicker.errorMessage}
+        showCreateFolderAction
+        isCreateFolderFormOpen={app.workspaceDirectoryPicker.isCreateFolderFormOpen}
+        createFolderName={app.workspaceDirectoryPicker.createFolderName}
+        isCreatingFolder={app.workspaceDirectoryPicker.isCreatingFolder}
         onCancel={app.workspaceDirectoryPicker.closePicker}
         onConfirm={() => void app.workspaceDirectoryPicker.confirmSelection()}
         onPathInputChange={app.workspaceDirectoryPicker.setPathInput}
         onPathInputSubmit={() => void app.workspaceDirectoryPicker.submitPathInput()}
+        onCreateFolder={app.workspaceDirectoryPicker.openCreateFolderForm}
+        onCreateFolderNameChange={app.workspaceDirectoryPicker.setCreateFolderName}
+        onCreateFolderSubmit={() => void app.workspaceDirectoryPicker.submitCreateFolder()}
+        onCancelCreateFolder={app.workspaceDirectoryPicker.cancelCreateFolder}
         onSelectPath={app.workspaceDirectoryPicker.selectPath}
         onDoubleClickPath={(item) => void app.workspaceDirectoryPicker.navigateToPath(item)}
       />
@@ -138,6 +147,7 @@ export default function App() {
         pathInput={app.skillDirectoryPicker.pathInput}
         directories={app.skillDirectoryPicker.directories}
         isLoading={app.skillDirectoryPicker.isLoading}
+        errorMessage={app.skillDirectoryPicker.errorMessage}
         onCancel={app.skillDirectoryPicker.closePicker}
         onConfirm={() => void app.skillDirectoryPicker.confirmSelection()}
         onPathInputChange={app.skillDirectoryPicker.setPathInput}
