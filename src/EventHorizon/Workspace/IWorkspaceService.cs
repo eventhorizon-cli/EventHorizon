@@ -61,23 +61,8 @@ public interface IWorkspaceService
         [Description("The semantic search query to evaluate.")] string query,
         [Description("The maximum number of ranked snippets to return.")] int maxResults = 8);
 
-    [Description("Run a terminal command in the workspace or start it in the background.")]
-    Task<string> RunInTerminalAsync(
-        [Description("The terminal command to execute.")] string command,
-        [Description("Whether the command should be started as a background session.")] bool isBackground);
-
-    [Description("Get stdout, stderr, status, and exit code for a background terminal session.")]
-    string GetTerminalOutput([Description("The id of the background terminal session.")] string id);
-
-    [Description("Get any compile or lint errors in a code file. If the user mentions errors or problems in a file, they may be referring to these. Use the tool to see the same errors that the user is seeing. Also use this tool after editing a file to validate the change.")]
-    Task<string> GetErrorsAsync(
-        [Description("The terminal command to execute.")] string command,
-        [Description("Whether the command should be started as a background session.")] bool isBackground);
-
     [Description("Validate package versions against OSV vulnerability data.")]
     Task<string> ValidateCvesAsync(
         [Description("The dependency coordinates to validate, such as package@version.")] string[] dependencies,
         [Description("The package ecosystem to validate against.")] string ecosystem);
-
-    Task<string> RunShellAsync(string command, int timeoutSeconds, CancellationToken cancellationToken);
 }

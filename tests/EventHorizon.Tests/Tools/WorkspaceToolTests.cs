@@ -17,10 +17,8 @@ public sealed class WorkspaceToolTests : IDisposable
         var workspaceContextAccessor = new StubWorkspaceContextAccessor(_fixture.Root);
         _workspaceService = new WorkspaceService(
             workspaceContextAccessor,
-            new ShellCommandRunner(),
             new FileSnapshotService(workspaceContextAccessor),
-            new FileStateTrackerAccessor(),
-            new BackgroundTerminalCommandStore());
+            new FileStateTrackerAccessor());
         _toolCatalog = new ToolCatalog();
     }
 
@@ -255,97 +253,38 @@ public sealed class WorkspaceToolTests : IDisposable
     }
 
     [Fact]
-    public async Task RunInTerminalAsync_Should_Execute_Command()
-    {
-        // Arrange
-        var command = "echo 'Hello Terminal'";
-
-        // Act
-        var result = await _workspaceService.RunInTerminalAsync(command, isBackground: false);
-
-        // Assert
-        Assert.Contains("Hello Terminal", result);
-        Assert.DoesNotContain("Explanation:", result, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task RunInTerminalAsync_Background_Should_Start_Background_Process()
-    {
-        // Arrange
-        var command = "sleep 10";
-
-        // Act
-        var result = await _workspaceService.RunInTerminalAsync(command, isBackground: true);
-
-        // Assert
-        Assert.Contains("Background", result, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task GetTerminalOutput_Should_Return_Process_Output()
-    {
-        // Arrange
-        var command = "echo 'test'";
-
-        // Act
-        var result = await _workspaceService.RunInTerminalAsync(command, isBackground: true);
-
-        // Extract session ID from result (format: "Started background terminal session.\nId: xxx\n...")
-        var lines = result.Split('\n');
-        string? sessionId = null;
-        foreach (var line in lines)
-        {
-            if (line.StartsWith("Id: "))
-            {
-                sessionId = line.Substring(4).Trim();
-                break;
-            }
-        }
-
-        Assert.NotNull(sessionId);
-
-        await Task.Delay(100); // Give it time to start
-        var output = _workspaceService.GetTerminalOutput(sessionId);
-
-        // Assert
-        Assert.NotNull(output);
-    }
-
-    [Fact]
     public void ToolCatalog_Should_Include_All_Tools()
     {
         // Arrange & Act
         var tools = _toolCatalog.Create(_workspaceService);
 
         // Assert
-        var toolNames = tools.Select(t => t.Name).ToList();
-        Assert.Contains("apply_patch", toolNames);
-        Assert.Contains("create_file", toolNames);
-        Assert.Contains("file_search", toolNames);
-        Assert.Contains("grep_search", toolNames);
-        Assert.Contains("insert_edit_into_file", toolNames);
-        Assert.Contains("list_dir", toolNames);
-        Assert.Contains("open_file", toolNames);
-        Assert.Contains("read_file", toolNames);
-        Assert.Contains("replace_string_in_file", toolNames);
-        Assert.Contains("semantic_search", toolNames);
-        Assert.Contains("validate_cves", toolNames);
-        Assert.Contains("get_errors", toolNames);
-        Assert.Contains("get_terminal_output", toolNames);
-        Assert.Contains("run_in_terminal", toolNames);
+        var toolNames = tools.Select(t => t.Name).ToArray();
+        Assert.Equal(
+            [
+                "apply_patch",
+                "create_file",
+                "file_search",
+                "grep_search",
+                "insert_edit_into_file",
+                "list_dir",
+                "open_file",
+                "read_file",
+                "replace_string_in_file",
+                "semantic_search",
+                "validate_cves",
+            ],
+            toolNames);
     }
 
     [Fact]
-    public void ToolCatalog_Without_Shell_Flag_Should_Still_Include_Shell_Tools()
+    public void ToolCatalog_Should_Expose_Only_Supported_Tools()
     {
         // Act
         var tools = _toolCatalog.Create(_workspaceService);
 
         // Assert
-        var toolNames = tools.Select(t => t.Name).ToList();
-        Assert.Contains("get_errors", toolNames);
-        Assert.Contains("get_terminal_output", toolNames);
-        Assert.Contains("run_in_terminal", toolNames);
+        Assert.Equal(11, tools.Count);
     }
 
     [Fact]

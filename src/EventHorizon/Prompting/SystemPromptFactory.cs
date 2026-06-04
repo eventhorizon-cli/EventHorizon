@@ -27,17 +27,8 @@ public sealed class SystemPromptFactory : ISystemPromptFactory
         builder.AppendLine(snapshot.CurrentDate);
         builder.AppendLine($"Workspace root: {snapshot.WorkspaceRoot}");
         builder.AppendLine();
-        builder.AppendLine("## System environment");
-        builder.AppendLine(snapshot.SystemEnvironment);
-        builder.AppendLine();
-        builder.AppendLine("## Shell tools");
-        builder.AppendLine(snapshot.ShellTooling);
-        builder.AppendLine();
         builder.AppendLine("## Workspace snapshot");
         builder.AppendLine(snapshot.WorkspaceSummary);
-        builder.AppendLine();
-        builder.AppendLine("## Git snapshot");
-        builder.AppendLine(snapshot.GitStatus);
         builder.AppendLine();
         builder.AppendLine("## Project guidance");
         builder.AppendLine(snapshot.ProjectInstructions);

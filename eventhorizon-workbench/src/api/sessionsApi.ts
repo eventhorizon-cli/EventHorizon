@@ -1,5 +1,5 @@
 import { apiRequest } from "@/api/client";
-import type { AgentSession, AgentSessionDetail, DirectoryListing, SessionModelSelection } from "@/types";
+import type { AgentSession, AgentSessionDetail, DirectoryItem, DirectoryListing, SessionModelSelection } from "@/types";
 
 type SessionPayload = {
   id: string;
@@ -50,6 +50,16 @@ export async function getDirectories(path?: string): Promise<DirectoryListing> {
   const params = path ? new URLSearchParams({ path }) : undefined;
   const url = path ? `/api/sessions/directories?${params}` : "/api/sessions/directories";
   return apiRequest<DirectoryListing>(url);
+}
+
+export async function createDirectory(input: {
+  parentPath?: string;
+  name: string;
+}): Promise<DirectoryItem> {
+  return apiRequest<DirectoryItem>("/api/sessions/directories", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export async function createSession(input: {

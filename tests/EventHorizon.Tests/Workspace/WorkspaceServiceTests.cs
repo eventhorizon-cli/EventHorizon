@@ -132,34 +132,9 @@ public sealed class WorkspaceServiceTests : IDisposable
         Assert.Contains("RenderExplorerPanel", result);
     }
 
-    [Fact]
-    public async Task RunInTerminal_Background_Session_Can_Be_Inspected()
-    {
-        var service = CreateService();
-
-        var start = await service.RunInTerminalAsync("dotnet --info | cat", isBackground: true);
-        var id = start.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Single(line => line.StartsWith("Id: ", StringComparison.Ordinal))[4..];
-
-        var output = string.Empty;
-        for (var attempt = 0; attempt < 20; attempt++)
-        {
-            output = service.GetTerminalOutput(id);
-            if (output.Contains("Status: completed", StringComparison.Ordinal))
-            {
-                break;
-            }
-
-            await Task.Delay(100);
-        }
-
-        Assert.Contains("Id: ", output);
-        Assert.Contains("Command: dotnet --info | cat", output);
-    }
-
     private WorkspaceService CreateService()
         => new(
             _workspaceContextAccessor,
-            new ShellCommandRunner(),
             new FileSnapshotService(_workspaceContextAccessor),
             new FileStateTrackerAccessor());
 

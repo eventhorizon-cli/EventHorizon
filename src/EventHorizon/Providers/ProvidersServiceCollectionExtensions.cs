@@ -1,6 +1,5 @@
 using EventHorizon.Protocols.Mcp;
 using EventHorizon.Tools;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace EventHorizon.Providers;
 

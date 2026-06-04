@@ -27,7 +27,6 @@ public sealed class EventHorizonRuntime : IEventHorizonRuntime
         ISessionContextBuilder sessionContextBuilder,
         IToolCatalogFactory toolCatalogFactory,
         ISystemPromptFactory systemPromptFactory,
-        IProviderResolutionService providerResolutionService,
         McpToolConnector mcpToolConnector,
         IOptionsMonitor<AgentOptions> agentOptionsMonitor,
         IOptionsMonitor<McpOptions> mcpOptionsMonitor)

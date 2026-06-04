@@ -70,23 +70,17 @@ public sealed class WorkspaceService : IWorkspaceService
     };
 
     private readonly IWorkspaceContextAccessor _workspaceContextAccessor;
-    private readonly ShellCommandRunner _shellCommandRunner;
-    private readonly BackgroundTerminalCommandStore _backgroundTerminalCommandStore;
     private readonly IFileSnapshotService _fileSnapshotService;
     private readonly IFileStateTrackerAccessor _fileStateTrackerAccessor;
 
     public WorkspaceService(
         IWorkspaceContextAccessor workspaceContextAccessor,
-        ShellCommandRunner shellCommandRunner,
         IFileSnapshotService fileSnapshotService,
-        IFileStateTrackerAccessor fileStateTrackerAccessor,
-        BackgroundTerminalCommandStore? backgroundTerminalCommandStore = null)
+        IFileStateTrackerAccessor fileStateTrackerAccessor)
     {
         _workspaceContextAccessor = workspaceContextAccessor;
-        _shellCommandRunner = shellCommandRunner;
         _fileSnapshotService = fileSnapshotService;
         _fileStateTrackerAccessor = fileStateTrackerAccessor;
-        _backgroundTerminalCommandStore = backgroundTerminalCommandStore ?? new BackgroundTerminalCommandStore();
     }
 
     public string WorkspaceRoot => _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot;
@@ -426,41 +420,6 @@ public sealed class WorkspaceService : IWorkspaceService
             ranked.Select(static snippet => $"{snippet.Path}:{snippet.StartLine}-{snippet.EndLine} (score={snippet.Score})\n{snippet.Snippet}"));
     }
 
-    [Description("Run a terminal command in the workspace or start it in the background.")]
-    public Task<string> RunInTerminalAsync(
-        [Description("The terminal command to execute.")] string command,
-        [Description("Whether the command should be started as a background session.")] bool isBackground)
-        => RunInTerminalCoreAsync(command, isBackground, CancellationToken.None);
-
-    private async Task<string> RunInTerminalCoreAsync(string command, bool isBackground, CancellationToken cancellationToken)
-    {
-        if (isBackground)
-        {
-            var id = _backgroundTerminalCommandStore.Start(command, WorkspaceRoot);
-            return $"Started background terminal session.\nId: {id}\nCommand: {command}";
-        }
-
-        var beforeSnapshot = CaptureWorkspaceForTracking();
-        var result = await _shellCommandRunner.RunAsync(command, WorkspaceRoot, 120, cancellationToken).ConfigureAwait(false);
-        TrackWorkspaceTransition(beforeSnapshot, CaptureWorkspaceForTracking());
-        return result.ToString();
-    }
-
-    [Description("Get stdout, stderr, status, and exit code for a background terminal session.")]
-    public string GetTerminalOutput([Description("The id of the background terminal session.")] string id)
-        => _backgroundTerminalCommandStore.GetOutput(id);
-
-    public async Task<string> RunShellAsync(string command, int timeoutSeconds, CancellationToken cancellationToken)
-    {
-        var result = await _shellCommandRunner.RunAsync(command, WorkspaceRoot, timeoutSeconds, cancellationToken).ConfigureAwait(false);
-        return result.ToString();
-    }
-
-    [Description("Run workspace diagnostics and return matched errors for specific files.")]
-    public Task<string> GetErrorsAsync(
-        [Description("The terminal command to execute.")] string command,
-        [Description("Whether the command should be started as a background session.")] bool isBackground)
-        => RunInTerminalCoreAsync(command, isBackground, CancellationToken.None);
 
     [Description("Validate package versions against OSV vulnerability data.")]
     public Task<string> ValidateCvesAsync(

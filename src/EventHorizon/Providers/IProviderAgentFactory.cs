@@ -11,6 +11,6 @@ public interface IProviderAgentFactory
         ProviderOptions providerOptions,
         string instructions,
         IReadOnlyList<AITool> tools,
-        AgentSkillsProvider? skillsProvider,
+        IReadOnlyList<AIContextProvider> contextProviders,
         IServiceProvider services);
 }

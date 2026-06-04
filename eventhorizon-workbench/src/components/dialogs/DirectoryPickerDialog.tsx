@@ -12,12 +12,19 @@ type DirectoryPickerDialogProps = {
   pathInput: string;
   directories: DirectoryItem[];
   isLoading: boolean;
+  errorMessage?: string;
   showCreateFolderAction?: boolean;
+  isCreateFolderFormOpen?: boolean;
+  createFolderName?: string;
+  isCreatingFolder?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   onPathInputChange: (value: string) => void;
   onPathInputSubmit: () => void;
   onCreateFolder?: () => void;
+  onCreateFolderNameChange?: (value: string) => void;
+  onCreateFolderSubmit?: () => void;
+  onCancelCreateFolder?: () => void;
   onSelectPath: (item: DirectoryItem) => void;
   onDoubleClickPath: (item: DirectoryItem) => void;
 };
@@ -32,12 +39,19 @@ export function DirectoryPickerDialog({
   pathInput,
   directories,
   isLoading,
+  errorMessage,
   showCreateFolderAction = false,
+  isCreateFolderFormOpen = false,
+  createFolderName = "",
+  isCreatingFolder = false,
   onCancel,
   onConfirm,
   onPathInputChange,
   onPathInputSubmit,
   onCreateFolder,
+  onCreateFolderNameChange,
+  onCreateFolderSubmit,
+  onCancelCreateFolder,
   onSelectPath,
   onDoubleClickPath,
 }: DirectoryPickerDialogProps) {
@@ -98,6 +112,46 @@ export function DirectoryPickerDialog({
               </button>
             ) : null}
           </div>
+
+          {showCreateFolderAction && isCreateFolderFormOpen && onCreateFolderNameChange && onCreateFolderSubmit && onCancelCreateFolder ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-muted/40 p-3">
+              <input
+                type="text"
+                value={createFolderName}
+                onChange={(event) => onCreateFolderNameChange(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && onCreateFolderSubmit()}
+                placeholder="Enter folder name..."
+                className="min-w-[220px] flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={onCancelCreateFolder}
+                className="rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onCreateFolderSubmit}
+                disabled={!createFolderName.trim() || isCreatingFolder}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition",
+                  createFolderName.trim() && !isCreatingFolder
+                    ? "bg-primary text-primary-foreground hover:opacity-90"
+                    : "cursor-not-allowed bg-muted text-muted-foreground",
+                )}
+              >
+                {isCreatingFolder ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Create Folder
+              </button>
+            </div>
+          ) : null}
+
+          {errorMessage ? (
+            <div className="mt-3 rounded-2xl border border-red-200/80 bg-red-50/70 px-3 py-2 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-950/30 dark:text-red-200">
+              {errorMessage}
+            </div>
+          ) : null}
         </div>
 
         <div className="max-h-[50vh] overflow-y-auto p-4">

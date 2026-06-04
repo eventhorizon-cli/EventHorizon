@@ -20,9 +20,6 @@ public sealed class ToolCatalog : IToolCatalogFactory
             AIFunctionFactory.Create(workspaceService.ReadFileTool, name: "read_file"),
             AIFunctionFactory.Create(workspaceService.SemanticSearch, name: "semantic_search"),
             AIFunctionFactory.Create(workspaceService.ValidateCvesAsync, name: "validate_cves"),
-            AIFunctionFactory.Create(workspaceService.GetErrorsAsync, name: "get_errors"),
-            AIFunctionFactory.Create(workspaceService.GetTerminalOutput, name: "get_terminal_output"),
-            AIFunctionFactory.Create(workspaceService.RunInTerminalAsync, name: "run_in_terminal"),
         ];
 
         return tools.OrderBy(static tool => tool.Name, StringComparer.Ordinal).ToArray();

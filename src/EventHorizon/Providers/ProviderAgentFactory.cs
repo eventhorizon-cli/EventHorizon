@@ -23,7 +23,7 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
         ProviderOptions providerOptions,
         string instructions,
         IReadOnlyList<AITool> tools,
-        AgentSkillsProvider? skillsProvider,
+        IReadOnlyList<AIContextProvider> contextProviders,
         IServiceProvider services)
     {
         if (string.Equals(providerOptions.Type, ProviderTypes.Anthropic, StringComparison.OrdinalIgnoreCase))
@@ -32,16 +32,6 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
         }
 
         var chatClient = _providerChatClientFactory.CreateChatClient(providerOptions);
-        if (skillsProvider is null)
-        {
-            return chatClient.AsAIAgent(
-                name: agentOptions.Name,
-                description: agentOptions.Description,
-                instructions: instructions,
-                tools: [.. tools],
-                services: services);
-        }
-
         var chatClientAgentOptions = new ChatClientAgentOptions
         {
             Name = agentOptions.Name,
@@ -51,7 +41,7 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
                 Instructions = instructions,
                 Tools = [.. tools],
             },
-            AIContextProviders = [skillsProvider],
+            AIContextProviders = [.. contextProviders],
         };
 
         return chatClient.AsAIAgent(chatClientAgentOptions, services: services);

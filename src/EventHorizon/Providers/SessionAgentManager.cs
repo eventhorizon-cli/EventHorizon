@@ -2,11 +2,13 @@ using System.Collections.Concurrent;
 using EventHorizon.Configuration;
 using EventHorizon.Engine.Sessions;
 using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Tools.Shell;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 
 namespace EventHorizon.Providers;
 
-internal sealed class SessionAgentManager : ISessionAgentManager
+internal sealed class SessionAgentManager : ISessionAgentManager, IAsyncDisposable
 {
     private readonly IOptionsMonitor<AgentOptions> _agentOptionsMonitor;
     private readonly IProviderResolutionService _providerResolutionService;
@@ -57,36 +59,88 @@ internal sealed class SessionAgentManager : ISessionAgentManager
         Invalidate(document.Id, cancellationToken);
 
         var resolved = _providerResolutionService.TryResolveForSession(document)
-            ?? throw new InvalidOperationException("No provider is configured for the current session.");
+                       ?? throw new InvalidOperationException("No provider is configured for the current session.");
         var agentOptions = _agentOptionsMonitor.CurrentValue;
         var skillsProvider = _skillProviderFactory.Create(agentOptions, _services, document);
         var instructions = await _runtime.GetInstructionsAsync(cancellationToken).ConfigureAwait(false);
         var tools = await _runtime.GetToolsAsync(cancellationToken).ConfigureAwait(false);
+        ShellSessionResources? shellResources = null;
 
-        var agent = _providerAgentFactory.CreateAgent(
-            agentOptions,
-            resolved.Provider,
-            instructions,
-            tools,
-            skillsProvider,
-            _services);
+        try
+        {
+            List<AIContextProvider> contextProviders = [];
+            if (skillsProvider is not null)
+            {
+                contextProviders.Add(skillsProvider);
+            }
 
-        var session = RestoreSession(document) ?? await agent.CreateSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-        var cached = new CachedSessionAgent(document.Id, agent, session, resolved, 0);
-        _cache[document.Id] = cached;
-        _logger.LogDebug("Created session agent cache entry for session {SessionId} using provider {ProviderName}.", document.Id, resolved.ProviderName ?? "<default>");
-        return ToRuntime(cached, wasReused: false);
+            if (agentOptions.EnableShell)
+            {
+                shellResources = CreateShellSessionResources(document.WorkspaceRoot);
+                contextProviders.AddRange(shellResources.ContextProviders);
+            }
+
+            var sessionTools = shellResources is null
+                ? tools
+                : [.. tools, .. shellResources.Tools];
+
+            var agent = _providerAgentFactory.CreateAgent(
+                agentOptions,
+                resolved.Provider,
+                instructions,
+                sessionTools,
+                contextProviders,
+                _services);
+
+            var session = RestoreSession(document) ??
+                          await agent.CreateSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            var cached = new CachedSessionAgent(document.Id, agent, session, resolved, 0, shellResources);
+            _cache[document.Id] = cached;
+            _logger.LogDebug("Created session agent cache entry for session {SessionId} using provider {ProviderName}.",
+                document.Id, resolved.ProviderName ?? "<default>");
+            return ToRuntime(cached, wasReused: false);
+        }
+        catch
+        {
+            if (shellResources is not null)
+            {
+                await DisposeShellResourcesAsync(shellResources).ConfigureAwait(false);
+            }
+
+            throw;
+        }
     }
 
     public void Invalidate(string sessionId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _cache.TryRemove(sessionId, out _);
+        if (_cache.TryRemove(sessionId, out var cached))
+        {
+            DisposeShellResources(cached);
+        }
     }
 
     public void InvalidateAll(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        foreach (var cached in _cache.Values)
+        {
+            DisposeShellResources(cached);
+        }
+
+        _cache.Clear();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var cached in _cache.Values)
+        {
+            if (cached.ShellResources is not null)
+            {
+                await DisposeShellResourcesAsync(cached.ShellResources).ConfigureAwait(false);
+            }
+        }
+
         _cache.Clear();
     }
 
@@ -111,7 +165,9 @@ internal sealed class SessionAgentManager : ISessionAgentManager
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to restore serialized agent session for session {SessionId}. A new agent session will be created.", document.Id);
+            _logger.LogWarning(ex,
+                "Failed to restore serialized agent session for session {SessionId}. A new agent session will be created.",
+                document.Id);
             return null;
         }
     }
@@ -124,8 +180,10 @@ internal sealed class SessionAgentManager : ISessionAgentManager
             return false;
         }
 
-        if (!string.Equals(cached.ResolvedProvider.ProviderName, resolved.ProviderName, StringComparison.OrdinalIgnoreCase) &&
-            !(string.IsNullOrWhiteSpace(cached.ResolvedProvider.ProviderName) && string.IsNullOrWhiteSpace(resolved.ProviderName)))
+        if (!string.Equals(cached.ResolvedProvider.ProviderName, resolved.ProviderName,
+                StringComparison.OrdinalIgnoreCase) &&
+            !(string.IsNullOrWhiteSpace(cached.ResolvedProvider.ProviderName) &&
+              string.IsNullOrWhiteSpace(resolved.ProviderName)))
         {
             return false;
         }
@@ -150,10 +208,67 @@ internal sealed class SessionAgentManager : ISessionAgentManager
             WasReused = wasReused,
         };
 
+    private static ShellSessionResources CreateShellSessionResources(string workspaceRoot)
+    {
+        var shell = new LocalShellExecutor(new LocalShellExecutorOptions
+        {
+            Mode = ShellMode.Stateless,
+            AcknowledgeUnsafe = true,
+            WorkingDirectory = workspaceRoot,
+            ConfineWorkingDirectory = true,
+        });
+
+        var environmentProvider = new ShellEnvironmentProvider(shell);
+
+        return new ShellSessionResources(
+            shell,
+            [
+                shell.AsAIFunction(name: "run_shell", requireApproval: false)
+            ],
+            [environmentProvider]);
+    }
+
+    private void DisposeShellResources(CachedSessionAgent cached)
+    {
+        if (cached.ShellResources is null)
+        {
+            return;
+        }
+
+        DisposeShellResourcesAsync(cached.ShellResources).GetAwaiter().GetResult();
+    }
+
+    private async Task DisposeShellResourcesAsync(ShellSessionResources shellResources)
+    {
+        try
+        {
+            await shellResources.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to dispose session-owned shell resources.");
+        }
+    }
+
     private sealed record CachedSessionAgent(
         string SessionId,
         AIAgent Agent,
         AgentSession Session,
         ResolvedProviderContext ResolvedProvider,
-        int TranscriptCount);
+        int TranscriptCount,
+        ShellSessionResources? ShellResources);
+
+    private sealed class ShellSessionResources(
+        LocalShellExecutor shell,
+        IReadOnlyList<AITool> tools,
+        IReadOnlyList<AIContextProvider> contextProviders)
+        : IAsyncDisposable
+    {
+        public IReadOnlyList<AITool> Tools { get; } = tools;
+
+        public IReadOnlyList<AIContextProvider> ContextProviders { get; } = contextProviders;
+
+        public ValueTask DisposeAsync()
+            => shell.DisposeAsync();
+    }
 }
