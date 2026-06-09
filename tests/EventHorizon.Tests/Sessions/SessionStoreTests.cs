@@ -20,9 +20,17 @@ public sealed class SessionStoreTests : IDisposable
     public async Task Save_Load_And_List_Roundtrip_A_Session_Document()
     {
         FileSessionStore store = new(new TestPathEnvironment(_root, _homeDirectory));
+        WorkspaceDocument workspace = new()
+        {
+            Id = "workspace-1",
+            Name = "work",
+            WorkspaceRoot = "/tmp/work",
+            SessionIds = ["session-1"],
+        };
         SessionDocument document = new()
         {
             Id = "session-1",
+            WorkspaceId = workspace.Id,
             Name = "demo",
             ProviderType = "openai",
             Model = "gpt-4.1-mini",
@@ -34,6 +42,7 @@ public sealed class SessionStoreTests : IDisposable
             ]
         };
 
+        await store.SaveWorkspaceAsync(workspace, CancellationToken.None);
         await store.SaveAsync(document, CancellationToken.None);
         var loaded = await store.LoadAsync("session-1", CancellationToken.None);
         var list = await store.ListAsync(CancellationToken.None);
@@ -49,16 +58,25 @@ public sealed class SessionStoreTests : IDisposable
     public async Task Store_Uses_Home_Directory_Session_Subdirectory()
     {
         FileSessionStore store = new(new TestPathEnvironment(_root, _homeDirectory));
+        WorkspaceDocument workspace = new()
+        {
+            Id = "workspace-2",
+            Name = "work",
+            WorkspaceRoot = _root,
+            SessionIds = ["session-2"],
+        };
         SessionDocument document = new()
         {
             Id = "session-2",
+            WorkspaceId = workspace.Id,
             WorkspaceRoot = _root,
             Transcript = [new SessionTranscriptEntry { Role = "user", Text = "hello" }]
         };
 
+        await store.SaveWorkspaceAsync(workspace, CancellationToken.None);
         await store.SaveAsync(document, CancellationToken.None);
 
-        var sessionDirectory = Path.Combine(_homeDirectory, ".eventhorizon", "sessions", "session-2");
+        var sessionDirectory = Path.Combine(_homeDirectory, ".eventhorizon", "workspaces", "workspace-2", "session-2");
         var sessionFile = Path.Combine(sessionDirectory, "session.json");
         Assert.True(Directory.Exists(sessionDirectory));
         Assert.True(File.Exists(sessionFile));

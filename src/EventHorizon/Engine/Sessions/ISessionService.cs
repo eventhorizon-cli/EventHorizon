@@ -16,6 +16,8 @@ public interface ISessionService
 
     Task<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken);
 
+    Task<bool> DeleteWorkspaceAsync(string workspaceId, CancellationToken cancellationToken);
+
     Task<SessionDocument?> StartRunAsync(
         string sessionId,
         string runId,

@@ -15,6 +15,8 @@ public sealed record SessionDetailDTO(
     string? Summary,
     int ChangedFilesCount,
     bool IsTitleGenerated,
+    string? WorkspaceId,
+    string? WorkspaceName,
     string? WorkspaceRoot,
-    SkillsOptions SessionSkills,
+    SkillsOptions WorkspaceSkills,
     IReadOnlyList<ChatMessageDTO> Messages);

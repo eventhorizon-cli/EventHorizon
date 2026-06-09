@@ -4,6 +4,8 @@ public sealed class CreateSessionRequestDTO
 {
     public string? InitialMessage { get; set; }
 
+    public string? WorkspaceId { get; set; }
+
     public string? ProviderName { get; set; }
 
     public string? Model { get; set; }

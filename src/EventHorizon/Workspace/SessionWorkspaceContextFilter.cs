@@ -30,7 +30,12 @@ public sealed class SessionWorkspaceContextFilter : IAsyncActionFilter
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(session.WorkspaceRoot))
+        var workspace = string.IsNullOrWhiteSpace(session.WorkspaceId)
+            ? null
+            : await _sessionStore.LoadWorkspaceAsync(session.WorkspaceId, context.HttpContext.RequestAborted).ConfigureAwait(false);
+        var workspaceRoot = workspace?.WorkspaceRoot;
+
+        if (string.IsNullOrWhiteSpace(workspaceRoot))
         {
             context.Result = new BadRequestObjectResult(new ProblemDetails
             {
@@ -39,7 +44,7 @@ public sealed class SessionWorkspaceContextFilter : IAsyncActionFilter
             return;
         }
 
-        _workspaceContextAccessor.WorkspaceContext = new WorkspaceContext(session.WorkspaceRoot);
+        _workspaceContextAccessor.WorkspaceContext = new WorkspaceContext(workspaceRoot);
         await next().ConfigureAwait(false);
     }
 

@@ -15,12 +15,14 @@ type SessionPayload = {
   summary?: string;
   changedFilesCount?: number;
   isTitleGenerated?: boolean;
+  workspaceId?: string;
+  workspaceName?: string;
   workspaceRoot?: string;
 };
 
 type SessionDetailPayload = SessionPayload & {
   messages?: AgentSessionDetail["messages"];
-  sessionSkills?: AgentSessionDetail["sessionSkills"];
+  workspaceSkills?: AgentSessionDetail["workspaceSkills"];
 };
 
 function mapSession(payload: SessionPayload): AgentSession {
@@ -37,6 +39,8 @@ function mapSession(payload: SessionPayload): AgentSession {
     summary: payload.summary,
     changedFilesCount: payload.changedFilesCount,
     isTitleGenerated: payload.isTitleGenerated,
+    workspaceId: payload.workspaceId,
+    workspaceName: payload.workspaceName,
     workspaceRoot: payload.workspaceRoot,
   };
 }
@@ -64,6 +68,7 @@ export async function createDirectory(input: {
 
 export async function createSession(input: {
   initialMessage?: string;
+  workspaceId?: string;
   workspaceRoot?: string;
   providerName?: string;
   model?: string;
@@ -81,7 +86,7 @@ export async function getSession(sessionId: string): Promise<AgentSessionDetail>
   return {
     ...mapSession(payload),
     messages: payload.messages ?? [],
-    sessionSkills: payload.sessionSkills ?? { imported: [] },
+    workspaceSkills: payload.workspaceSkills ?? { imported: [] },
   };
 }
 
@@ -119,4 +124,8 @@ export async function updateSessionModel(input: {
 
 export async function deleteSession(sessionId: string): Promise<void> {
   await apiRequest(`/api/sessions/${sessionId}`, { method: "DELETE" });
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<void> {
+  await apiRequest(`/api/workspaces/${encodeURIComponent(workspaceId)}`, { method: "DELETE" });
 }

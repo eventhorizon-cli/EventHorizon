@@ -15,6 +15,7 @@ namespace EventHorizon.Configuration;
 [JsonSerializable(typeof(List<McpServerOptions>))]
 [JsonSerializable(typeof(ImportedSkillOptions))]
 [JsonSerializable(typeof(List<ImportedSkillOptions>))]
+[JsonSerializable(typeof(WorkspaceDocument))]
 [JsonSerializable(typeof(SessionDocument))]
 [JsonSerializable(typeof(List<SessionSummary>))]
 [JsonSerializable(typeof(Dictionary<string, Pricing.ModelPriceCatalog.ModelCatalogEntry>))]

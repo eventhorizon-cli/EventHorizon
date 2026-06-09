@@ -69,17 +69,28 @@ internal sealed class SkillService : ISkillService
                 };
             }
 
-            document.SessionSkills.StoragePath ??= ResolveSessionSkillsRoot(document.Id);
-            Directory.CreateDirectory(document.SessionSkills.StoragePath);
-            var skill = ImportToCatalog(sourcePath, document.SessionSkills.StoragePath, document.SessionSkills);
-            document.UpdatedAt = DateTimeOffset.UtcNow;
-            await _sessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
+            var workspace = await ResolveWorkspaceForSessionAsync(document, cancellationToken).ConfigureAwait(false);
+            if (workspace is null)
+            {
+                return new SkillImportResponseDTO
+                {
+                    Success = false,
+                    Message = "Workspace was not found.",
+                    Errors = ["Workspace was not found."],
+                };
+            }
+
+            workspace.WorkspaceSkills.StoragePath ??= ResolveWorkspaceSkillsRoot(workspace.Id);
+            Directory.CreateDirectory(workspace.WorkspaceSkills.StoragePath);
+            var skill = ImportToCatalog(sourcePath, workspace.WorkspaceSkills.StoragePath, workspace.WorkspaceSkills);
+            workspace.UpdatedAt = DateTimeOffset.UtcNow;
+            await _sessionStore.SaveWorkspaceAsync(workspace, cancellationToken).ConfigureAwait(false);
             _agentManager.Invalidate(document.Id, cancellationToken);
 
             return new SkillImportResponseDTO
             {
                 Success = true,
-                Message = "Session skill imported successfully.",
+                Message = "Workspace skill imported successfully.",
                 Skill = skill,
                 Errors = Array.Empty<string>(),
             };
@@ -161,27 +172,38 @@ internal sealed class SkillService : ISkillService
             };
         }
 
-        var skill = document.SessionSkills.Imported.FirstOrDefault(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
+        var workspace = await ResolveWorkspaceForSessionAsync(document, cancellationToken).ConfigureAwait(false);
+        if (workspace is null)
+        {
+            return new SkillRemoveResponseDTO
+            {
+                Success = false,
+                Message = "Workspace was not found.",
+                Errors = ["Workspace was not found."],
+            };
+        }
+
+        var skill = workspace.WorkspaceSkills.Imported.FirstOrDefault(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
         if (skill is null)
         {
             return new SkillRemoveResponseDTO
             {
                 Success = false,
-                Message = "Session skill was not found.",
-                Errors = ["Session skill was not found."],
+                Message = "Workspace skill was not found.",
+                Errors = ["Workspace skill was not found."],
             };
         }
 
         DeleteSkillDirectory(skill.Path);
-        document.SessionSkills.Imported.RemoveAll(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
-        document.UpdatedAt = DateTimeOffset.UtcNow;
-        await _sessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
+        workspace.WorkspaceSkills.Imported.RemoveAll(item => string.Equals(item.Name, skillName, StringComparison.OrdinalIgnoreCase));
+        workspace.UpdatedAt = DateTimeOffset.UtcNow;
+        await _sessionStore.SaveWorkspaceAsync(workspace, cancellationToken).ConfigureAwait(false);
         _agentManager.Invalidate(document.Id, cancellationToken);
 
         return new SkillRemoveResponseDTO
         {
             Success = true,
-            Message = "Session skill removed.",
+            Message = "Workspace skill removed.",
             Errors = Array.Empty<string>(),
         };
     }
@@ -214,11 +236,16 @@ internal sealed class SkillService : ISkillService
         => Options.StoragePath
            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".eventhorizon", "skills");
 
-    private string ResolveSessionSkillsRoot(string sessionId)
-        => Path.Combine(ResolveSessionStorageRoot(), sessionId, "skills");
+    private async Task<WorkspaceDocument?> ResolveWorkspaceForSessionAsync(SessionDocument document, CancellationToken cancellationToken)
+        => string.IsNullOrWhiteSpace(document.WorkspaceId)
+            ? null
+            : await _sessionStore.LoadWorkspaceAsync(document.WorkspaceId, cancellationToken).ConfigureAwait(false);
 
-    private string ResolveSessionStorageRoot()
-        => Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "sessions");
+    private string ResolveWorkspaceSkillsRoot(string workspaceId)
+        => Path.Combine(ResolveWorkspaceStorageRoot(), workspaceId, "skills");
+
+    private string ResolveWorkspaceStorageRoot()
+        => Path.Combine(_pathEnvironment.HomeDirectory, ".eventhorizon", "workspaces");
 
     private static void DeleteSkillDirectory(string path)
     {

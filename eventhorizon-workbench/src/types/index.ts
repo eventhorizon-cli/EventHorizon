@@ -104,6 +104,8 @@ export type AgentSession = {
   summary?: string;
   changedFilesCount?: number;
   isTitleGenerated?: boolean;
+  workspaceId?: string;
+  workspaceName?: string;
   workspaceRoot?: string;
 };
 
@@ -118,7 +120,7 @@ export type ChatMessage = {
 
 export type AgentSessionDetail = AgentSession & {
   messages: ChatMessage[];
-  sessionSkills: SkillCatalog;
+  workspaceSkills: SkillCatalog;
 };
 
 export type AgentRun = {

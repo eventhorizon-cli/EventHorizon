@@ -12,10 +12,12 @@ namespace EventHorizon.Providers;
 internal sealed class SkillProviderFactory : ISkillProviderFactory
 {
     private readonly IOptionsMonitor<SkillsOptions> _skillsOptionsMonitor;
+    private readonly ISessionStore _sessionStore;
 
-    public SkillProviderFactory(IOptionsMonitor<SkillsOptions> skillsOptionsMonitor)
+    public SkillProviderFactory(IOptionsMonitor<SkillsOptions> skillsOptionsMonitor, ISessionStore sessionStore)
     {
         _skillsOptionsMonitor = skillsOptionsMonitor;
+        _sessionStore = sessionStore;
     }
 
     public AgentSkillsProvider? Create(AgentOptions options, IServiceProvider services,
@@ -64,7 +66,16 @@ internal sealed class SkillProviderFactory : ISkillProviderFactory
             yield break;
         }
 
-        foreach (var path in GetEnabledSkillDirectories(sessionDocument.SessionSkills))
+        var workspace = string.IsNullOrWhiteSpace(sessionDocument.WorkspaceId)
+            ? null
+            : _sessionStore.LoadWorkspaceAsync(sessionDocument.WorkspaceId, CancellationToken.None).GetAwaiter().GetResult();
+
+        if (workspace is null)
+        {
+            yield break;
+        }
+
+        foreach (var path in GetEnabledSkillDirectories(workspace.WorkspaceSkills))
         {
             yield return path;
         }
