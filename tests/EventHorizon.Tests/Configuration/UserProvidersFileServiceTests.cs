@@ -84,7 +84,7 @@ public sealed class UserProvidersFileServiceTests : IDisposable
                 {
                     Name = "openai",
                     Type = "openai",
-                    Model = "gpt-4",
+                    DefaultModel = "gpt-4",
                     ApiKey = "test-key",
                 }
             }
@@ -137,13 +137,13 @@ public sealed class UserProvidersFileServiceTests : IDisposable
                 {
                     Name = "openai",
                     Type = "openai",
-                    Model = "gpt-4",
+                    DefaultModel = "gpt-4",
                 },
                 ["anthropic"] = new ProviderOptions
                 {
                     Name = "anthropic",
                     Type = "anthropic",
-                    Model = "claude-3",
+                    DefaultModel = "claude-3",
                 }
             }
         };

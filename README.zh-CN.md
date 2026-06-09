@@ -59,7 +59,7 @@ eventhorizon
 
 - `Name`：Provider 的唯一名称，会显示在 UI 中，也可用于默认选择
 - `Type`：Provider 类型
-- `Default model`：当会话没有单独覆盖时默认使用的模型
+- `DefaultModel`：当会话没有单独覆盖时默认使用的模型
 - `Available models`：可选模型列表，会显示在 UI 中，每行一个 model ID
 
 根据不同 provider 类型，还可能需要以下字段：
@@ -74,7 +74,7 @@ Provider 行为说明：
 - 你可以配置多个 provider，并选择其中一个作为全局默认 provider。
 - 每个会话都可以单独覆盖全局 provider 和 model 选择。
 - 对于 `openai`，你可以选择 `Chat Completions API`（使用 `GetChatClient(model).AsIChatClient()`）或 `Responses API`（使用 `GetResponsesClient().AsIChatClient(model)`）。
-- 对于 Azure OpenAI，EventHorizon 会优先使用 `Deployment`，必要时回退到 `Model`。
+- 对于 Azure OpenAI，EventHorizon 会优先使用 `Deployment`，必要时回退到 `DefaultModel`。
 - 对于 `azure-openai`，你可以选择 `Chat Completions API`（使用 `GetChatClient(deployment).AsIChatClient()`）或 `Responses API`（使用 `GetResponsesClient().AsIChatClient(deployment)`）。
 - 对于 `openai-compatible`，请填写该服务的基础 endpoint，并根据服务实际暴露的接口选择 `Chat Completions API` 或 `Responses API`。
 
@@ -165,4 +165,3 @@ npm run dev --prefix eventhorizon-workbench
 
 提示：首次启动后，同样需要前往 Web UI 右上角的 Settings（设置） 配置你的模型服务商（Provider）。
 你也可以在同一个 Settings 对话框里配置共享的 HTTP MCP 服务。
-

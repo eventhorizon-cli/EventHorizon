@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { X } from "lucide-react";
 import { ToggleSwitch } from "@/components/settings/ToggleSwitch";
 import { cn } from "@/utils/cn";
@@ -37,8 +38,8 @@ type GlobalSettingsDialogProps = {
   isImportingSkill: boolean;
   skillImportPath: string;
   mcpTestResults: Record<number, string>;
-  providerTestResults: Record<number, string>;
-  testingProviderIndexes: Record<number, boolean>;
+  providerTestResults: Record<string, string>;
+  testingProviderIndexes: Record<string, boolean>;
   onClose: () => void;
   onTabChange: (tab: GlobalSettingsTab) => void;
   onRefreshConfiguration: () => Promise<void> | void;
@@ -48,7 +49,7 @@ type GlobalSettingsDialogProps = {
   onRemoveProvider: (index: number) => void;
   onConfigurationFieldChange: (index: number, field: keyof ProviderEntry, value: string) => void;
   onProviderConfigChange: (index: number, field: keyof ProviderEntry["provider"], value: string | boolean) => void;
-  onTestProvider: (index: number) => Promise<void> | void;
+  onTestProvider: (index: number, model?: string) => Promise<void> | void;
   onAddMcpServer: () => void;
   onRemoveMcpServer: (index: number) => void;
   onMcpServerChange: (index: number, field: keyof McpServerConfig, value: string | boolean) => void;
@@ -118,8 +119,55 @@ export function GlobalSettingsDialog({
   onImportSkill,
   onRemoveGlobalSkill,
 }: GlobalSettingsDialogProps) {
+  const [newProviderModels, setNewProviderModels] = useState<Record<number, string>>({});
+
   if (!open) {
     return null;
+  }
+
+  function getProviderModels(provider: ProviderEntry) {
+    const models = [...provider.provider.models];
+    if (provider.provider.defaultModel && !models.includes(provider.provider.defaultModel)) {
+      models.unshift(provider.provider.defaultModel);
+    }
+
+    return [...new Set(models.filter(Boolean))];
+  }
+
+  function getProviderTestKey(index: number, model?: string) {
+    return model ? `${index}:${model}` : String(index);
+  }
+
+  function updateProviderModels(index: number, provider: ProviderEntry, models: string[], defaultModel?: string) {
+    const nextModels = [...new Set(models.map((model) => model.trim()).filter(Boolean))];
+    onProviderConfigChange(index, "models", nextModels.join("\n"));
+
+    const nextDefaultModel = defaultModel && nextModels.includes(defaultModel)
+      ? defaultModel
+      : nextModels[0] ?? "";
+    onProviderConfigChange(index, "defaultModel", nextDefaultModel);
+  }
+
+  function addProviderModel(index: number, provider: ProviderEntry) {
+    const modelInput = newProviderModels[index] ?? "";
+    const modelsToAdd = modelInput
+      .split(/[\n,]/)
+      .map((model) => model.trim())
+      .filter(Boolean);
+
+    if (modelsToAdd.length === 0) {
+      return;
+    }
+
+    const models = getProviderModels(provider);
+    const defaultModel = provider.provider.defaultModel || modelsToAdd[0];
+    updateProviderModels(index, provider, [...models, ...modelsToAdd], defaultModel);
+    setNewProviderModels((previous) => ({ ...previous, [index]: "" }));
+  }
+
+  function removeProviderModel(index: number, provider: ProviderEntry, model: string) {
+    const models = getProviderModels(provider).filter((item) => item !== model);
+    updateProviderModels(index, provider, models, provider.provider.defaultModel === model ? undefined : provider.provider.defaultModel);
   }
 
   return (
@@ -260,24 +308,16 @@ export function GlobalSettingsDialog({
                       {configurationDraft.providers.map((provider, index) => {
                         const providerFamily = getProviderFamily(provider.provider.type);
                         const providerApiType = getProviderApiType(provider.provider.type) ?? "chat";
-                        const modelFieldMeta = getProviderFieldMeta(provider.provider.type, "model");
                         const endpointFieldMeta = getProviderFieldMeta(provider.provider.type, "endpoint");
                         const apiKeyFieldMeta = getProviderFieldMeta(provider.provider.type, "apiKey");
                         const deploymentFieldMeta = getProviderFieldMeta(provider.provider.type, "deployment");
+                        const providerModels = getProviderModels(provider);
 
                         return (
                           <div key={`provider-${index}`} className="rounded-2xl border border-border bg-card p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-sm font-medium">{provider.name || `Provider ${index + 1}`}</div>
                             <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => void onTestProvider(index)}
-                                disabled={testingProviderIndexes[index]}
-                                className={compactButtonClassName}
-                              >
-                                {testingProviderIndexes[index] ? "Testing..." : "Test"}
-                              </button>
                               <button
                                 type="button"
                                 onClick={() => onRemoveProvider(index)}
@@ -341,18 +381,6 @@ export function GlobalSettingsDialog({
                               </label>
                             ) : null}
 
-                            {isProviderFieldVisible(provider.provider.type, "model") ? (
-                              <label className="grid gap-2">
-                                <FieldLabel label={modelFieldMeta.label} status={modelFieldMeta.status} />
-                                <input
-                                  value={provider.provider.model ?? ""}
-                                  onChange={(event) => onProviderConfigChange(index, "model", event.target.value)}
-                                  placeholder={modelFieldMeta.placeholder}
-                                  className={singleLineFieldClassName}
-                                />
-                              </label>
-                            ) : null}
-
                             {isProviderFieldVisible(provider.provider.type, "endpoint") ? (
                               <label className="grid gap-2">
                                 <FieldLabel label={endpointFieldMeta.label} status={endpointFieldMeta.status} />
@@ -390,15 +418,93 @@ export function GlobalSettingsDialog({
                             ) : null}
                           </div>
 
-                          <label className="mt-3 grid gap-2">
-                            <FieldLabel label="Available models" />
-                            <textarea
-                              value={provider.provider.models.join("\n")}
-                              onChange={(event) => onProviderConfigChange(index, "models", event.target.value)}
-                              placeholder="One model ID per line"
-                              className="min-h-28 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-                            />
-                          </label>
+                          {isProviderFieldVisible(provider.provider.type, "model") ? (
+                            <div className="mt-3 rounded-2xl border border-border bg-background p-3">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <FieldLabel label="Available models" />
+                                  <div className="mt-1 text-xs text-muted-foreground">
+                                    Configure one or more model IDs and choose the default used by new sessions.
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-3 grid gap-2">
+                                {providerModels.length ? providerModels.map((model, modelIndex) => (
+                                  <div key={`${model}-${modelIndex}`} className="rounded-xl border border-border/70 bg-card px-3 py-2">
+                                    <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center">
+                                      <input
+                                        value={model}
+                                        onChange={(event) => {
+                                          const nextModels = providerModels.map((item, itemIndex) => itemIndex === modelIndex ? event.target.value : item);
+                                          const nextDefaultModel = (provider.provider.defaultModel ?? providerModels[0]) === model
+                                            ? event.target.value.trim()
+                                            : provider.provider.defaultModel;
+                                          updateProviderModels(index, provider, nextModels, nextDefaultModel);
+                                        }}
+                                        className="h-9 min-w-0 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                      />
+                                      <label className="inline-flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-xs text-muted-foreground">
+                                        <input
+                                          type="radio"
+                                          name={`default-model-${index}`}
+                                          checked={(provider.provider.defaultModel ?? providerModels[0]) === model}
+                                          onChange={() => updateProviderModels(index, provider, providerModels, model)}
+                                        />
+                                        Default
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={() => void onTestProvider(index, model)}
+                                        disabled={testingProviderIndexes[getProviderTestKey(index, model)]}
+                                        className={compactButtonClassName}
+                                      >
+                                        {testingProviderIndexes[getProviderTestKey(index, model)] ? "Testing..." : "Test"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeProviderModel(index, provider, model)}
+                                        className={compactButtonClassName}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                    {providerTestResults[getProviderTestKey(index, model)] ? (
+                                      <div className="mt-2 rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                                        {providerTestResults[getProviderTestKey(index, model)]}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                )) : (
+                                  <div className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
+                                    No models configured yet. Add a model to enable this provider.
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                                <input
+                                  value={newProviderModels[index] ?? ""}
+                                  onChange={(event) => setNewProviderModels((previous) => ({ ...previous, [index]: event.target.value }))}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      addProviderModel(index, provider);
+                                    }
+                                  }}
+                                  placeholder="Add model ID"
+                                  className={singleLineFieldClassName}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => addProviderModel(index, provider)}
+                                  className={secondaryButtonClassName}
+                                >
+                                  Add model
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
 
                           {isProviderFieldVisible(provider.provider.type, "useDefaultAzureCredential") ? (
                             <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 text-sm">
@@ -413,9 +519,9 @@ export function GlobalSettingsDialog({
                             </div>
                           ) : null}
 
-                          {providerTestResults[index] ? (
+                          {providerTestResults[getProviderTestKey(index)] ? (
                             <div className="mt-3 rounded-xl border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
-                              {providerTestResults[index]}
+                              {providerTestResults[getProviderTestKey(index)]}
                             </div>
                           ) : null}
                           </div>

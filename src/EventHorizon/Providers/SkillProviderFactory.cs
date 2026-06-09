@@ -1,6 +1,7 @@
 using EventHorizon.Configuration;
 using EventHorizon.Engine.Sessions;
 using EventHorizon.Workspace;
+using EventHorizon.Workspace.Skills;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,7 +27,9 @@ internal sealed class SkillProviderFactory : ISkillProviderFactory
         }
 
         var builder = new AgentSkillsProviderBuilder()
-            .UseSkill(services.GetRequiredService<WorkspaceSkill>());
+            .UseSkills(
+                new WorkspaceSkill(),
+                new DotNetFileRunnerSkill());
 
         var skillDirectories = GetSkillDirectories(sessionDocument)
             .Where(Directory.Exists)

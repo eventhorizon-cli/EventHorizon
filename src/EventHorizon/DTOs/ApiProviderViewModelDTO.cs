@@ -6,7 +6,7 @@ public sealed class ApiProviderViewModelDTO
 
     public string Type { get; set; } = string.Empty;
 
-    public string? Model { get; set; }
+    public string? DefaultModel { get; set; }
 
     public IReadOnlyList<string> Models { get; set; } = Array.Empty<string>();
 

@@ -1,16 +1,19 @@
 using EventHorizon.DTOs;
 using EventHorizon.Providers;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace EventHorizon.Configuration;
 
 internal sealed class ProviderTestingService : IProviderTestingService
 {
     private readonly IProviderChatClientFactory _providerChatClientFactory;
+    private readonly ILogger<ProviderTestingService> _logger;
 
-    public ProviderTestingService(IProviderChatClientFactory providerChatClientFactory)
+    public ProviderTestingService(IProviderChatClientFactory providerChatClientFactory, ILogger<ProviderTestingService> logger)
     {
         _providerChatClientFactory = providerChatClientFactory;
+        _logger = logger;
     }
 
     public async Task<ProviderTestResponseDTO> TestAsync(ProviderTestRequestDTO request, CancellationToken cancellationToken)
@@ -22,13 +25,13 @@ internal sealed class ProviderTestingService : IProviderTestingService
             var client = _providerChatClientFactory.CreateChatClient(provider);
             var response = await client.GetResponseAsync(
                 [new ChatMessage(ChatRole.User, "Reply with: ok")],
-                new ChatOptions { ModelId = provider.Model },
+                new ChatOptions { ModelId = provider.DefaultModel },
                 cancellationToken).ConfigureAwait(false);
             var models = provider.Models.Count > 0
                 ? provider.Models
-                : string.IsNullOrWhiteSpace(provider.Model)
+                : string.IsNullOrWhiteSpace(provider.DefaultModel)
                     ? []
-                    : [provider.Model];
+                    : [provider.DefaultModel];
             return new ProviderTestResponseDTO
             {
                 Success = true,
@@ -38,6 +41,8 @@ internal sealed class ProviderTestingService : IProviderTestingService
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Provider test failed.");
+
             return new ProviderTestResponseDTO
             {
                 Success = false,

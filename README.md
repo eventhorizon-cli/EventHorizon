@@ -57,7 +57,7 @@ Each provider entry includes:
 
 - `Name`: unique provider name shown in the UI and used for default selection
 - `Type`: provider type
-- `Default model`: the model used when a session does not override it
+- `DefaultModel`: the model used when a session does not override it
 - `Available models`: optional list of selectable models shown in the UI, one model ID per line
 
 Additional fields depend on the provider type:
@@ -72,7 +72,7 @@ Provider behavior notes:
 - You can configure multiple providers and choose one as the shared default.
 - Sessions can override the global provider and model selection.
 - For `openai`, choose `Chat Completions API` to use `GetChatClient(model).AsIChatClient()`, or `Responses API` to use `GetResponsesClient().AsIChatClient(model)`.
-- For Azure OpenAI, EventHorizon prefers `Deployment` and falls back to `Model` when needed.
+- For Azure OpenAI, EventHorizon prefers `Deployment` and falls back to `DefaultModel` when needed.
 - For `azure-openai`, choose `Chat Completions API` to use `GetChatClient(deployment).AsIChatClient()`, or `Responses API` to use `GetResponsesClient().AsIChatClient(deployment)`.
 - For `openai-compatible`, use the provider's base endpoint and choose either `Chat Completions API` or `Responses API` based on the endpoint the service exposes.
 

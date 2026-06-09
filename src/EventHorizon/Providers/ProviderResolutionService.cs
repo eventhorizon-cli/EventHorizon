@@ -31,7 +31,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
 
         var cloned = Clone(providerName, provider);
         ApplyModelOverride(cloned, session.Model);
-        return new ResolvedProviderContext(providerName, ProviderTypes.Normalize(cloned.Type), cloned.Model ?? string.Empty, cloned);
+        return new ResolvedProviderContext(providerName, ProviderTypes.Normalize(cloned.Type), cloned.DefaultModel ?? string.Empty, cloned);
     }
 
 
@@ -45,7 +45,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
         {
             var provider = Clone(options.CurrentDefaultProvider, defaultProvider);
             ApplyModelOverride(provider, model);
-            return new ResolvedProviderContext(options.CurrentDefaultProvider, ProviderTypes.Normalize(provider.Type), provider.Model ?? string.Empty, provider);
+            return new ResolvedProviderContext(options.CurrentDefaultProvider, ProviderTypes.Normalize(provider.Type), provider.DefaultModel ?? string.Empty, provider);
         }
 
         if (options.Providers.Count == 1)
@@ -53,7 +53,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
             var pair = options.Providers.Single();
             var provider = Clone(pair.Key, pair.Value);
             ApplyModelOverride(provider, model);
-            return new ResolvedProviderContext(pair.Key, ProviderTypes.Normalize(provider.Type), provider.Model ?? string.Empty, provider);
+            return new ResolvedProviderContext(pair.Key, ProviderTypes.Normalize(provider.Type), provider.DefaultModel ?? string.Empty, provider);
         }
 
         return null;
@@ -66,15 +66,15 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
             return;
         }
 
-        provider.Model = model.Trim();
+        provider.DefaultModel = model.Trim();
         if (ProviderTypes.IsAzureOpenAi(provider.Type))
         {
-            provider.Deployment = provider.Model;
+            provider.Deployment = provider.DefaultModel;
         }
 
-        if (!provider.Models.Contains(provider.Model, StringComparer.OrdinalIgnoreCase))
+        if (!provider.Models.Contains(provider.DefaultModel, StringComparer.OrdinalIgnoreCase))
         {
-            provider.Models.Insert(0, provider.Model);
+            provider.Models.Insert(0, provider.DefaultModel);
         }
     }
 
@@ -83,7 +83,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
         {
             Name = name,
             Type = provider.Type,
-            Model = provider.Model,
+            DefaultModel = provider.DefaultModel,
             Models = [.. provider.Models],
             ApiKey = provider.ApiKey,
             Endpoint = provider.Endpoint,
@@ -93,7 +93,7 @@ internal sealed class ProviderResolutionService : IProviderResolutionService
 
     private static bool HasConfiguredProvider(ProviderOptions provider)
         => !string.IsNullOrWhiteSpace(provider.Type)
-           || !string.IsNullOrWhiteSpace(provider.Model)
+           || !string.IsNullOrWhiteSpace(provider.DefaultModel)
            || !string.IsNullOrWhiteSpace(provider.ApiKey)
            || !string.IsNullOrWhiteSpace(provider.Endpoint)
            || !string.IsNullOrWhiteSpace(provider.Deployment);

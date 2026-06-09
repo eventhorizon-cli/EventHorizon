@@ -125,7 +125,7 @@ internal sealed class AppConfigurationService : IAppConfigurationService
         {
             Name = source.Name,
             Type = source.Type,
-            Model = source.Model,
+            DefaultModel = source.DefaultModel,
             Models = [.. source.Models],
             ApiKey = string.IsNullOrWhiteSpace(source.ApiKey) ? existing?.ApiKey : source.ApiKey,
             Endpoint = source.Endpoint,

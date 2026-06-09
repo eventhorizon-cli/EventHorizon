@@ -217,7 +217,7 @@ public sealed class SessionService : ISessionService
         var activeProvider = resolved?.Provider ?? new ProviderOptions();
         document.ProviderName = resolved?.ProviderName ?? document.ProviderName;
         document.ProviderType = resolved?.ProviderType ?? activeProvider.Type ?? string.Empty;
-        document.Model = resolved?.Model ?? document.Model ?? activeProvider.Model ?? string.Empty;
+        document.Model = resolved?.Model ?? document.Model ?? activeProvider.DefaultModel ?? string.Empty;
 
         if (!string.IsNullOrWhiteSpace(initialMessage))
         {

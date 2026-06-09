@@ -50,7 +50,7 @@ public sealed class ProviderAgentFactory : IProviderAgentFactory
     private AIAgent CreateAnthropicAgent(AgentOptions agentOptions, ProviderOptions providerOptions, string instructions, IReadOnlyList<AITool> tools)
     {
         var apiKey = providerOptions.ApiKey ?? throw new InvalidOperationException("Provider.ApiKey is required for the anthropic provider.");
-        var model = providerOptions.Model ?? throw new InvalidOperationException("Provider.Model is required for the anthropic provider.");
+        var model = providerOptions.DefaultModel ?? throw new InvalidOperationException("Provider.DefaultModel is required for the anthropic provider.");
         var anthropicAgentOptions = CloneAgentOptionsWithInstructions(agentOptions, instructions);
         var anthropicInstructions = _codingInstructionsBuilder.Build(anthropicAgentOptions);
 

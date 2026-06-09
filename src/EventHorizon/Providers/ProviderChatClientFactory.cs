@@ -33,14 +33,14 @@ public sealed class ProviderChatClientFactory : IProviderChatClientFactory
     private static IChatClient CreateOpenAiChatClient(ProviderOptions options)
     {
         var apiKey = options.ApiKey ?? throw new InvalidOperationException("Provider.ApiKey is required for the openai provider.");
-        var model = options.Model ?? throw new InvalidOperationException("A model is required for the openai provider.");
+        var model = options.DefaultModel ?? throw new InvalidOperationException("A default model is required for the openai provider.");
         return new OpenAIClient(apiKey).GetChatClient(model).AsIChatClient();
     }
 
     private static IChatClient CreateOpenAiResponsesClient(ProviderOptions options)
     {
         var apiKey = options.ApiKey ?? throw new InvalidOperationException("Provider.ApiKey is required for the openai provider.");
-        var model = options.Model ?? throw new InvalidOperationException("A model is required for the openai provider.");
+        var model = options.DefaultModel ?? throw new InvalidOperationException("A default model is required for the openai provider.");
         return new OpenAIClient(apiKey).GetResponsesClient().AsIChatClient(model);
     }
 
@@ -48,7 +48,7 @@ public sealed class ProviderChatClientFactory : IProviderChatClientFactory
     {
         var apiKey = options.ApiKey ?? "not-needed";
         var endpoint = options.Endpoint ?? throw new InvalidOperationException("An endpoint is required for the openai-compatible provider.");
-        var model = options.Model ?? throw new InvalidOperationException("A model is required for the openai-compatible provider.");
+        var model = options.DefaultModel ?? throw new InvalidOperationException("A default model is required for the openai-compatible provider.");
         return new OpenAIClient(new ApiKeyCredential(apiKey), new OpenAIClientOptions { Endpoint = new Uri(endpoint) }).GetChatClient(model).AsIChatClient();
     }
 
@@ -56,14 +56,14 @@ public sealed class ProviderChatClientFactory : IProviderChatClientFactory
     {
         var apiKey = options.ApiKey ?? "not-needed";
         var endpoint = options.Endpoint ?? throw new InvalidOperationException("An endpoint is required for the openai-compatible provider.");
-        var model = options.Model ?? throw new InvalidOperationException("A model is required for the openai-compatible provider.");
+        var model = options.DefaultModel ?? throw new InvalidOperationException("A default model is required for the openai-compatible provider.");
         return new OpenAIClient(new ApiKeyCredential(apiKey), new OpenAIClientOptions { Endpoint = new Uri(endpoint) }).GetResponsesClient().AsIChatClient(model);
     }
 
     private static IChatClient CreateAzureOpenAiChatClient(ProviderOptions options)
     {
         var endpoint = options.Endpoint ?? throw new InvalidOperationException("Provider.Endpoint is required for the azure-openai provider.");
-        var deployment = options.Deployment ?? options.Model ?? throw new InvalidOperationException("Provider.Deployment or Provider.Model is required for the azure-openai provider.");
+        var deployment = options.Deployment ?? options.DefaultModel ?? throw new InvalidOperationException("Provider.Deployment or Provider.DefaultModel is required for the azure-openai provider.");
         var client = string.IsNullOrWhiteSpace(options.ApiKey)
             ? new AzureOpenAIClient(new Uri(endpoint), new DefaultAzureCredential())
             : new AzureOpenAIClient(new Uri(endpoint), new ApiKeyCredential(options.ApiKey));
@@ -73,7 +73,7 @@ public sealed class ProviderChatClientFactory : IProviderChatClientFactory
     private static IChatClient CreateAzureOpenAiResponsesClient(ProviderOptions options)
     {
         var endpoint = options.Endpoint ?? throw new InvalidOperationException("Provider.Endpoint is required for the azure-openai provider.");
-        var deployment = options.Deployment ?? options.Model ?? throw new InvalidOperationException("Provider.Deployment or Provider.Model is required for the azure-openai provider.");
+        var deployment = options.Deployment ?? options.DefaultModel ?? throw new InvalidOperationException("Provider.Deployment or Provider.DefaultModel is required for the azure-openai provider.");
         var client = string.IsNullOrWhiteSpace(options.ApiKey)
             ? new AzureOpenAIClient(new Uri(endpoint), new DefaultAzureCredential())
             : new AzureOpenAIClient(new Uri(endpoint), new ApiKeyCredential(options.ApiKey));
@@ -83,10 +83,9 @@ public sealed class ProviderChatClientFactory : IProviderChatClientFactory
     private static IChatClient CreateGeminiChatClient(ProviderOptions options)
     {
         var apiKey = options.ApiKey ?? throw new InvalidOperationException("Provider.ApiKey is required for the gemini provider.");
-        var model = options.Model ?? throw new InvalidOperationException("A model is required for the gemini provider.");
+        var model = options.DefaultModel ?? throw new InvalidOperationException("A default model is required for the gemini provider.");
         return new Client(vertexAI: false, apiKey: apiKey).AsIChatClient(model);
     }
 }
 
 #pragma warning restore OPENAI001
-

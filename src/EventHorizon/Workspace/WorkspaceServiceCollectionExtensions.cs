@@ -1,4 +1,5 @@
 using EventHorizon.Workspace.Diff;
+using EventHorizon.Workspace.Skills;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EventHorizon.Workspace;
@@ -13,7 +14,6 @@ public static class WorkspaceServiceCollectionExtensions
         services.AddSingleton<IDiffService, DiffService>();
         services.AddSingleton<IWorkspaceService, WorkspaceService>();
         services.AddScoped<SessionWorkspaceContextFilter>();
-        services.AddSingleton<WorkspaceSkill>();
         return services;
     }
 }

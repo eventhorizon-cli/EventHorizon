@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using Microsoft.Agents.AI;
 
-namespace EventHorizon.Workspace;
+namespace EventHorizon.Workspace.Skills;
 
 internal sealed class WorkspaceSkill : AgentClassSkill<WorkspaceSkill>
 {

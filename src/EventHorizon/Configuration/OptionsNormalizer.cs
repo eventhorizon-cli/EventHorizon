@@ -90,7 +90,7 @@ internal sealed class OptionsNormalizer : IOptionsNormalizer
         {
             Name = provider.Name,
             Type = provider.Type,
-            Model = provider.Model,
+            DefaultModel = provider.DefaultModel,
             Models = [.. provider.Models],
             ApiKey = provider.ApiKey,
             Endpoint = provider.Endpoint,
@@ -107,10 +107,10 @@ internal sealed class OptionsNormalizer : IOptionsNormalizer
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (!string.IsNullOrWhiteSpace(provider.Model) &&
-            !provider.Models.Contains(provider.Model, StringComparer.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(provider.DefaultModel) &&
+            !provider.Models.Contains(provider.DefaultModel, StringComparer.OrdinalIgnoreCase))
         {
-            provider.Models.Insert(0, provider.Model);
+            provider.Models.Insert(0, provider.DefaultModel);
         }
     }
 

@@ -31,7 +31,7 @@ export type DirectoryListing = {
 
 export type ProviderConfig = {
   type?: ProviderType;
-  model?: string;
+  defaultModel?: string;
   models: string[];
   endpoint?: string;
   apiKey?: string;

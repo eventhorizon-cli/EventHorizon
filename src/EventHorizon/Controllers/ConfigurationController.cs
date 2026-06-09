@@ -103,7 +103,7 @@ public sealed class ConfigurationController : ControllerBase
             {
                 Name = provider.Key,
                 Type = provider.Type,
-                Model = provider.Provider.Model,
+                DefaultModel = provider.Provider.DefaultModel,
                 Models = [.. provider.Provider.Models],
                 Endpoint = provider.Provider.Endpoint,
                 ApiKey = provider.Provider.ApiKey,

@@ -30,7 +30,7 @@ export function cloneProviderEntry(entry: ProviderEntry): ProviderEntry {
     name: entry.name,
     provider: {
       type: entry.provider.type,
-      model: entry.provider.model,
+      defaultModel: entry.provider.defaultModel,
       models: [...entry.provider.models],
       endpoint: entry.provider.endpoint,
       apiKey: entry.provider.apiKey,
@@ -62,7 +62,7 @@ export function createProviderDraft(): ProviderEntry {
     name: "",
     provider: {
       type: undefined,
-      model: undefined,
+      defaultModel: undefined,
       models: [],
       endpoint: undefined,
       apiKey: undefined,
@@ -83,8 +83,8 @@ export function getProvider(configuration: AppConfiguration | undefined, provide
 export function getProviderModels(provider: ProviderEntry | undefined, currentModel?: string) {
   const models = [...(provider?.provider.models ?? [])];
 
-  if (provider?.provider.model && !models.includes(provider.provider.model)) {
-    models.unshift(provider.provider.model);
+  if (provider?.provider.defaultModel && !models.includes(provider.provider.defaultModel)) {
+    models.unshift(provider.provider.defaultModel);
   }
 
   if (currentModel && !models.includes(currentModel)) {

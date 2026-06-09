@@ -6,7 +6,7 @@ public sealed class ProviderOptions
 
     public string? Type { get; set; }
 
-    public string? Model { get; set; }
+    public string? DefaultModel { get; set; }
 
     public List<string> Models { get; set; } = [];
 

@@ -84,7 +84,7 @@ public sealed class UserProvidersFileService : IUserProvidersFileService
         {
             Name = provider.Name,
             Type = provider.Type,
-            Model = provider.Model,
+            DefaultModel = provider.DefaultModel,
             Models = [.. provider.Models],
             ApiKey = provider.ApiKey,
             Endpoint = provider.Endpoint,

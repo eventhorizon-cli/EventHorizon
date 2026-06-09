@@ -16,7 +16,7 @@ import type {
 type ApiProviderPayload = {
   name: string;
   type: string;
-  model?: string;
+  defaultModel?: string;
   models?: string[];
   endpoint?: string;
   apiKey?: string;
@@ -66,7 +66,7 @@ function mapConfiguration(payload: ConfigurationPayload): AppConfiguration {
       name: payload.name,
       provider: {
         type,
-        model: payload.model,
+        defaultModel: payload.defaultModel,
         models: payload.models ?? [],
         endpoint: payload.endpoint,
         apiKey: payload.apiKey,
@@ -110,7 +110,7 @@ export async function saveConfiguration(input: {
           name: entry.name,
           provider: {
             type: entry.provider.type,
-            model: entry.provider.model,
+            defaultModel: entry.provider.defaultModel ?? entry.provider.models[0],
             models: entry.provider.models,
             endpoint: entry.provider.endpoint,
             apiKey: entry.provider.apiKey,
@@ -132,7 +132,7 @@ export async function testProvider(name: string, provider: ProviderConfig): Prom
       name,
       provider: {
         type: provider.type,
-        model: provider.model,
+        defaultModel: provider.defaultModel ?? provider.models[0],
         models: provider.models,
         endpoint: provider.endpoint,
         apiKey: provider.apiKey,

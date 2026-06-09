@@ -23,7 +23,7 @@ import {
   normalizeOptionalText,
   normalizeProviderType,
 } from "@/utils/configuration";
-import type { AgentEvent, AgentRun, AppConfiguration, FileChange, FileDiff, ImportedSkill, McpServerConfig, ProviderEntry, SkillImportResult } from "@/types";
+import type { AgentEvent, AgentRun, AppConfiguration, ContextView, FileChange, FileDiff, ImportedSkill, McpServerConfig, ProviderEntry, SkillImportResult } from "@/types";
 
 const leftPaneKey = "event-horizon-workbench-left-pane-collapsed";
 const compactLayoutQuery = "(max-width: 1180px)";
@@ -114,8 +114,8 @@ export function useWorkbenchApp() {
   const [sessionSettingsMessage, setSessionSettingsMessage] = useState<string>();
   const [sessionSettingsError, setSessionSettingsError] = useState<string>();
   const [mcpTestResults, setMcpTestResults] = useState<Record<number, string>>({});
-  const [providerTestResults, setProviderTestResults] = useState<Record<number, string>>({});
-  const [testingProviderIndexes, setTestingProviderIndexes] = useState<Record<number, boolean>>({});
+  const [providerTestResults, setProviderTestResults] = useState<Record<string, string>>({});
+  const [testingProviderIndexes, setTestingProviderIndexes] = useState<Record<string, boolean>>({});
   const [skillImportPath, setSkillImportPath] = useState("");
   const [isImportingSkill, setIsImportingSkill] = useState(false);
   const [skillImportTarget, setSkillImportTarget] = useState<"global" | "session">("global");
@@ -137,12 +137,12 @@ export function useWorkbenchApp() {
   const hasConfiguredProviders = (configuration?.providers.length ?? 0) > 0;
   const selectedProviderName = currentSession?.providerName ?? configuration?.currentDefaultProvider;
   const selectedProvider = getProvider(configurationDraft ?? configuration, selectedProviderName);
-  const selectedProviderDefaultModel = selectedProvider?.provider.model;
+  const selectedProviderDefaultModel = selectedProvider?.provider.defaultModel;
   const availableModels = getProviderModels(selectedProvider, currentSession?.model);
   const hasConfiguredModels = availableModels.length > 0;
   const sessionModelWarning = currentSession?.model && selectedProviderName && selectedProvider
     && !selectedProvider.provider.models.includes(currentSession.model)
-    && selectedProvider.provider.model !== currentSession.model
+    && selectedProvider.provider.defaultModel !== currentSession.model
     ? `Current session model '${currentSession.model}' is no longer configured for provider '${selectedProviderName}'. Choose a new model to continue using the latest provider configuration.`
     : undefined;
   const selectedDiffIndex = useMemo(
@@ -205,17 +205,22 @@ export function useWorkbenchApp() {
     setShowGlobalSettingsDialog(true);
   }, []);
 
-  const openSession = useCallback(async (sessionId: string) => {
-    setDetailsMessage(undefined);
-    setDetailsError(undefined);
-    setSessionSettingsMessage(undefined);
-    setSessionSettingsError(undefined);
+  const openSession = useCallback(async (sessionId: string, options?: { contextView?: ContextView }) => {
+    const nextContextView = options?.contextView ?? "overview";
+    const preserveSettingsState = nextContextView === "settings";
+
+    if (!preserveSettingsState) {
+      setDetailsMessage(undefined);
+      setDetailsError(undefined);
+      setSessionSettingsMessage(undefined);
+      setSessionSettingsError(undefined);
+    }
 
     const detail = await getSession(sessionId);
     setCurrentSession(detail);
     setCurrentDiff(undefined);
     setSelectedFile(undefined);
-    setContextView("overview");
+    setContextView(nextContextView);
 
     if (detail.lastRunId) {
       const run = await getRun(detail.id, detail.lastRunId);
@@ -680,7 +685,7 @@ export function useWorkbenchApp() {
         model: selection.modelId,
       });
       setDetailsMessage("Conversation provider updated.");
-      await openSession(currentSession.id);
+      await openSession(currentSession.id, { contextView: "settings" });
       await refreshSessions();
     } catch (error) {
       setDetailsError(formatError(error));
@@ -712,7 +717,39 @@ export function useWorkbenchApp() {
         model: selection.modelId,
       });
       setDetailsMessage("Conversation model updated.");
-      await openSession(currentSession.id);
+      await openSession(currentSession.id, { contextView: "settings" });
+      await refreshSessions();
+    } catch (error) {
+      setDetailsError(formatError(error));
+    } finally {
+      setIsUpdatingSession(false);
+    }
+  }, [currentSession, openSession, refreshSessions, setCurrentSession]);
+
+  const handleSessionProviderModelChange = useCallback(async (providerName: string, modelId: string) => {
+    if (!currentSession || currentSession.id.startsWith("draft_")) {
+      return;
+    }
+
+    setIsUpdatingSession(true);
+    setDetailsMessage(undefined);
+    setDetailsError(undefined);
+
+    try {
+      const selection = await updateSessionModel({
+        sessionId: currentSession.id,
+        providerName,
+        modelId,
+      });
+
+      setCurrentSession({
+        ...currentSession,
+        providerName: selection.providerName,
+        providerType: selection.providerType,
+        model: selection.modelId,
+      });
+      setDetailsMessage("Conversation model updated.");
+      await openSession(currentSession.id, { contextView: "settings" });
       await refreshSessions();
     } catch (error) {
       setDetailsError(formatError(error));
@@ -741,7 +778,11 @@ export function useWorkbenchApp() {
 
     setProviderTestResults((previous) => {
       const next = { ...previous };
-      delete next[index];
+      for (const key of Object.keys(next)) {
+        if (key === String(index) || key.startsWith(`${index}:`)) {
+          delete next[key];
+        }
+      }
       return next;
     });
   }, []);
@@ -799,7 +840,11 @@ export function useWorkbenchApp() {
 
     setProviderTestResults((previous) => {
       const next = { ...previous };
-      delete next[index];
+      for (const key of Object.keys(next)) {
+        if (key === String(index) || key.startsWith(`${index}:`)) {
+          delete next[key];
+        }
+      }
       return next;
     });
   }, []);
@@ -823,12 +868,13 @@ export function useWorkbenchApp() {
     });
 
     setProviderTestResults((previous) => {
-      const next = Object.entries(previous).reduce<Record<number, string>>((result, [key, value]) => {
-        const currentIndex = Number(key);
+      const next = Object.entries(previous).reduce<Record<string, string>>((result, [key, value]) => {
+        const [providerIndex, model] = key.split(":", 2);
+        const currentIndex = Number(providerIndex);
         if (currentIndex < index) {
-          result[currentIndex] = value;
+          result[key] = value;
         } else if (currentIndex > index) {
-          result[currentIndex - 1] = value;
+          result[model ? `${currentIndex - 1}:${model}` : String(currentIndex - 1)] = value;
         }
 
         return result;
@@ -838,12 +884,13 @@ export function useWorkbenchApp() {
     });
 
     setTestingProviderIndexes((previous) => {
-      const next = Object.entries(previous).reduce<Record<number, boolean>>((result, [key, value]) => {
-        const currentIndex = Number(key);
+      const next = Object.entries(previous).reduce<Record<string, boolean>>((result, [key, value]) => {
+        const [providerIndex, model] = key.split(":", 2);
+        const currentIndex = Number(providerIndex);
         if (currentIndex < index) {
-          result[currentIndex] = value;
+          result[key] = value;
         } else if (currentIndex > index) {
-          result[currentIndex - 1] = value;
+          result[model ? `${currentIndex - 1}:${model}` : String(currentIndex - 1)] = value;
         }
 
         return result;
@@ -853,37 +900,42 @@ export function useWorkbenchApp() {
     });
   }, []);
 
-  const handleTestProvider = useCallback(async (index: number) => {
+  const handleTestProvider = useCallback(async (index: number, model?: string) => {
     const entry = configurationDraft?.providers[index];
     if (!entry) {
       return;
     }
 
+    const testKey = model ? `${index}:${model}` : String(index);
+
     if (!entry.name.trim()) {
-      setProviderTestResults((previous) => ({ ...previous, [index]: "Provider name is required before testing." }));
+      setProviderTestResults((previous) => ({ ...previous, [testKey]: "Provider name is required before testing." }));
       return;
     }
 
     if (!entry.provider.type) {
-      setProviderTestResults((previous) => ({ ...previous, [index]: "Provider type is required before testing." }));
+      setProviderTestResults((previous) => ({ ...previous, [testKey]: "Provider type is required before testing." }));
       return;
     }
 
-    setTestingProviderIndexes((previous) => ({ ...previous, [index]: true }));
-    setProviderTestResults((previous) => ({ ...previous, [index]: "Testing..." }));
+    setTestingProviderIndexes((previous) => ({ ...previous, [testKey]: true }));
+    setProviderTestResults((previous) => ({ ...previous, [testKey]: "Testing..." }));
 
     try {
-      const result = await testProvider(entry.name.trim(), entry.provider);
+      const result = await testProvider(entry.name.trim(), {
+        ...entry.provider,
+        defaultModel: model?.trim() || entry.provider.defaultModel,
+      });
       setProviderTestResults((previous) => ({
         ...previous,
-        [index]: result.success
+        [testKey]: result.success
           ? `${result.message}${result.models.length ? ` Models: ${result.models.join(", ")}` : ""}`
           : result.message,
       }));
     } catch (error) {
-      setProviderTestResults((previous) => ({ ...previous, [index]: formatError(error) }));
+      setProviderTestResults((previous) => ({ ...previous, [testKey]: formatError(error) }));
     } finally {
-      setTestingProviderIndexes((previous) => ({ ...previous, [index]: false }));
+      setTestingProviderIndexes((previous) => ({ ...previous, [testKey]: false }));
     }
   }, [configurationDraft?.providers]);
 
@@ -997,7 +1049,7 @@ export function useWorkbenchApp() {
       if (skillImportTarget === "session") {
         setSessionSettingsMessage(result.message || "Session skill imported.");
         if (currentSession?.id) {
-          await openSession(currentSession.id);
+          await openSession(currentSession.id, { contextView: "settings" });
         }
       } else {
         setGlobalSettingsMessage(result.message || "Skill imported.");
@@ -1034,7 +1086,7 @@ export function useWorkbenchApp() {
     try {
       const result = await removeSessionSkill(currentSession.id, skillName);
       setSessionSettingsMessage(result.message || "Session skill removed.");
-      await openSession(currentSession.id);
+      await openSession(currentSession.id, { contextView: "settings" });
     } catch (error) {
       setSessionSettingsError(formatError(error));
     }
@@ -1079,7 +1131,7 @@ export function useWorkbenchApp() {
           provider: {
             ...provider.provider,
             type: provider.provider.type ?? "openai-chat-completions",
-            model: provider.provider.model,
+            model: provider.provider.defaultModel,
             endpoint: provider.provider.endpoint,
             apiKey: provider.provider.apiKey,
             deployment: provider.provider.deployment,
@@ -1095,7 +1147,7 @@ export function useWorkbenchApp() {
       setTestingProviderIndexes({});
       setGlobalSettingsMessage("Configuration saved.");
       if (currentSession?.id && !currentSession.id.startsWith("draft_")) {
-        await openSession(currentSession.id);
+        await openSession(currentSession.id, { contextView: contextView === "settings" ? "settings" : undefined });
       }
       await refreshSessions();
     } catch (error) {
@@ -1105,7 +1157,7 @@ export function useWorkbenchApp() {
     } finally {
       setIsSavingConfiguration(false);
     }
-  }, [configurationDraft, currentSession?.id, openSession, refreshSessions]);
+  }, [configurationDraft, contextView, currentSession?.id, openSession, refreshSessions]);
 
   return {
     sessions,
@@ -1181,6 +1233,7 @@ export function useWorkbenchApp() {
     handleRenameSession,
     handleSessionProviderChange,
     handleSessionModelChange,
+    handleSessionProviderModelChange,
     handleConfigurationFieldChange,
     handleProviderConfigChange,
     handleAddProvider,

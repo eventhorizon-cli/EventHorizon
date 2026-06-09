@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2, Play, Plus, Settings2, Square } from "lucide-react";
 import { ModifiedFilesCard } from "@/components/chat/ModifiedFilesCard";
 import { cn } from "@/utils/cn";
+import { getProviderModels } from "@/utils/configuration";
 import {
   buildToolCallTimeline,
   formatToolCallSignature,
@@ -10,12 +11,14 @@ import {
   type ToolCallTimelineItem,
 } from "@/utils/toolCalls";
 import { formatDistanceToNow } from "date-fns";
-import type { AgentRun, AgentSessionDetail, FileChange, LogItem } from "@/types";
+import type { AgentRun, AgentSessionDetail, AppConfiguration, FileChange, LogItem } from "@/types";
 
 type SessionPaneProps = {
   currentSession?: AgentSessionDetail;
   currentRun?: AgentRun;
+  configuration?: AppConfiguration;
   hasConfiguredProviders: boolean;
+  selectedProviderName?: string;
   availableModels: string[];
   logs: LogItem[];
   changes: FileChange[];
@@ -27,10 +30,20 @@ type SessionPaneProps = {
   onNewChat: () => void;
   onOpenSettings: () => void;
   onCancelRun: () => Promise<void> | void;
-  onSelectModel: (model: string) => Promise<void> | void;
   onViewFiles: () => void;
   onOpenDiff: (change: FileChange) => Promise<void> | void;
+  onChangeSessionProviderModel: (providerName: string, model: string) => Promise<void> | void;
 };
+
+function getProviderModelValue(providerName: string, model: string) {
+  return JSON.stringify([providerName, model]);
+}
+
+function parseProviderModelValue(value: string) {
+  const [providerName, model] = JSON.parse(value) as [string, string];
+
+  return { providerName, model };
+}
 
 function isNearBottom(element: HTMLElement) {
   return element.scrollHeight - element.scrollTop - element.clientHeight < 96;
@@ -229,7 +242,9 @@ function ToolCallActivity({ toolCalls }: { toolCalls: ToolCallTimelineItem[] }) 
 export function SessionPane({
   currentSession,
   currentRun,
+  configuration,
   hasConfiguredProviders,
+  selectedProviderName,
   availableModels,
   logs,
   changes,
@@ -241,12 +256,42 @@ export function SessionPane({
   onNewChat,
   onOpenSettings,
   onCancelRun,
-  onSelectModel,
   onViewFiles,
   onOpenDiff,
+  onChangeSessionProviderModel,
 }: SessionPaneProps) {
   const hasActiveSession = !!currentSession;
   const hasConfiguredModels = availableModels.length > 0;
+  const providerLabel = selectedProviderName ?? configuration?.currentDefaultProvider ?? currentSession?.providerName ?? "None";
+  const modelLabel = currentSession?.model || "None";
+  const providers = configuration?.providers ?? [];
+  const defaultProvider = configuration?.currentDefaultProvider
+    ? providers.find((provider) => provider.name === configuration.currentDefaultProvider)
+    : undefined;
+  const defaultProviderModelOptions = getProviderModels(
+    defaultProvider,
+    !currentSession?.providerName && selectedProviderName === configuration?.currentDefaultProvider ? currentSession?.model : undefined,
+  ).map((model) => ({
+    providerName: "",
+    model,
+    label: `${configuration?.currentDefaultProvider ? `Use default (${configuration.currentDefaultProvider})` : "Use default provider"} / ${model}`,
+    value: getProviderModelValue("", model),
+  }));
+  const providerModelOptions = providers.flatMap((provider) => {
+    const models = getProviderModels(provider, provider.name === selectedProviderName ? currentSession?.model : undefined);
+
+    return models.map((model) => ({
+      providerName: provider.name,
+      model,
+      label: `${provider.name || "Unnamed provider"} / ${model}`,
+      value: getProviderModelValue(provider.name, model),
+    }));
+  });
+  const allProviderModelOptions = [...defaultProviderModelOptions, ...providerModelOptions];
+  const selectedProviderModelValue = currentSession?.model
+    ? getProviderModelValue(currentSession.providerName ?? "", currentSession.model)
+    : "";
+  const canUpdateSessionSettings = hasActiveSession && !currentSession.id.startsWith("draft_") && !isUpdatingSession;
   const canSubmit = hasActiveSession && hasConfiguredModels && composerValue.trim().length > 0 && currentRun?.status !== "running";
   const isRunActive = currentRun?.status === "running";
   const messagesScrollRef = useRef<HTMLDivElement>(null);
@@ -272,27 +317,33 @@ export function SessionPane({
 
   return (
     <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4 py-3 sm:px-5">
-        <div className="min-w-0">
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-x-3 gap-y-2 border-b border-border/70 px-4 py-3 sm:flex-nowrap sm:items-center sm:px-5">
+        <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{currentSession?.title ?? "New conversation"}</div>
-          <div className="truncate text-xs text-muted-foreground" title={currentSession?.workspaceRoot}>
+          <div className="mt-1 truncate text-xs text-muted-foreground" title={currentSession?.workspaceRoot}>
             {currentSession?.workspaceRoot ?? "No workspace selected"}
           </div>
         </div>
 
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-xs uppercase tracking-wide text-muted-foreground">Model</span>
+        <div className="flex min-w-0 w-full flex-col gap-1 border-t border-border/50 pt-2 text-left sm:max-w-[360px] sm:min-w-[240px] sm:shrink-0 sm:items-end sm:border-t-0 sm:pt-0 sm:text-right">
           <select
-            value={currentSession?.model ?? ""}
-            onChange={(event) => void onSelectModel(event.target.value)}
-            disabled={!currentSession || currentSession.id.startsWith("draft_") || isUpdatingSession || availableModels.length === 0}
-            className="min-w-[180px] max-w-[280px] rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-            title={currentSession?.model ?? "No model selected"}
+            value={selectedProviderModelValue}
+            onChange={(event) => {
+              if (!event.target.value) {
+                return;
+              }
+
+              const { providerName, model } = parseProviderModelValue(event.target.value);
+              void onChangeSessionProviderModel(providerName, model);
+            }}
+            disabled={!canUpdateSessionSettings || allProviderModelOptions.length === 0}
+            title={`${providerLabel} / ${modelLabel}`}
+            className="h-8 max-w-full rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-foreground outline-none transition hover:border-border hover:bg-card focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {availableModels.length === 0 ? <option value="">No configured models</option> : null}
-            {availableModels.map((model) => (
-              <option key={model} value={model}>
-                {model}
+            {allProviderModelOptions.length === 0 ? <option value="">No configured provider models</option> : null}
+            {allProviderModelOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>

@@ -34,7 +34,9 @@ export default function App() {
             <SessionPane
               currentSession={app.currentSession}
               currentRun={app.currentRun}
+              configuration={app.configuration}
               hasConfiguredProviders={app.hasConfiguredProviders}
+              selectedProviderName={app.selectedProviderName}
               availableModels={app.availableModels}
               logs={app.logs}
               changes={app.changes}
@@ -46,9 +48,9 @@ export default function App() {
               onNewChat={app.handleNewChat}
               onOpenSettings={app.openSettings}
               onCancelRun={app.handleCancel}
-              onSelectModel={app.handleSessionModelChange}
               onViewFiles={app.handleViewFiles}
               onOpenDiff={app.openDiff}
+              onChangeSessionProviderModel={app.handleSessionProviderModelChange}
             />
           </Panel>
 
