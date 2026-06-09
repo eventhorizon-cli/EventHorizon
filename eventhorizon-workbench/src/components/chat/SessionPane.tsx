@@ -169,7 +169,7 @@ function ToolCallActivity({ toolCalls }: { toolCalls: ToolCallTimelineItem[] }) 
           onScroll={(event) => {
             shouldStickToBottomRef.current = isNearBottom(event.currentTarget);
           }}
-          className="mt-3 grid min-w-0 max-w-full max-h-72 gap-3 overflow-x-hidden overflow-y-auto pr-1"
+          className="mt-3 grid min-w-0 max-w-full max-h-72 gap-3 overflow-x-hidden overflow-y-auto overscroll-contain pr-1"
         >
           {toolCalls.map((toolCall, index) => {
             const signature = formatToolCallSignature(toolCall.name, toolCall.arguments);

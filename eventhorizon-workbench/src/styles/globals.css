@@ -58,7 +58,7 @@
 
 @layer base {
   html, body {
-    @apply min-h-screen m-0 p-0;
+    @apply h-full min-h-screen m-0 overflow-hidden p-0;
   }
 
   * {
@@ -71,7 +71,7 @@
   }
 
   #root {
-    @apply h-full;
+    @apply h-full overflow-hidden;
   }
 }
 
@@ -86,5 +86,4 @@
 .markdown code {
   @apply rounded bg-muted px-1 py-0.5 text-xs;
 }
-
 
