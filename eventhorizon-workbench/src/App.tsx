@@ -26,6 +26,7 @@ export default function App() {
           onNewChat={app.handleNewChat}
           onOpenSession={(sessionId) => void app.openSession(sessionId)}
           onDeleteSession={(sessionId) => void app.handleDeleteSession(sessionId)}
+          onDeleteWorkspace={(workspaceId) => void app.handleDeleteWorkspace(workspaceId)}
           onRenameSession={(sessionId, title) => void app.handleRenameSession(sessionId, title)}
         />
 
@@ -90,7 +91,7 @@ export default function App() {
               onChangeSessionModel={app.handleSessionModelChange}
               onOpenSkillDirectoryPicker={() => {
                 app.setSkillImportTarget("session");
-                return app.skillDirectoryPicker.openPicker(app.skillImportPath.trim() || app.currentSession?.sessionSkills.storagePath || app.currentSession?.workspaceRoot);
+                return app.skillDirectoryPicker.openPicker(app.skillImportPath.trim() || app.currentSession?.workspaceSkills.storagePath || app.currentSession?.workspaceRoot);
               }}
               onImportSkill={app.handleImportSkill}
               onRemoveSessionSkill={app.handleRemoveSessionSkill}

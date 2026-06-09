@@ -4,6 +4,7 @@ import { getConfiguration, importSkillToTarget, removeGlobalSkill, removeSession
 import { getChanges, getFileDiff } from "@/api/diffApi";
 import {
   createSession,
+  deleteWorkspace,
   deleteSession,
   getSession,
   getSessions,
@@ -266,7 +267,7 @@ export function useWorkbenchApp() {
     eventSubscriptionRef.current = null;
 
     try {
-      const created = await createSession({ workspaceRoot: selectedPath });
+      const created = await createSession(currentSession?.workspaceId ? { workspaceId: currentSession.workspaceId } : { workspaceRoot: selectedPath });
       const detail = await getSession(created.id);
       setCurrentSession(detail);
       await refreshSessions();
@@ -627,6 +628,24 @@ export function useWorkbenchApp() {
       setDetailsError(formatError(error));
     }
   }, [currentSession, refreshSessions, setChanges, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
+
+  const handleDeleteWorkspace = useCallback(async (workspaceId: string) => {
+    try {
+      await deleteWorkspace(workspaceId);
+      if (currentSession?.workspaceId === workspaceId) {
+        setCurrentSession(undefined);
+        setCurrentRun(undefined);
+        setCurrentDiff(undefined);
+        setSelectedFile(undefined);
+        setChanges([]);
+        setDetailsMessage("Workspace deleted.");
+        setDetailsError(undefined);
+      }
+      await refreshSessions();
+    } catch (error) {
+      setDetailsError(formatError(error));
+    }
+  }, [currentSession?.workspaceId, refreshSessions, setChanges, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
 
   const handleRenameSession = useCallback(async (sessionId: string, newTitle: string) => {
     try {
@@ -1047,7 +1066,7 @@ export function useWorkbenchApp() {
 
       setSkillImportPath("");
       if (skillImportTarget === "session") {
-        setSessionSettingsMessage(result.message || "Session skill imported.");
+        setSessionSettingsMessage(result.message || "Workspace skill imported.");
         if (currentSession?.id) {
           await openSession(currentSession.id, { contextView: "settings" });
         }
@@ -1085,7 +1104,7 @@ export function useWorkbenchApp() {
 
     try {
       const result = await removeSessionSkill(currentSession.id, skillName);
-      setSessionSettingsMessage(result.message || "Session skill removed.");
+      setSessionSettingsMessage(result.message || "Workspace skill removed.");
       await openSession(currentSession.id, { contextView: "settings" });
     } catch (error) {
       setSessionSettingsError(formatError(error));
@@ -1230,6 +1249,7 @@ export function useWorkbenchApp() {
     handleDeleteCurrentSession,
     handleSessionTitleSave,
     handleDeleteSession,
+    handleDeleteWorkspace,
     handleRenameSession,
     handleSessionProviderChange,
     handleSessionModelChange,

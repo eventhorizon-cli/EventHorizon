@@ -275,7 +275,7 @@ export function ContextPanel({
             <section className="rounded-2xl border border-border bg-background/50 p-4">
               <div>
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Skills</div>
-                <div className="mt-1 text-base font-medium">Global and session skills</div>
+                <div className="mt-1 text-base font-medium">Global and workspace skills</div>
               </div>
 
               <div className="mt-4 grid gap-3">
@@ -325,10 +325,10 @@ export function ContextPanel({
                   </div>
 
                   <div className="rounded-2xl border border-border bg-card p-4">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Session skills</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Workspace skills</div>
                     <div className="mt-3 grid gap-3">
-                      {(currentSession?.sessionSkills.imported ?? []).length ? (
-                        (currentSession?.sessionSkills.imported ?? []).map((skill) => (
+                      {(currentSession?.workspaceSkills.imported ?? []).length ? (
+                        (currentSession?.workspaceSkills.imported ?? []).map((skill) => (
                           <div key={`session-${skill.path}`} className="rounded-xl border border-border bg-background/60 p-3">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
@@ -347,7 +347,7 @@ export function ContextPanel({
                           </div>
                         ))
                       ) : (
-                        <div className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">No session skills.</div>
+                        <div className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">No workspace skills.</div>
                       )}
                     </div>
                   </div>

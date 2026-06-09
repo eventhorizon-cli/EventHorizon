@@ -13,4 +13,6 @@ public sealed record SessionSummary(
     string? Summary,
     int ChangedFilesCount,
     bool IsTitleGenerated,
+    string? WorkspaceId,
+    string? WorkspaceName,
     string? WorkspaceRoot);

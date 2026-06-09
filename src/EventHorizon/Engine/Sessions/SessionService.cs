@@ -37,7 +37,20 @@ public sealed class SessionService : ISessionService
     public async Task<SessionDetailDTO?> GetAsync(string sessionId, CancellationToken cancellationToken)
     {
         var document = await _sessionStore.LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
-        return document is null ? null : MapDetail(document);
+        if (document is null)
+        {
+            return null;
+        }
+
+        var workspace = string.IsNullOrWhiteSpace(document.WorkspaceId)
+            ? null
+            : await _sessionStore.LoadWorkspaceAsync(document.WorkspaceId, cancellationToken).ConfigureAwait(false);
+        if (workspace is null)
+        {
+            return null;
+        }
+
+        return MapDetail(document, workspace);
     }
 
     public Task<SessionDocument?> GetDocumentAsync(string sessionId, CancellationToken cancellationToken)
@@ -46,11 +59,14 @@ public sealed class SessionService : ISessionService
     public async Task<SessionSummaryDTO> CreateAsync(CreateSessionRequestDTO request, CancellationToken cancellationToken)
     {
         var initialMessage = request.InitialMessage?.Trim();
-        var workspaceRoot = ResolveWorkspaceRoot(request.WorkspaceRoot);
-        Directory.CreateDirectory(workspaceRoot);
-        var document = CreateSessionDocument(initialMessage, workspaceRoot, request.ProviderName, request.Model);
+        var workspace = await ResolveOrCreateWorkspaceAsync(request.WorkspaceId, request.WorkspaceRoot, cancellationToken).ConfigureAwait(false);
+        var document = CreateSessionDocument(initialMessage, workspace, request.ProviderName, request.Model);
+        workspace.SessionIds.RemoveAll(id => string.Equals(id, document.Id, StringComparison.OrdinalIgnoreCase));
+        workspace.SessionIds.Add(document.Id);
+        workspace.UpdatedAt = document.UpdatedAt;
+        await _sessionStore.SaveWorkspaceAsync(workspace, cancellationToken).ConfigureAwait(false);
         await _sessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
-        return MapSummary(document);
+        return MapSummary(document, workspace);
     }
 
     public async Task<SessionSummaryDTO?> UpdateAsync(string sessionId, UpdateSessionRequestDTO request, CancellationToken cancellationToken)
@@ -95,6 +111,28 @@ public sealed class SessionService : ISessionService
 
         _sessionStore.Delete(sessionId, cancellationToken);
         _agentManager.Invalidate(sessionId, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> DeleteWorkspaceAsync(string workspaceId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceId))
+        {
+            return false;
+        }
+
+        var workspace = await _sessionStore.LoadWorkspaceAsync(workspaceId, cancellationToken).ConfigureAwait(false);
+        if (workspace is null)
+        {
+            return false;
+        }
+
+        foreach (var sessionId in workspace.SessionIds)
+        {
+            _agentManager.Invalidate(sessionId, cancellationToken);
+        }
+
+        _sessionStore.DeleteWorkspace(workspace.Id, cancellationToken);
         return true;
     }
 
@@ -197,16 +235,17 @@ public sealed class SessionService : ISessionService
         await _sessionStore.SaveAsync(document, cancellationToken).ConfigureAwait(false);
     }
 
-    private SessionDocument CreateSessionDocument(string? initialMessage, string workspaceRoot, string? providerName, string? model)
+    private SessionDocument CreateSessionDocument(string? initialMessage, WorkspaceDocument workspace, string? providerName, string? model)
     {
         var now = DateTimeOffset.UtcNow;
         var document = new SessionDocument
         {
+            WorkspaceId = workspace.Id,
             Name = BuildInitialTitle(initialMessage),
             Status = RunStates.Idle,
             ProviderName = string.IsNullOrWhiteSpace(providerName) ? null : providerName.Trim(),
             Model = string.IsNullOrWhiteSpace(model) ? string.Empty : model.Trim(),
-            WorkspaceRoot = workspaceRoot,
+            WorkspaceRoot = workspace.WorkspaceRoot,
             CreatedAt = now,
             UpdatedAt = now,
             IsTitleGenerated = false,
@@ -230,6 +269,30 @@ public sealed class SessionService : ISessionService
         }
 
         return document;
+    }
+
+    private async Task<WorkspaceDocument> ResolveOrCreateWorkspaceAsync(string? workspaceId, string? requestedWorkspaceRoot, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(workspaceId))
+        {
+            var existing = await _sessionStore.LoadWorkspaceAsync(workspaceId.Trim(), cancellationToken).ConfigureAwait(false);
+            if (existing is not null)
+            {
+                Directory.CreateDirectory(existing.WorkspaceRoot);
+                return existing;
+            }
+        }
+
+        var workspaceRoot = ResolveWorkspaceRoot(requestedWorkspaceRoot);
+        Directory.CreateDirectory(workspaceRoot);
+        var now = DateTimeOffset.UtcNow;
+        return new WorkspaceDocument
+        {
+            Name = BuildWorkspaceName(workspaceRoot),
+            WorkspaceRoot = workspaceRoot,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
     }
 
     private string ResolveWorkspaceRoot(string? requestedWorkspaceRoot)
@@ -289,25 +352,14 @@ public sealed class SessionService : ISessionService
             summary.Summary,
             summary.ChangedFilesCount,
             summary.IsTitleGenerated,
+            summary.WorkspaceId,
+            summary.WorkspaceName,
             summary.WorkspaceRoot);
 
     private static SessionSummaryDTO MapSummary(SessionDocument document)
-        => new(
-            document.Id,
-            document.Name,
-            document.Status,
-            document.CreatedAt,
-            document.UpdatedAt,
-            document.ProviderName,
-            document.ProviderType,
-            document.Model,
-            document.LastRunId,
-            document.Summary,
-            document.ChangedFilesCount,
-            document.IsTitleGenerated,
-            document.WorkspaceRoot);
+        => MapSummary(document, workspace: null);
 
-    private static SessionDetailDTO MapDetail(SessionDocument document)
+    private static SessionSummaryDTO MapSummary(SessionDocument document, WorkspaceDocument? workspace)
         => new(
             document.Id,
             document.Name,
@@ -321,8 +373,28 @@ public sealed class SessionService : ISessionService
             document.Summary,
             document.ChangedFilesCount,
             document.IsTitleGenerated,
-            document.WorkspaceRoot,
-            document.SessionSkills,
+            document.WorkspaceId,
+            workspace?.Name,
+            workspace?.WorkspaceRoot);
+
+    private static SessionDetailDTO MapDetail(SessionDocument document, WorkspaceDocument? workspace)
+        => new(
+            document.Id,
+            document.Name,
+            document.Status,
+            document.CreatedAt,
+            document.UpdatedAt,
+            document.ProviderName,
+            document.ProviderType,
+            document.Model,
+            document.LastRunId,
+            document.Summary,
+            document.ChangedFilesCount,
+            document.IsTitleGenerated,
+            document.WorkspaceId,
+            workspace?.Name,
+            workspace?.WorkspaceRoot,
+            workspace?.WorkspaceSkills ?? new SkillsOptions(),
             document.Transcript
                 .Select((entry, index) => new ChatMessageDTO(
                     $"msg_{document.Id}_{index + 1}",
@@ -351,6 +423,12 @@ public sealed class SessionService : ISessionService
         }
 
         return Truncate(normalized, 60);
+    }
+
+    private static string BuildWorkspaceName(string workspaceRoot)
+    {
+        var name = Path.GetFileName(workspaceRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        return string.IsNullOrWhiteSpace(name) ? "Workspace" : name;
     }
 
     private static string Truncate(string value, int maxLength)

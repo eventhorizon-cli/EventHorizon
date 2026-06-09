@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { PanelLeftClose, PanelLeftOpen, Plus, MoreHorizontal, Trash2, Edit3, Settings2 } from "lucide-react";
+import { ChevronDown, Edit3, Folder, MessageSquare, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings2, Trash2 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
 import type { AgentSession } from "@/types";
@@ -15,6 +15,7 @@ type SessionsSidebarProps = {
   onNewChat: () => void;
   onOpenSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  onDeleteWorkspace: (workspaceId: string) => void;
   onRenameSession: (sessionId: string, newTitle: string) => void;
 };
 
@@ -28,13 +29,17 @@ export function SessionsSidebar({
   onNewChat,
   onOpenSession,
   onDeleteSession,
+  onDeleteWorkspace,
   onRenameSession,
 }: SessionsSidebarProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
   const [renameInputValue, setRenameInputValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<{ sessionId: string; sessionTitle: string } | null>(null);
+  const [deleteWorkspaceConfirm, setDeleteWorkspaceConfirm] = useState<{ workspaceId: string; workspaceName: string; sessionCount: number } | null>(null);
+  const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
+  const workspaceGroups = groupSessionsByWorkspace(sessions);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -59,6 +64,17 @@ export function SessionsSidebar({
     setDeleteConfirm(null);
   };
 
+  const handleDeleteWorkspace = (workspaceId: string, workspaceName: string, sessionCount: number) => {
+    setDeleteWorkspaceConfirm({ workspaceId, workspaceName, sessionCount });
+  };
+
+  const handleDeleteWorkspaceConfirm = () => {
+    if (deleteWorkspaceConfirm) {
+      onDeleteWorkspace(deleteWorkspaceConfirm.workspaceId);
+    }
+    setDeleteWorkspaceConfirm(null);
+  };
+
   const handleStartRename = (sessionId: string, title: string) => {
     setRenameSessionId(sessionId);
     setRenameInputValue(title);
@@ -77,6 +93,12 @@ export function SessionsSidebar({
   const handleRenameCancel = () => {
     setRenameSessionId(null);
     setRenameInputValue("");
+  };
+
+  const toggleWorkspace = (workspaceId: string) => {
+    setExpandedWorkspaceIds((previous) => previous.includes(workspaceId)
+      ? previous.filter((id) => id !== workspaceId)
+      : [...previous, workspaceId]);
   };
 
   return (
@@ -139,112 +161,173 @@ export function SessionsSidebar({
           </div>
         ) : null}
 
-        <div className="space-y-1.5">
-          {sessions.map((session) => {
-            const active = currentSessionId === session.id;
-            const initial = session.title?.trim()?.[0]?.toUpperCase() || "S";
-            const isMenuOpen = openMenuId === session.id;
-            const isRenaming = renameSessionId === session.id;
+        <div className="space-y-2">
+          {workspaceGroups.map((workspace) => {
+            const workspaceActive = workspace.sessions.some((session) => currentSessionId === session.id);
+            const workspaceCollapsed = !expandedWorkspaceIds.includes(workspace.id);
+            const workspaceInitial = workspace.name.trim()?.[0]?.toUpperCase() || "W";
 
             return (
-              <div key={session.id} className="relative">
-                {isMenuOpen && (
-                  <div
-                    ref={menuRef}
-                    className="absolute right-0 top-full z-50 mt-1 w-40 rounded-xl border border-border bg-background shadow-lg py-1"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleStartRename(session.id, session.title)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                      Rename
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteSession(session.id, session.title)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 transition hover:bg-red-500/10 dark:text-red-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  title={session.title}
-                  onClick={() => onOpenSession(session.id)}
+              <div key={workspace.id} className={cn("rounded-2xl", !leftPaneCollapsed && "border border-border/60 bg-background/35 p-1.5")}>
+                <div
                   className={cn(
-                    "group flex w-full items-center justify-between gap-2 rounded-2xl border text-left transition-all",
-                    active ? "border-primary bg-primary/10 shadow-sm" : "border-transparent hover:border-border hover:bg-muted/70",
-                    leftPaneCollapsed ? "h-12 px-0 py-0 justify-center" : "px-3 py-3",
+                    "group flex w-full items-center rounded-xl transition-all",
+                    workspaceActive ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                    leftPaneCollapsed ? "h-12 justify-center" : "pr-1",
                   )}
                 >
-                  {leftPaneCollapsed ? (
-                    <div
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-xl text-xs font-semibold",
-                        active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:text-foreground",
-                      )}
-                    >
-                      {initial}
-                    </div>
-                  ) : isRenaming ? (
-                    <input
-                      type="text"
-                      value={renameInputValue}
-                      onChange={(e) => setRenameInputValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleRenameSubmit(session.id);
-                        } else if (e.key === "Escape") {
-                          handleRenameCancel();
-                        }
-                      }}
-                      className="flex-1 rounded-lg border border-primary bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary"
-                      autoFocus
-                    />
-                  ) : (
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{session.title}</div>
-                      <div className="mt-1 truncate text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(session.updatedAt), { addSuffix: true })} · {session.status}
+                  <button
+                    type="button"
+                    title={workspace.root ?? workspace.name}
+                    onClick={() => leftPaneCollapsed ? onOpenSession(workspace.sessions[0].id) : toggleWorkspace(workspace.id)}
+                    className={cn(
+                      "flex min-w-0 flex-1 items-center gap-2 rounded-xl text-left",
+                      leftPaneCollapsed ? "h-12 justify-center" : "px-2.5 py-2",
+                    )}
+                  >
+                    {leftPaneCollapsed ? (
+                      <div
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-xl text-xs font-semibold",
+                          workspaceActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:text-foreground",
+                        )}
+                      >
+                        {workspaceInitial}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <>
+                        <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", workspaceCollapsed && "-rotate-90")} />
+                        <Folder className={cn("h-4 w-4 shrink-0", workspaceActive ? "text-primary" : "text-muted-foreground")} />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold">{workspace.name}</div>
+                          <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                            {workspace.sessions.length} {workspace.sessions.length === 1 ? "session" : "sessions"}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </button>
 
-                  {isRenaming ? (
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleRenameSubmit(session.id)}
-                        className="rounded-lg px-2 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRenameCancel}
-                        className="rounded-lg px-2 py-1 text-xs text-muted-foreground transition hover:bg-muted"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : !leftPaneCollapsed ? (
+                  {!leftPaneCollapsed ? (
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenMenuId(isMenuOpen ? null : session.id);
+                      title="Delete workspace"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDeleteWorkspace(workspace.id, workspace.name, workspace.sessions.length);
                       }}
-                      className="shrink-0 rounded-lg p-1.5 text-muted-foreground opacity-0 transition opacity group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+                      className="shrink-0 rounded-lg p-1.5 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
                     >
-                      <MoreHorizontal className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   ) : null}
-                </button>
+                </div>
+
+                {!leftPaneCollapsed && !workspaceCollapsed ? (
+                  <div className="mt-1 space-y-1 pl-5">
+                    {workspace.sessions.map((session) => {
+                      const active = currentSessionId === session.id;
+                      const isMenuOpen = openMenuId === session.id;
+                      const isRenaming = renameSessionId === session.id;
+
+                      return (
+                        <div key={session.id} className="relative">
+                          {isMenuOpen && (
+                            <div
+                              ref={menuRef}
+                              className="absolute right-0 top-full z-50 mt-1 w-40 rounded-xl border border-border bg-background py-1 shadow-lg"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleStartRename(session.id, session.title)}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                                Rename
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSession(session.id, session.title)}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 transition hover:bg-red-500/10 dark:text-red-400"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            title={session.title}
+                            onClick={() => onOpenSession(session.id)}
+                            className={cn(
+                              "group flex w-full items-center justify-between gap-2 rounded-xl border text-left transition-all",
+                              active ? "border-primary bg-primary/10 shadow-sm" : "border-transparent hover:border-border hover:bg-muted/70",
+                              "px-2.5 py-2.5",
+                            )}
+                          >
+                            {isRenaming ? (
+                              <input
+                                type="text"
+                                value={renameInputValue}
+                                onChange={(e) => setRenameInputValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    handleRenameSubmit(session.id);
+                                  } else if (e.key === "Escape") {
+                                    handleRenameCancel();
+                                  }
+                                }}
+                                className="flex-1 rounded-lg border border-primary bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                autoFocus
+                              />
+                            ) : (
+                              <div className="flex min-w-0 flex-1 items-center gap-2">
+                                <MessageSquare className={cn("h-3.5 w-3.5 shrink-0", active ? "text-primary" : "text-muted-foreground")} />
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-sm font-medium">{session.title}</div>
+                                  <div className="mt-1 truncate text-xs text-muted-foreground">
+                                    {formatDistanceToNow(new Date(session.updatedAt), { addSuffix: true })} · {session.status}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {isRenaming ? (
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRenameSubmit(session.id)}
+                                  className="rounded-lg px-2 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleRenameCancel}
+                                  className="rounded-lg px-2 py-1 text-xs text-muted-foreground transition hover:bg-muted"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(isMenuOpen ? null : session.id);
+                                }}
+                                className="shrink-0 rounded-lg p-1.5 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </button>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
             );
           })}
@@ -262,6 +345,64 @@ export function SessionsSidebar({
       onCancel={() => setDeleteConfirm(null)}
       onConfirm={handleDeleteConfirm}
     />
+    <ConfirmDialog
+      open={!!deleteWorkspaceConfirm}
+      title="Delete Workspace"
+      message={deleteWorkspaceConfirm ? `Are you sure you want to delete workspace "${deleteWorkspaceConfirm.workspaceName}" and its ${deleteWorkspaceConfirm.sessionCount} ${deleteWorkspaceConfirm.sessionCount === 1 ? "session" : "sessions"}? This action cannot be undone.` : ""}
+      confirmLabel="Delete Workspace"
+      cancelLabel="Cancel"
+      confirmVariant="danger"
+      onCancel={() => setDeleteWorkspaceConfirm(null)}
+      onConfirm={handleDeleteWorkspaceConfirm}
+    />
     </>
   );
+}
+
+type WorkspaceSessionGroup = {
+  id: string;
+  name: string;
+  root?: string;
+  updatedAt: string;
+  sessions: AgentSession[];
+};
+
+function groupSessionsByWorkspace(sessions: AgentSession[]): WorkspaceSessionGroup[] {
+  const groups = new Map<string, WorkspaceSessionGroup>();
+
+  for (const session of sessions) {
+    if (!session.workspaceId) {
+      continue;
+    }
+
+    const workspaceId = session.workspaceId;
+    const workspaceName = session.workspaceName ?? deriveWorkspaceName(session.workspaceRoot) ?? "Workspace";
+    const existing = groups.get(workspaceId);
+
+    if (existing) {
+      existing.sessions.push(session);
+      if (new Date(session.updatedAt) > new Date(existing.updatedAt)) {
+        existing.updatedAt = session.updatedAt;
+      }
+      continue;
+    }
+
+    groups.set(workspaceId, {
+      id: workspaceId,
+      name: workspaceName,
+      root: session.workspaceRoot,
+      updatedAt: session.updatedAt,
+      sessions: [session],
+    });
+  }
+
+  return Array.from(groups.values()).sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
+}
+
+function deriveWorkspaceName(workspaceRoot?: string) {
+  if (!workspaceRoot) {
+    return undefined;
+  }
+
+  return workspaceRoot.split(/[\\/]/).filter(Boolean).at(-1);
 }
