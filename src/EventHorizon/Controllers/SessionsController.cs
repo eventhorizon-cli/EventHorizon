@@ -35,13 +35,6 @@ public sealed class SessionsController : ControllerBase
         return session is null ? NotFound() : Ok(session);
     }
 
-    [HttpPost]
-    public async Task<ActionResult<SessionSummaryDTO>> CreateAsync(CreateSessionRequestDTO request, CancellationToken cancellationToken)
-    {
-        var session = await _sessionService.CreateAsync(request, cancellationToken).ConfigureAwait(false);
-        return Created($"/api/sessions/{session.Id}", session);
-    }
-
     [HttpPatch("{sessionId}")]
     [ServiceFilter(typeof(SessionWorkspaceContextFilter))]
     public async Task<ActionResult<SessionSummaryDTO>> UpdateAsync(string sessionId, UpdateSessionRequestDTO request, CancellationToken cancellationToken)

@@ -3,9 +3,10 @@ import { formatDistanceToNow } from "date-fns";
 import { ChevronDown, Edit3, Folder, MessageSquare, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings2, Trash2 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
-import type { AgentSession } from "@/types";
+import type { AgentSession, AgentWorkspace } from "@/types";
 
 type SessionsSidebarProps = {
+  workspaces: AgentWorkspace[];
   sessions: AgentSession[];
   currentSessionId?: string;
   hasConfiguredProviders: boolean;
@@ -13,6 +14,7 @@ type SessionsSidebarProps = {
   isCompactLayout: boolean;
   onToggleCollapsed: () => void;
   onNewChat: () => void;
+  onCreateWorkspaceSession: (workspaceId: string) => void;
   onOpenSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
@@ -20,6 +22,7 @@ type SessionsSidebarProps = {
 };
 
 export function SessionsSidebar({
+  workspaces,
   sessions,
   currentSessionId,
   hasConfiguredProviders,
@@ -27,6 +30,7 @@ export function SessionsSidebar({
   isCompactLayout,
   onToggleCollapsed,
   onNewChat,
+  onCreateWorkspaceSession,
   onOpenSession,
   onDeleteSession,
   onDeleteWorkspace,
@@ -39,7 +43,7 @@ export function SessionsSidebar({
   const [deleteWorkspaceConfirm, setDeleteWorkspaceConfirm] = useState<{ workspaceId: string; workspaceName: string; sessionCount: number } | null>(null);
   const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
-  const workspaceGroups = groupSessionsByWorkspace(sessions);
+  const workspaceGroups = groupSessionsByWorkspace(workspaces, sessions);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -142,22 +146,22 @@ export function SessionsSidebar({
               "inline-flex items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm transition hover:opacity-90",
               leftPaneCollapsed ? "h-10 w-10" : "px-3 py-2 text-xs font-medium",
             )}
-            title={hasConfiguredProviders ? "New Session" : "Configure Provider"}
+            title={hasConfiguredProviders ? "New Workspace" : "Configure Provider"}
           >
-            {leftPaneCollapsed ? (hasConfiguredProviders ? <Plus className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />) : hasConfiguredProviders ? "New Session" : "Setup Provider"}
+            {leftPaneCollapsed ? (hasConfiguredProviders ? <Plus className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />) : hasConfiguredProviders ? "New Workspace" : "Setup Provider"}
           </button>
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {sessions.length === 0 ? (
+        {workspaces.length === 0 ? (
           <div
             className={cn(
               "rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground",
               leftPaneCollapsed && "p-2 text-center text-xs",
             )}
           >
-            {leftPaneCollapsed ? (hasConfiguredProviders ? "Empty" : "Setup") : hasConfiguredProviders ? "No sessions yet." : "Configure a provider to create your first session."}
+            {leftPaneCollapsed ? (hasConfiguredProviders ? "Empty" : "Setup") : hasConfiguredProviders ? "No workspaces yet." : "Configure a provider to create your first workspace."}
           </div>
         ) : null}
 
@@ -179,7 +183,18 @@ export function SessionsSidebar({
                   <button
                     type="button"
                     title={workspace.root ?? workspace.name}
-                    onClick={() => leftPaneCollapsed ? onOpenSession(workspace.sessions[0].id) : toggleWorkspace(workspace.id)}
+                    onClick={() => {
+                      if (!leftPaneCollapsed) {
+                        toggleWorkspace(workspace.id);
+                        return;
+                      }
+
+                      if (workspace.sessions[0]) {
+                        onOpenSession(workspace.sessions[0].id);
+                      } else {
+                        onCreateWorkspaceSession(workspace.id);
+                      }
+                    }}
                     className={cn(
                       "flex min-w-0 flex-1 items-center gap-2 rounded-xl text-left",
                       leftPaneCollapsed ? "h-12 justify-center" : "px-2.5 py-2",
@@ -209,22 +224,45 @@ export function SessionsSidebar({
                   </button>
 
                   {!leftPaneCollapsed ? (
-                    <button
-                      type="button"
-                      title="Delete workspace"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDeleteWorkspace(workspace.id, workspace.name, workspace.sessions.length);
-                      }}
-                      className="shrink-0 rounded-lg p-1.5 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                      <button
+                        type="button"
+                        title="New session"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onCreateWorkspaceSession(workspace.id);
+                        }}
+                        className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Delete workspace"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleDeleteWorkspace(workspace.id, workspace.name, workspace.sessions.length);
+                        }}
+                        className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   ) : null}
                 </div>
 
                 {!leftPaneCollapsed && !workspaceCollapsed ? (
                   <div className="mt-1 space-y-1 pl-5">
+                    {workspace.sessions.length === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => onCreateWorkspaceSession(workspace.id)}
+                        className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border px-2.5 py-2 text-left text-xs text-muted-foreground transition hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Create first session
+                      </button>
+                    ) : null}
                     {workspace.sessions.map((session) => {
                       const active = currentSessionId === session.id;
                       const isMenuOpen = openMenuId === session.id;
@@ -367,8 +405,18 @@ type WorkspaceSessionGroup = {
   sessions: AgentSession[];
 };
 
-function groupSessionsByWorkspace(sessions: AgentSession[]): WorkspaceSessionGroup[] {
+function groupSessionsByWorkspace(workspaces: AgentWorkspace[], sessions: AgentSession[]): WorkspaceSessionGroup[] {
   const groups = new Map<string, WorkspaceSessionGroup>();
+
+  for (const workspace of workspaces) {
+    groups.set(workspace.id, {
+      id: workspace.id,
+      name: workspace.name,
+      root: workspace.workspaceRoot,
+      updatedAt: workspace.updatedAt,
+      sessions: [],
+    });
+  }
 
   for (const session of sessions) {
     if (!session.workspaceId) {

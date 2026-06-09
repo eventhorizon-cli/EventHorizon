@@ -109,6 +109,15 @@ export type AgentSession = {
   workspaceRoot?: string;
 };
 
+export type AgentWorkspace = {
+  id: string;
+  name: string;
+  workspaceRoot: string;
+  createdAt: string;
+  updatedAt: string;
+  sessionCount: number;
+};
+
 export type ChatMessage = {
   id: string;
   sessionId: string;

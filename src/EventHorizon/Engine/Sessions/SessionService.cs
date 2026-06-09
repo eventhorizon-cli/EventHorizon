@@ -34,6 +34,11 @@ public sealed class SessionService : ISessionService
             .Select(MapSummary)
             .ToArray();
 
+    public async Task<IReadOnlyList<WorkspaceSummaryDTO>> ListWorkspacesAsync(CancellationToken cancellationToken)
+        => (await _sessionStore.ListWorkspacesAsync(cancellationToken).ConfigureAwait(false))
+            .Select(MapWorkspaceSummary)
+            .ToArray();
+
     public async Task<SessionDetailDTO?> GetAsync(string sessionId, CancellationToken cancellationToken)
     {
         var document = await _sessionStore.LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
@@ -56,10 +61,38 @@ public sealed class SessionService : ISessionService
     public Task<SessionDocument?> GetDocumentAsync(string sessionId, CancellationToken cancellationToken)
         => _sessionStore.LoadAsync(sessionId, cancellationToken);
 
-    public async Task<SessionSummaryDTO> CreateAsync(CreateSessionRequestDTO request, CancellationToken cancellationToken)
+    public async Task<WorkspaceSummaryDTO> CreateWorkspaceAsync(CreateWorkspaceRequestDTO request, CancellationToken cancellationToken)
     {
+        var workspaceRoot = ResolveWorkspaceRoot(request.WorkspaceRoot);
+        Directory.CreateDirectory(workspaceRoot);
+        var now = DateTimeOffset.UtcNow;
+        var workspace = new WorkspaceDocument
+        {
+            Name = BuildWorkspaceName(workspaceRoot),
+            WorkspaceRoot = workspaceRoot,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+
+        await _sessionStore.SaveWorkspaceAsync(workspace, cancellationToken).ConfigureAwait(false);
+        return MapWorkspaceSummary(workspace);
+    }
+
+    public async Task<SessionSummaryDTO?> CreateWorkspaceSessionAsync(string workspaceId, CreateWorkspaceSessionRequestDTO request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceId))
+        {
+            return null;
+        }
+
+        var workspace = await _sessionStore.LoadWorkspaceAsync(workspaceId.Trim(), cancellationToken).ConfigureAwait(false);
+        if (workspace is null)
+        {
+            return null;
+        }
+
+        Directory.CreateDirectory(workspace.WorkspaceRoot);
         var initialMessage = request.InitialMessage?.Trim();
-        var workspace = await ResolveOrCreateWorkspaceAsync(request.WorkspaceId, request.WorkspaceRoot, cancellationToken).ConfigureAwait(false);
         var document = CreateSessionDocument(initialMessage, workspace, request.ProviderName, request.Model);
         workspace.SessionIds.RemoveAll(id => string.Equals(id, document.Id, StringComparison.OrdinalIgnoreCase));
         workspace.SessionIds.Add(document.Id);
@@ -110,6 +143,17 @@ public sealed class SessionService : ISessionService
         }
 
         _sessionStore.Delete(sessionId, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(document.WorkspaceId))
+        {
+            var workspace = await _sessionStore.LoadWorkspaceAsync(document.WorkspaceId, cancellationToken).ConfigureAwait(false);
+            if (workspace is not null)
+            {
+                workspace.SessionIds.RemoveAll(id => string.Equals(id, sessionId, StringComparison.OrdinalIgnoreCase));
+                workspace.UpdatedAt = DateTimeOffset.UtcNow;
+                await _sessionStore.SaveWorkspaceAsync(workspace, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         _agentManager.Invalidate(sessionId, cancellationToken);
         return true;
     }
@@ -271,30 +315,6 @@ public sealed class SessionService : ISessionService
         return document;
     }
 
-    private async Task<WorkspaceDocument> ResolveOrCreateWorkspaceAsync(string? workspaceId, string? requestedWorkspaceRoot, CancellationToken cancellationToken)
-    {
-        if (!string.IsNullOrWhiteSpace(workspaceId))
-        {
-            var existing = await _sessionStore.LoadWorkspaceAsync(workspaceId.Trim(), cancellationToken).ConfigureAwait(false);
-            if (existing is not null)
-            {
-                Directory.CreateDirectory(existing.WorkspaceRoot);
-                return existing;
-            }
-        }
-
-        var workspaceRoot = ResolveWorkspaceRoot(requestedWorkspaceRoot);
-        Directory.CreateDirectory(workspaceRoot);
-        var now = DateTimeOffset.UtcNow;
-        return new WorkspaceDocument
-        {
-            Name = BuildWorkspaceName(workspaceRoot),
-            WorkspaceRoot = workspaceRoot,
-            CreatedAt = now,
-            UpdatedAt = now,
-        };
-    }
-
     private string ResolveWorkspaceRoot(string? requestedWorkspaceRoot)
     {
         var baseWorkspaceRoot = _workspaceContextAccessor.WorkspaceContext.WorkspaceRoot;
@@ -355,6 +375,15 @@ public sealed class SessionService : ISessionService
             summary.WorkspaceId,
             summary.WorkspaceName,
             summary.WorkspaceRoot);
+
+    private static WorkspaceSummaryDTO MapWorkspaceSummary(WorkspaceDocument workspace)
+        => new(
+            workspace.Id,
+            workspace.Name,
+            workspace.WorkspaceRoot,
+            workspace.CreatedAt,
+            workspace.UpdatedAt,
+            workspace.SessionIds.Count);
 
     private static SessionSummaryDTO MapSummary(SessionDocument document)
         => MapSummary(document, workspace: null);

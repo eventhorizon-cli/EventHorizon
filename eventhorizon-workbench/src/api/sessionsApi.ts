@@ -1,5 +1,5 @@
 import { apiRequest } from "@/api/client";
-import type { AgentSession, AgentSessionDetail, DirectoryItem, DirectoryListing, SessionModelSelection } from "@/types";
+import type { AgentSession, AgentSessionDetail, AgentWorkspace, DirectoryItem, DirectoryListing, SessionModelSelection } from "@/types";
 
 type SessionPayload = {
   id: string;
@@ -23,6 +23,15 @@ type SessionPayload = {
 type SessionDetailPayload = SessionPayload & {
   messages?: AgentSessionDetail["messages"];
   workspaceSkills?: AgentSessionDetail["workspaceSkills"];
+};
+
+type WorkspacePayload = {
+  id: string;
+  name: string;
+  workspaceRoot: string;
+  createdAt: string;
+  updatedAt: string;
+  sessionCount: number;
 };
 
 function mapSession(payload: SessionPayload): AgentSession {
@@ -50,6 +59,22 @@ export async function getSessions(): Promise<AgentSession[]> {
   return payload.map(mapSession);
 }
 
+function mapWorkspace(payload: WorkspacePayload): AgentWorkspace {
+  return {
+    id: payload.id,
+    name: payload.name,
+    workspaceRoot: payload.workspaceRoot,
+    createdAt: payload.createdAt,
+    updatedAt: payload.updatedAt,
+    sessionCount: payload.sessionCount,
+  };
+}
+
+export async function getWorkspaces(): Promise<AgentWorkspace[]> {
+  const payload = await apiRequest<WorkspacePayload[]>("/api/workspaces");
+  return payload.map(mapWorkspace);
+}
+
 export async function getDirectories(path?: string): Promise<DirectoryListing> {
   const params = path ? new URLSearchParams({ path }) : undefined;
   const url = path ? `/api/sessions/directories?${params}` : "/api/sessions/directories";
@@ -66,17 +91,31 @@ export async function createDirectory(input: {
   });
 }
 
-export async function createSession(input: {
-  initialMessage?: string;
-  workspaceId?: string;
+export async function createWorkspace(input: {
   workspaceRoot?: string;
+}): Promise<AgentWorkspace> {
+  return mapWorkspace(
+    await apiRequest<WorkspacePayload>("/api/workspaces", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  );
+}
+
+export async function createSession(input: {
+  workspaceId: string;
+  initialMessage?: string;
   providerName?: string;
   model?: string;
 }): Promise<AgentSession> {
   return mapSession(
-    await apiRequest<SessionPayload>("/api/sessions", {
+    await apiRequest<SessionPayload>(`/api/workspaces/${encodeURIComponent(input.workspaceId)}/sessions`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        initialMessage: input.initialMessage,
+        providerName: input.providerName,
+        model: input.model,
+      }),
     }),
   );
 }

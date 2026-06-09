@@ -4,10 +4,12 @@ import { getConfiguration, importSkillToTarget, removeGlobalSkill, removeSession
 import { getChanges, getFileDiff } from "@/api/diffApi";
 import {
   createSession,
+  createWorkspace,
   deleteWorkspace,
   deleteSession,
   getSession,
   getSessions,
+  getWorkspaces,
   updateSession,
   updateSessionModel,
 } from "@/api/sessionsApi";
@@ -73,6 +75,7 @@ function mapRunStatusToPhase(status: AgentRun["status"]) {
 export function useWorkbenchApp() {
   const {
     sessions,
+    workspaces,
     currentSession,
     currentRun,
     phase,
@@ -84,6 +87,7 @@ export function useWorkbenchApp() {
     logs,
     themeMode,
     setSessions,
+    setWorkspaces,
     setCurrentSession,
     setCurrentRun,
     setPhase,
@@ -245,7 +249,8 @@ export function useWorkbenchApp() {
   }, [setChanges, setContextView, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
 
   const refreshSessions = useCallback(async () => {
-    const list = await getSessions();
+    const [workspaceList, list] = await Promise.all([getWorkspaces(), getSessions()]);
+    setWorkspaces(workspaceList);
     setSessions(list);
 
     if (!didAutoOpenInitialSessionRef.current) {
@@ -255,9 +260,9 @@ export function useWorkbenchApp() {
         await openSession(list[0].id);
       }
     }
-  }, [currentSessionId, openSession, setSessions]);
+  }, [currentSessionId, openSession, setSessions, setWorkspaces]);
 
-  const handleConfirmCreateSession = useCallback(async (selectedPath: string) => {
+  const handleConfirmCreateWorkspace = useCallback(async (selectedPath: string) => {
     if (!hasConfiguredProviders) {
       openProviderSetup();
       return;
@@ -267,12 +272,13 @@ export function useWorkbenchApp() {
     eventSubscriptionRef.current = null;
 
     try {
-      const created = await createSession(currentSession?.workspaceId ? { workspaceId: currentSession.workspaceId } : { workspaceRoot: selectedPath });
+      const workspace = await createWorkspace({ workspaceRoot: selectedPath });
+      const created = await createSession({ workspaceId: workspace.id });
       const detail = await getSession(created.id);
       setCurrentSession(detail);
       await refreshSessions();
     } catch (error) {
-      console.error("Failed to create session:", error);
+      console.error("Failed to create workspace:", error);
     }
 
     setCurrentRun(undefined);
@@ -283,7 +289,7 @@ export function useWorkbenchApp() {
     setComposerValue("");
   }, [hasConfiguredProviders, openProviderSetup, refreshSessions, setChanges, setContextView, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
 
-  const workspaceDirectoryPicker = useDirectoryPicker({ onConfirm: handleConfirmCreateSession });
+  const workspaceDirectoryPicker = useDirectoryPicker({ onConfirm: handleConfirmCreateWorkspace });
   const skillDirectoryPicker = useDirectoryPicker({
     initialPath: skillImportPath.trim() || configurationDraft?.skills.storagePath,
     onConfirm: (path) => setSkillImportPath(path),
@@ -429,6 +435,32 @@ export function useWorkbenchApp() {
     void workspaceDirectoryPicker.openPicker();
   }, [hasConfiguredProviders, openProviderSetup, workspaceDirectoryPicker]);
 
+  const handleCreateWorkspaceSession = useCallback(async (workspaceId: string) => {
+    if (!hasConfiguredProviders) {
+      openProviderSetup();
+      return;
+    }
+
+    eventSubscriptionRef.current?.();
+    eventSubscriptionRef.current = null;
+
+    try {
+      const created = await createSession({ workspaceId });
+      const detail = await getSession(created.id);
+      setCurrentSession(detail);
+      await refreshSessions();
+    } catch (error) {
+      console.error("Failed to create session:", error);
+    }
+
+    setCurrentRun(undefined);
+    setCurrentDiff(undefined);
+    setSelectedFile(undefined);
+    setChanges([]);
+    setContextView("overview");
+    setComposerValue("");
+  }, [hasConfiguredProviders, openProviderSetup, refreshSessions, setChanges, setContextView, setCurrentDiff, setCurrentRun, setCurrentSession, setSelectedFile]);
+
 
   useEffect(() => {
     if (
@@ -438,7 +470,7 @@ export function useWorkbenchApp() {
       || !!configurationError
       || !configuration
       || hasConfiguredProviders
-      || sessions.length > 0
+      || workspaces.length > 0
       || !!currentSessionId
     ) {
       return;
@@ -446,7 +478,7 @@ export function useWorkbenchApp() {
 
     didAutoOpenProviderSetupRef.current = true;
     openProviderSetup();
-  }, [configuration, configurationError, currentSessionId, hasConfiguredProviders, isLoadingConfiguration, openProviderSetup, sessions.length]);
+  }, [configuration, configurationError, currentSessionId, hasConfiguredProviders, isLoadingConfiguration, openProviderSetup, workspaces.length]);
 
   const handleSubmit = useCallback(async () => {
     const task = composerValue.trim();
@@ -460,7 +492,7 @@ export function useWorkbenchApp() {
     }
 
     if (!currentSession || currentSession.id.startsWith("draft_")) {
-      await workspaceDirectoryPicker.openPicker();
+      handleNewChat();
       return;
     }
 
@@ -491,7 +523,7 @@ export function useWorkbenchApp() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [addUserMessage, composerValue, currentSession, hasConfiguredModels, hasConfiguredProviders, isSubmitting, openProviderSetup, openSettings, setChanges, setConnectionStatus, setCurrentDiff, setCurrentRun, setPhase, setSelectedFile, subscribeToRun, workspaceDirectoryPicker]);
+  }, [addUserMessage, composerValue, currentSession, handleNewChat, hasConfiguredModels, hasConfiguredProviders, isSubmitting, openProviderSetup, openSettings, setChanges, setConnectionStatus, setCurrentDiff, setCurrentRun, setPhase, setSelectedFile, subscribeToRun]);
 
   const handleCancel = useCallback(async () => {
     if (currentRun) {
@@ -1180,6 +1212,7 @@ export function useWorkbenchApp() {
 
   return {
     sessions,
+    workspaces,
     currentSession,
     currentRun,
     phase,
@@ -1240,6 +1273,7 @@ export function useWorkbenchApp() {
     toggleLeftPaneCollapsed,
     openSession,
     handleNewChat,
+    handleCreateWorkspaceSession,
     handleSubmit,
     handleCancel,
     openDiff,

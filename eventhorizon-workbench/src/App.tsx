@@ -17,6 +17,7 @@ export default function App() {
 
       <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
         <SessionsSidebar
+          workspaces={app.workspaces}
           sessions={app.sessions}
           currentSessionId={app.currentSession?.id}
           hasConfiguredProviders={app.hasConfiguredProviders}
@@ -24,6 +25,7 @@ export default function App() {
           isCompactLayout={app.isCompactLayout}
           onToggleCollapsed={app.toggleLeftPaneCollapsed}
           onNewChat={app.handleNewChat}
+          onCreateWorkspaceSession={(workspaceId) => void app.handleCreateWorkspaceSession(workspaceId)}
           onOpenSession={(sessionId) => void app.openSession(sessionId)}
           onDeleteSession={(sessionId) => void app.handleDeleteSession(sessionId)}
           onDeleteWorkspace={(workspaceId) => void app.handleDeleteWorkspace(workspaceId)}
@@ -118,7 +120,7 @@ export default function App() {
       <DirectoryPickerDialog
         open={app.workspaceDirectoryPicker.open}
         title="Select Workspace Directory"
-        confirmLabel="Create Session"
+        confirmLabel="Create Workspace"
         zIndexClassName="z-50"
         currentPath={app.workspaceDirectoryPicker.currentPath}
         selectedPath={app.workspaceDirectoryPicker.selectedPath}

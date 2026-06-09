@@ -6,11 +6,15 @@ public interface ISessionService
 {
     Task<IReadOnlyList<SessionSummaryDTO>> ListAsync(CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<WorkspaceSummaryDTO>> ListWorkspacesAsync(CancellationToken cancellationToken);
+
     Task<SessionDetailDTO?> GetAsync(string sessionId, CancellationToken cancellationToken);
 
     Task<SessionDocument?> GetDocumentAsync(string sessionId, CancellationToken cancellationToken);
 
-    Task<SessionSummaryDTO> CreateAsync(CreateSessionRequestDTO request, CancellationToken cancellationToken);
+    Task<WorkspaceSummaryDTO> CreateWorkspaceAsync(CreateWorkspaceRequestDTO request, CancellationToken cancellationToken);
+
+    Task<SessionSummaryDTO?> CreateWorkspaceSessionAsync(string workspaceId, CreateWorkspaceSessionRequestDTO request, CancellationToken cancellationToken);
 
     Task<SessionSummaryDTO?> UpdateAsync(string sessionId, UpdateSessionRequestDTO request, CancellationToken cancellationToken);
 

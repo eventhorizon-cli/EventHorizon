@@ -5,6 +5,7 @@ import type {
   AgentRun,
   AgentSession,
   AgentSessionDetail,
+  AgentWorkspace,
   ConnectionStatus,
   ContextView,
   FileChange,
@@ -16,6 +17,7 @@ import type {
 
 export type WorkbenchState = {
   sessions: AgentSession[];
+  workspaces: AgentWorkspace[];
   currentSession?: AgentSessionDetail;
   currentRun?: AgentRun;
   phase: AgentPhase;
@@ -28,6 +30,7 @@ export type WorkbenchState = {
   logs: LogItem[];
   themeMode: ThemeMode;
   setSessions: (sessions: AgentSession[]) => void;
+  setWorkspaces: (workspaces: AgentWorkspace[]) => void;
   setCurrentSession: (session?: AgentSessionDetail) => void;
   setCurrentRun: (run?: AgentRun) => void;
   setPhase: (phase: AgentPhase) => void;
@@ -115,6 +118,7 @@ function logSummary(event: AgentEvent) {
 
 export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   sessions: [],
+  workspaces: [],
   phase: "idle",
   connectionStatus: "connecting",
   contextView: "overview",
@@ -123,6 +127,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   logs: [],
   themeMode: (localStorage.getItem(themeStorageKey) as ThemeMode | null) ?? "system",
   setSessions: (sessions) => set({ sessions }),
+  setWorkspaces: (workspaces) => set({ workspaces }),
   setCurrentSession: (currentSession) => set({ currentSession }),
   setCurrentRun: (currentRun) => set({ currentRun }),
   setPhase: (phase) => set({ phase }),
