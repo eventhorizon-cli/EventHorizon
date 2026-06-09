@@ -16,7 +16,7 @@ internal sealed class SessionAgentManager : ISessionAgentManager, IAsyncDisposab
     private readonly IEventHorizonRuntime _runtime;
     private readonly ISkillProviderFactory _skillProviderFactory;
     private readonly ISessionSerializer _sessionSerializer;
-    private readonly IServiceProvider _services;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SessionAgentManager> _logger;
     private readonly ConcurrentDictionary<string, CachedSessionAgent> _cache = new(StringComparer.Ordinal);
 
@@ -27,7 +27,7 @@ internal sealed class SessionAgentManager : ISessionAgentManager, IAsyncDisposab
         IEventHorizonRuntime runtime,
         ISkillProviderFactory skillProviderFactory,
         ISessionSerializer sessionSerializer,
-        IServiceProvider services,
+        IServiceProvider serviceServiceProvider,
         ILogger<SessionAgentManager> logger)
     {
         _agentOptionsMonitor = agentOptionsMonitor;
@@ -36,7 +36,7 @@ internal sealed class SessionAgentManager : ISessionAgentManager, IAsyncDisposab
         _runtime = runtime;
         _skillProviderFactory = skillProviderFactory;
         _sessionSerializer = sessionSerializer;
-        _services = services;
+        _serviceProvider = serviceServiceProvider;
         _logger = logger;
     }
 
@@ -61,7 +61,7 @@ internal sealed class SessionAgentManager : ISessionAgentManager, IAsyncDisposab
         var resolved = _providerResolutionService.TryResolveForSession(document)
                        ?? throw new InvalidOperationException("No provider is configured for the current session.");
         var agentOptions = _agentOptionsMonitor.CurrentValue;
-        var skillsProvider = _skillProviderFactory.Create(agentOptions, _services, document);
+        var skillsProvider = _skillProviderFactory.Create(agentOptions, _serviceProvider, document);
         var instructions = await _runtime.GetInstructionsAsync(cancellationToken).ConfigureAwait(false);
         var tools = await _runtime.GetToolsAsync(cancellationToken).ConfigureAwait(false);
         ShellSessionResources? shellResources = null;
@@ -90,7 +90,7 @@ internal sealed class SessionAgentManager : ISessionAgentManager, IAsyncDisposab
                 instructions,
                 sessionTools,
                 contextProviders,
-                _services);
+                _serviceProvider);
 
             var session = RestoreSession(document) ??
                           await agent.CreateSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
